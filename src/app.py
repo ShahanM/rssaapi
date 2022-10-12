@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import FastAPI, Depends, Body
+from fastapi import FastAPI, Depends, Body, APIRouter
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from data.database import SessionLocal, engine
@@ -15,6 +15,8 @@ origins = [
     "http://localhost",
     "http://localhost:3000",
 ]
+
+prefix_router = APIRouter(prefix="newrs/api/v1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,13 +39,13 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.get("/data/all")
+@app.get("/data/all/")
 async def get_data_zip():
     return FileResponse('datafiles/rssa_all.zip', \
             media_type='application/octet-stream',\
             filename='data/rssa_all.zip')
 
-@app.get("/movies/", response_model=List[MovieSchema])
+@prefix_router.get("/movies/", response_model=List[MovieSchema])
 async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     movies = get_movies(db, skip=skip, limit=limit)
     return movies
