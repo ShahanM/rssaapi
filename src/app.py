@@ -8,7 +8,7 @@ from data.movies import get_movies, get_movie, get_movies_by_ids
 from fastapi.middleware.cors import CORSMiddleware
 from compute.rssa import RSSACompute
 
-app = FastAPI()
+app = FastAPI(root_path='/newrs/api/v1')
 rssa = RSSACompute()
 
 origins = [
@@ -16,7 +16,6 @@ origins = [
     "http://localhost:3000",
 ]
 
-prefix_router = APIRouter(prefix="newrs/api/v1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,7 +44,7 @@ async def get_data_zip():
             media_type='application/octet-stream',\
             filename='data/rssa_all.zip')
 
-@prefix_router.get("/movies/", response_model=List[MovieSchema])
+@app.get("/movies/", response_model=List[MovieSchema])
 async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     movies = get_movies(db, skip=skip, limit=limit)
     return movies
