@@ -51,8 +51,9 @@ async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get
 
 @app.post("/recommendation/", response_model=List[MovieSchema])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_db)):
-    recs = rssa.predict_user_topN(rated_movies.ratings, rated_movies.user_id, 10)
+    recs = rssa.get_condition_prediction(rated_movies.ratings, \
+            rated_movies.user_id, rated_movies.rec_type, rated_movies.numRec)
+    # recs = rssa.predict_user_topN(rated_movies.ratings, rated_movies.user_id, 10)
     movies = get_movies_by_ids(db, recs)
     
     return movies
-

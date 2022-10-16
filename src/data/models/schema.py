@@ -41,6 +41,8 @@ class RatedItemSchema(BaseModel):
 class RatingsSchema(BaseModel):
 	user_id: int
 	ratings: List[RatedItemSchema]
+	rec_type: int
+	numRec: int = 10
 
 	class Config:
 		orm_mode = True

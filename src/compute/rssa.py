@@ -27,23 +27,17 @@ class RSSACompute:
 
 		self.ave_item_score = pd.read_csv(self.data_path + 'averaged_item_score_implicitMF.csv')
 
-
-	def get_condition_prediction(self, ratings: List[RatedItemSchema], user_id, condition, numRec=10):
-		conditional_foo = {
+		self.prediction_functions = {
+			0: self.predict_user_topN,
 			1: self.predict_user_controversial_items,
 			2: self.predict_user_hate_items,
 			3: self.predict_user_hip_items,
 			4: self.predict_user_no_clue_items
 		}
-		if condition == 0:
-			topN = self.predict_user_topN(ratings, user_id, numRec*2)
-			left = topN[:numRec]
-			right = topN[numRec:]
-		else:
-			left = self.predict_user_topN(ratings, user_id, numRec)
-			right = conditional_foo[condition](ratings, user_id, numRec)
 
-		return left, right
+
+	def get_condition_prediction(self, ratings: List[RatedItemSchema], user_id, condition, numRec=10):
+		return self.prediction_functions[condition](ratings, user_id, numRec)
 			
 
 	def get_predictions(self, ratings: List[RatedItemSchema], user_id) -> pd.DataFrame:
