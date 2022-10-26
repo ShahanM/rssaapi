@@ -18,14 +18,18 @@ class Preference:
 
 
 class RSSACompute:
-	def __init__(self):
-		self.data_path = 'algs/data/'
-		self.item_popularity = pd.read_csv(self.data_path + 'item_popularity.csv')    
-		
-		self.model_path = 'algs/models/'
-		self.trained_model = RSSA.import_trained_model(self.model_path)
+	def __init__(self, trained_model, item_popularity, ave_item_score):
+		self.trained_model = trained_model
+		self.item_popularity = item_popularity
+		self.ave_item_score = ave_item_score
 
-		self.ave_item_score = pd.read_csv(self.data_path + 'averaged_item_score_implicitMF.csv')
+		# self.data_path = 'algs/data/'
+		# self.item_popularity = pd.read_csv(self.data_path + 'item_popularity.csv')    
+		
+		# self.model_path = 'algs/models/'
+		# self.trained_model = RSSA.import_trained_model(self.model_path)
+
+		# self.ave_item_score = pd.read_csv(self.data_path + 'averaged_item_score_implicitMF.csv')
 
 		self.prediction_functions = {
 			0: self.predict_user_topN,
