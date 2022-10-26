@@ -17,14 +17,17 @@ app = FastAPI()
 
 rssa_itm_pop, rssa_ave_scores = get_rssa_data()
 rssa_model = get_rssa_model()
-rssa = RSSACompute(rssa_itm_pop, rssa_ave_scores, rssa_model)
+rssa = RSSACompute(rssa_model, rssa_itm_pop, rssa_ave_scores)
 
 cybered_itm_pop, cybered_ave_scores = get_cybered_data()
 cybered_model = get_cybered_model()
-cybered = RSSACompute(cybered_itm_pop, cybered_ave_scores, cybered_model) 
+cybered = RSSACompute(cybered_model, cybered_itm_pop, cybered_ave_scores) 
 
 origins = [
-    "https://cybered.recsys.dev/*"
+    "https://cybered.recsys.dev",
+    "https://cybered.recsys.dev/*",
+    "http://localhost:3000",
+    "http://localhost:3000/*",
 ]
 
 app.add_middleware(
