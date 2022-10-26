@@ -24,8 +24,7 @@ cybered_model = get_cybered_model()
 cybered = RSSACompute(cybered_itm_pop, cybered_ave_scores, cybered_model) 
 
 origins = [
-    "http://localhost",
-    "http://localhost:3000",
+    "https://cybered.recsys.dev/*"
 ]
 
 app.add_middleware(
