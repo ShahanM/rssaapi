@@ -18,8 +18,7 @@ class Preference:
 
 
 class RSSACompute:
-	def __init__(self, trained_model, item_popularity, ave_item_score):
-		self.trained_model = trained_model
+	def __init__(self, model_path, item_popularity, ave_item_score):
 		self.item_popularity = item_popularity
 		self.ave_item_score = ave_item_score
 
@@ -27,7 +26,8 @@ class RSSACompute:
 		# self.item_popularity = pd.read_csv(self.data_path + 'item_popularity.csv')    
 		
 		# self.model_path = 'algs/models/'
-		# self.trained_model = RSSA.import_trained_model(self.model_path)
+		self.model_path = model_path
+		self.trained_model = RSSA.import_trained_model(self.model_path)
 
 		# self.ave_item_score = pd.read_csv(self.data_path + 'averaged_item_score_implicitMF.csv')
 
@@ -60,12 +60,12 @@ class RSSACompute:
 
 
 	def predict_user_topN(self, ratings: List[RatedItemSchema], user_id, numRec=10) -> List[Preference]:
-		# numRec = 10
 		RSSA_preds_noRatedItems = self.get_predictions(ratings, user_id)
 		# ['item', 'score', 'count', 'rank', 'discounted_score']
 		
 		discounted_preds_sorted = RSSA_preds_noRatedItems.sort_values(by = 'discounted_score', ascending = False)
 		recs_topN_discounted = discounted_preds_sorted.head(numRec)
+		# print(recs_topN_discounted)
 
 		return list(map(str, recs_topN_discounted['item']))
 

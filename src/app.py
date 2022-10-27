@@ -16,12 +16,12 @@ rssa = RSSACompute()
 app = FastAPI()
 
 rssa_itm_pop, rssa_ave_scores = get_rssa_data()
-rssa_model = get_rssa_model()
-rssa = RSSACompute(rssa_model, rssa_itm_pop, rssa_ave_scores)
+rssa_model_path = get_rssa_model_path()
+rssa = RSSACompute(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
 
 cybered_itm_pop, cybered_ave_scores = get_cybered_data()
-cybered_model = get_cybered_model()
-cybered = RSSACompute(cybered_model, cybered_itm_pop, cybered_ave_scores) 
+cybered_model_path = get_cybered_model_path()
+cybered = RSSACompute(cybered_model_path, cybered_itm_pop, cybered_ave_scores) 
 
 origins = [
     "https://cybered.recsys.dev",

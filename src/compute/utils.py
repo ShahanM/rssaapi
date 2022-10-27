@@ -10,10 +10,9 @@ def get_rssa_data():
 
 	return item_popularity, ave_item_score
 
-def get_rssa_model():
-	trained_model = rssa.import_trained_model('algs/models/rssa/')
+def get_rssa_model_path():
 
-	return trained_model
+	return 'algs/models/rssa/'
 
 def get_cybered_data():
 	item_popularity = pd.read_csv('algs/data/cybered/item_popularity.csv')   
@@ -21,8 +20,7 @@ def get_cybered_data():
 
 	return item_popularity, ave_item_score
 
-def get_cybered_model():
+def get_cybered_model_path():
 	model_path = os.path.join('algs', 'models/cybered/')
-	trained_model = rssa.import_trained_model(model_path)
 
-	return trained_model
+	return model_path
