@@ -37,6 +37,9 @@ def RSSA_live_prediction(algo, liveUserID, new_ratings, item_popularity):
     while highest_count/(10 ** digit) > 1:
         digit = digit + 1
     denominator = 10 ** digit
+    # countstr = str(highest_count)
+    # mydenom = int(countstr[0] + '0' * (len(countstr) - 1))
+    # print(mydenom)
     # print(denominator)
     
     a = 0.5 ## updated Jul. 6, 2021
@@ -86,13 +89,11 @@ def high_std(model_path, liveUserID, new_ratings, item_popularity):
     # numpy.nanstd
     # Compute the standard deviation along the specified axis, while ignoring NaNs.
     preds_only_df = all_items_resampled_preds_df.drop(columns=['item'])
-        # preds_only_df = all_items_resampled_preds_df.drop(['item'], axis=1)
     all_items_resampled_preds_df['std'] = np.nanstd(preds_only_df, axis = 1)
         # Compute the arithmetic std along the specified axis, ignoring NaNs.
         # axis = 1 horizontlely
         # axis = 0 vertically
         # ['item', 'score1', 'score2', ... 'score20', 'std']
-    # print(all_items_resampled_preds_df['std'])    
     all_items_std_df = all_items_resampled_preds_df[['item', 'std']]
         # ['item', 'std']
     all_items_std_df = pd.merge(all_items_std_df, item_popularity, how = 'left', on = 'item')
@@ -133,7 +134,6 @@ def similarity_user_features(umat, users, feature_newUser, method = 'cosine'):
     '''        
     nrows, ncols = umat.shape
     # FIX ME - remove this is temporary
-    tracker = []
     # distance = np.zeros([1, nrows])
     distance = []
     if method == 'cosine':
@@ -141,12 +141,10 @@ def similarity_user_features(umat, users, feature_newUser, method = 'cosine'):
             feature_oneUser = umat[i,]
             dis = cosine(feature_oneUser, feature_newUser)
             distance.append(dis)
-            tracker.append(tuple('cosine', feature_oneUser, feature_newUser, dis))
     elif method == 'eculidean':
         for i in range(nrows):
             feature_oneUser = umat[i,]
             dis = np.linalg.norm(feature_oneUser-feature_newUser)
-            tracker.append(tuple('euclidian', feature_oneUser, feature_newUser, dis))
                 # This works because Euclidean distance is l2 norm and 
                 # the default value of ord parameter in numpy.linalg.norm is 2.
             distance.append(dis)
@@ -315,24 +313,5 @@ def get_RSSA_controversial_items(liveUserID):
     return recs_controversial_items.item.unique()
         # a np.ndarray of the recommended item_ids (matches movie_id in the movieLens dataset) 
 
-# if __name__ == "__main__":
-    # print('Here are some dummy live users with about 20 ratings each: ')
-    # print('Bart, Sushmita, Shahan, Aru, Mitali, Yash')
-    # liveUserID = input('\nEnter a user ID: ')
-    
-    # rec_ids_topn = get_RSSA_topN(liveUserID)
-    # print(rec_ids_topn)
-    
-    # rec_ids_hate_items = get_RSSA_hate_items(liveUserID)
-    # print(rec_ids_hate_items)
-    
-    # rec_ids_hip_items = get_RSSA_hip_items(liveUserID)
-    # print(rec_ids_hip_items)
-    
-    # rec_ids_no_clue_items = get_RSSA_no_clue_items(liveUserID)
-    # print(rec_ids_no_clue_items)
-    
-    # rec_ids_controversial_items = get_RSSA_controversial_items(liveUserID)
-    # print(rec_ids_controversial_items)
     
     
