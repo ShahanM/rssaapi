@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 
 class MovieSchema(BaseModel):
@@ -8,7 +8,7 @@ class MovieSchema(BaseModel):
 	year: int
 	ave_rating: float
 	genre: str
-	director: str
+	director: Optional[str]
 	cast: str
 	description: str
 	poster: str

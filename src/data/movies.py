@@ -6,7 +6,11 @@ def get_movies(db: Session, skip: int = 0, limit: int = 30) -> List[Movie]:
 	return db.query(Movie).offset(skip).limit(limit).all()
 
 def get_movie(db: Session, movie_id: int) -> Movie:
-	return db.query(Movie).filter(Movie.id == movie_id).first()
+	movie = db.query(Movie).filter(Movie.movie_id == movie_id).first()
+	if movie:
+		return movie
+	else:
+		return Movie()
 
 def get_movies_by_ids(db: Session, movie_ids: List[int]) -> List[Movie]:
-	return db.query(Movie).filter(Movie.id.in_(movie_ids)).all()
+	return db.query(Movie).filter(Movie.movie_id.in_(movie_ids)).all()  # type: ignore

@@ -1,7 +1,7 @@
 
 import os
 import pandas as pd
-import algs.rssa_recommendation as rssa
+# import algs.rssa_recommendation as rssa
 
 
 def get_rssa_data():
@@ -23,4 +23,5 @@ def get_cybered_data():
 def get_cybered_model_path():
 	model_path = os.path.join('algs', 'models/cybered/')
 
-	return model_path
+	# return model_path
+	return 'algs/models/cybered/'
