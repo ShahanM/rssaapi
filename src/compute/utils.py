@@ -11,7 +11,6 @@ def get_rssa_data():
 	return item_popularity, ave_item_score
 
 def get_rssa_model_path():
-
 	return 'algs/models/rssa/'
 
 def get_cybered_data():
@@ -21,7 +20,13 @@ def get_cybered_data():
 	return item_popularity, ave_item_score
 
 def get_cybered_model_path():
-	model_path = os.path.join('algs', 'models/cybered/')
-
-	# return model_path
 	return 'algs/models/cybered/'
+
+def get_iers_data():
+	item_popularity = pd.read_csv('algs/data/iers/ieRS_item_popularity.csv')   
+	emotionsg20 = pd.read_csv('algs/data/iers/ieRS_emotions_g20.csv')
+
+	return item_popularity, emotionsg20
+
+def get_iers_model_path():
+	return 'algs/models/iers/'

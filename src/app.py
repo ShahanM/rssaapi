@@ -3,13 +3,13 @@ from fastapi import FastAPI, Depends, Body, APIRouter
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from data.database import SessionLocal, engine
-from data.cybereddatabase import SessionLocal as CyberedSessionLocal, engine as cybered_engine
 from data.models.schema import MovieSchema, RatedItemSchema, RatingsSchema
-from data.movies import get_movies, get_movie, get_movies_by_ids
+from data.movies import get_movies, get_movie, get_movies_by_ids, get_ers_movies, get_ers_movies_by_ids
 from fastapi.middleware.cors import CORSMiddleware
 from compute.rssa import RSSACompute
 from compute.utils import *
 from router import cybered
+from router import iers
 
 # app = FastAPI(root_path='/newrs/api/v1')
 app = FastAPI()
@@ -25,6 +25,9 @@ origins = [
     "http://localhost:3000/*",
 ]
 
+app.include_router(cybered.router)
+app.include_router(iers.router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -33,7 +36,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(cybered.router)
 
 # Dependency
 def get_db():
@@ -57,12 +59,13 @@ async def get_data_zip():
 @app.get("/movies/", response_model=List[MovieSchema])
 async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     movies = get_movies(db, skip=skip, limit=limit)
+    
     return movies
 
 @app.post("/recommendation/", response_model=List[MovieSchema])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_db)):
     recs = rssalgs.get_condition_prediction(rated_movies.ratings, \
-            rated_movies.user_id, rated_movies.rec_type, rated_movies.numRec)
+            rated_movies.user_id, rated_movies.rec_type, rated_movies.num_rec)
     movies = get_movies_by_ids(db, recs)
     
     return movies

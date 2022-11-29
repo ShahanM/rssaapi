@@ -2,7 +2,6 @@ import os
 import pickle
 from typing import List, Literal, Union
 
-# import algs.rssa_recommendation as RSSA
 import numpy as np
 import pandas as pd
 from data.models.schema import RatedItemSchema
