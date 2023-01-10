@@ -1,13 +1,13 @@
 from typing import List
 
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
 from compute.rssa import RSSACompute
 from compute.utils import *
 from data.cybereddatabase import SessionLocal as CyberedSessionLocal
-from data.cybereddatabase import engine as cybered_engine
-from data.models.schema import MovieSchema, RatedItemSchema, RatingsSchema
+from data.models.schema import MovieSchema, RatingsSchema
 from data.movies import get_movie, get_movies, get_movies_by_ids
-from fastapi import Depends, APIRouter
-from sqlalchemy.orm import Session
 
 router = APIRouter()
 
@@ -22,12 +22,12 @@ def get_cybered_db():
     finally:
         db.close()
 
-@router.get("/cybered/movies/", response_model=List[MovieSchema])
+@router.get("/cybered/movies/", response_model=List[MovieSchema], tags=['cybered movie'])
 async def read_cybered_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get_cybered_db)):
     movies = get_movies(db, skip=skip, limit=limit)
     return movies
 
-@router.post("/cybered/recommendation/", response_model=List[MovieSchema])
+@router.post("/cybered/recommendation/", response_model=List[MovieSchema], tags=['cybered movie'])
 async def create_cybered_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_cybered_db)):
     # temporary for data out
     movie_ids = [movie.item_id for movie in rated_movies.ratings]
@@ -46,12 +46,12 @@ async def create_cybered_recommendations(rated_movies: RatingsSchema, db: Sessio
 
     return movies
 
-@router.get("/cybered/movies/{movie_id}", response_model=MovieSchema)
+@router.get("/cybered/movies/{movie_id}", response_model=MovieSchema, tags=['cybered movie'])
 async def read_cybered_movie(movie_id: int, db: Session = Depends(get_cybered_db)):
     movie = get_movie(db, movie_id)
     return movie
 
-@router.post("/cybered/movies/", response_model=List[MovieSchema])
+@router.post("/cybered/movies/", response_model=List[MovieSchema], tags=['cybered movie'])
 async def read_cybered_movies_by_ids(movie_ids: List[int], db: Session = Depends(get_cybered_db)):
     movies = get_movies_by_ids(db, movie_ids)
     return movies

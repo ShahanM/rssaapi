@@ -1,7 +1,5 @@
 
-import os
 import pandas as pd
-# import algs.rssa_recommendation as rssa
 
 
 def get_rssa_data():

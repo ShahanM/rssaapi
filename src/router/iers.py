@@ -1,15 +1,15 @@
-from compute.iers import IERSCompute
 from typing import List
 
-from compute.rssa import RSSACompute
-from compute.utils import *
-from data.database import SessionLocal, engine
-from data.cybereddatabase import engine as cybered_engine
-from data.models.schema import MovieSchema, RatedItemSchema, RatingsSchema, EmotionInputSchema, EmotionDiscreteInputSchema, EmotionContinuousInputSchema
-from data.movies import get_movie, get_movies, get_movies_by_ids, get_ers_movies, get_ers_movies_by_ids
-from fastapi import Depends, APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from compute.iers import IERSCompute
+from compute.utils import *
+from data.moviedatabase import SessionLocal
+from data.models.schema import (EmotionContinuousInputSchema,
+                                EmotionDiscreteInputSchema, EmotionInputSchema,
+                                MovieSchema, RatingsSchema)
+from data.movies import get_ers_movies, get_ers_movies_by_ids
 
 router = APIRouter()
 
@@ -27,13 +27,13 @@ def get_db():
         db.close()
 
 
-@router.get("/ers/movies/", response_model=List[MovieSchema])
+@router.get('/ers/movies/', response_model=List[MovieSchema], tags=['ers movie'])
 async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     movies = get_ers_movies(db, skip=skip, limit=limit)
     
     return movies
 
-@router.post("/ers/recommendation/", response_model=List[MovieSchema])
+@router.post('/ers/recommendation/', response_model=List[MovieSchema], tags=['ers movie'])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_db)):
     recs = iersalgs.predict_topN(rated_movies.ratings, \
             rated_movies.user_id, rated_movies.num_rec)
@@ -41,15 +41,15 @@ async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depe
     
     return movies
 
-@router.post("/ers/updaterecommendations/", response_model=List[MovieSchema])
+@router.post('/ers/updaterecommendations/', response_model=List[MovieSchema], tags=['ers movie'])
 async def update_recommendations(rated_movies: EmotionInputSchema, db: Session = Depends(get_db)):
 	recs = []
-	if rated_movies.input_type == "discrete":
+	if rated_movies.input_type == 'discrete':
 		print(rated_movies.emotion_input)
 		emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
 		recs = iersalgs.predict_discrete_tuned_topN(rated_movies.ratings, \
 			rated_movies.user_id, emo_in, rated_movies.num_rec)
-	elif rated_movies.input_type == "continuous":
+	elif rated_movies.input_type == 'continuous':
 		print(rated_movies.emotion_input)
 		emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
 		recs = iersalgs.predict_continuous_tuned_topN(rated_movies.ratings, \

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy import Column, Integer, Text, String, ForeignKey, Index, \
 	Numeric
 from sqlalchemy.orm import relationship
-from data.database import Base
+from data.moviedatabase import Base
 
 
 class RankGroup(Base):

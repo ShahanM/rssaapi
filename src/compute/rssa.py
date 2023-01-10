@@ -21,7 +21,7 @@ class Preference:
 
 
 class RSSACompute:
-	def __init__(self, model_path, item_popularity, ave_item_score):
+	def __init__(self, model_path:str, item_popularity, ave_item_score):
 		self.item_popularity = item_popularity
 		self.ave_item_score = ave_item_score
 
@@ -37,10 +37,39 @@ class RSSACompute:
 		}
 
 	def get_condition_prediction(self, ratings: List[RatedItemSchema], user_id, condition, numRec=10) -> List[int]:
+		"""
+		Parameters
+		----------
+		ratings: List of RatedItemSchema
+		user_id: User ID
+		condition: 
+			0: topN, 
+			1: controversial, 
+			2: hate, 
+			3: hip, 
+			4: no clue
+		numRec: Number of recommendations to return
+		
+		Returns
+		-------
+		List of item IDs
+		"""
+
 		return self.prediction_functions[condition](ratings, user_id, numRec)
 			
 
 	def get_predictions(self, ratings: List[RatedItemSchema], user_id) -> pd.DataFrame:
+		"""
+		Parameters
+		----------
+		ratings: List of RatedItemSchema
+		user_id: User ID
+
+		Returns
+		-------
+		pd.DataFrame of predictions
+		"""
+
 		rated_items = np.array([np.int64(rating.item_id) for rating in ratings])
 		new_ratings = pd.Series(np.array([np.float64(rating.rating) for rating in ratings]), index=rated_items)
 		
@@ -156,8 +185,6 @@ class RSSACompute:
 			feature_newUser: np.ndarray
 		'''        
 		nrows, ncols = umat.shape
-		# FIX ME - remove this is temporary
-		# distance = np.zeros([1, nrows])
 		distance = []
 		if method == 'cosine':
 			for i in range(nrows):
