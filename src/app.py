@@ -9,7 +9,7 @@ from compute.rssa import RSSACompute
 from compute.utils import *
 from data.moviedatabase import SessionLocal
 from data.models.schema import MovieSchema, RatingsSchema
-from router import cybered, iers, users, study
+from router import cybered, iers, users, study, admin
 from data.movies import get_movies, get_movies_by_ids
 
 # app = FastAPI(root_path='/newrs/api/v1')
@@ -47,6 +47,14 @@ tags_metadata = [
         'name': 'user',
         'description': ''
     },
+    {
+        'name': 'study',
+        'description': ''
+    },
+    {
+        'name': 'admin',
+        'description': ''
+    }
 ]
 
 app = FastAPI(openapi_tags=tags_metadata)
@@ -55,6 +63,7 @@ app.include_router(cybered.router)
 app.include_router(iers.router)
 app.include_router(users.router)
 app.include_router(study.router)
+app.include_router(admin.router)
 
 app.add_middleware(
     CORSMiddleware,

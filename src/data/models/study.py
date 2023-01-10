@@ -23,7 +23,7 @@ class Study(Base):
 
 
 class StudyCondition(Base):
-	__tablename__ = 'study_conditions'
+	__tablename__ = 'study_condition'
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
 	study_id = Column(Integer, ForeignKey('study.id'), nullable=False)
@@ -34,7 +34,7 @@ class StudyCondition(Base):
 
 
 class Step(Base):
-	__tablename__ = 'study_steps'
+	__tablename__ = 'study_step'
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
 	study_id = Column(Integer, ForeignKey('study.id'), nullable=False)
@@ -49,10 +49,11 @@ class Step(Base):
 
 
 class Page(Base):
-	__tablename__ = 'step_pages'
+	__tablename__ = 'step_page'
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
-	step_id = Column(Integer, ForeignKey('study_steps.id'), nullable=False)
+	study_id = Column(Integer, ForeignKey('study.id'), nullable=False)
+	step_id = Column(Integer, ForeignKey('study_step.id'), nullable=False)
 
 	page_order = Column(Integer, nullable=False)
 	page_name = Column(String, nullable=False)
@@ -66,7 +67,9 @@ class PageQuestion(Base):
 	__tablename__ = 'page_question'
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
-	page_id = Column(Integer, ForeignKey('step_pages.id'), nullable=False)
+	study_id = Column(Integer, ForeignKey('study.id'), nullable=False)
+	step_id = Column(Integer, ForeignKey('study_step.id'), nullable=False)
+	page_id = Column(Integer, ForeignKey('step_page.id'), nullable=False)
 
 	question_order = Column(Integer, nullable=False)
 	question = Column(String, nullable=False)
