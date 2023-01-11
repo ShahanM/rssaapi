@@ -12,8 +12,26 @@ from data.models.schema import MovieSchema, RatingsSchema
 from router import cybered, iers, users, study, admin
 from data.movies import get_movies, get_movies_by_ids
 
+from util.docs_metadata import tags_metadata
+
 # app = FastAPI(root_path='/newrs/api/v1')
-app = FastAPI()
+app = FastAPI(
+    openapi_tags=tags_metadata,
+    title='RSSA Project API',
+    description='API for all the RSSA projects, experiments, and alternate movie databases.',
+    version='0.0.1',
+    terms_of_service='https://rssa.recsys.dev/terms'
+)
+
+# contact={
+#     'name': '',
+#     'url': '',
+#     'email': '',
+# },
+# license_info={
+#     'name': '',
+#     'url': '',
+# }
 
 rssa_itm_pop, rssa_ave_scores = get_rssa_data()
 rssa_model_path = get_rssa_model_path()
@@ -25,39 +43,6 @@ origins = [
     'http://localhost:3000',
     'http://localhost:3000/*',
 ]
-
-tags_metadata = [
-    {
-        'name': 'movie',
-        'description': ''
-    },
-    {
-        'name': 'ers movie',
-        'description': ''
-    },
-    {
-        'name': 'cybered movie',
-        'description': '',
-        'externalDocs': {
-            'description': 'Items external docs',
-            'url': 'https://fastapi.tiangolo.com/',
-        }
-    },
-    {
-        'name': 'user',
-        'description': ''
-    },
-    {
-        'name': 'study',
-        'description': ''
-    },
-    {
-        'name': 'admin',
-        'description': ''
-    }
-]
-
-app = FastAPI(openapi_tags=tags_metadata)
 
 app.include_router(cybered.router)
 app.include_router(iers.router)
@@ -82,6 +67,7 @@ def get_db():
     finally:
         db.close()
 
+
 @app.get('/')
 async def root():
     return {'message': 'Hello World'}
@@ -89,20 +75,22 @@ async def root():
 
 @app.get('/data/all/')
 async def get_data_zip():
-    return FileResponse('datafiles/rssa_all.zip', \
-            media_type='application/octet-stream',\
-            filename='data/rssa_all.zip')
+    return FileResponse('datafiles/rssa_all.zip',
+                        media_type='application/octet-stream',
+                        filename='data/rssa_all.zip')
+
 
 @app.get('/movies/', response_model=List[MovieSchema], tags=['movie'])
 async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     movies = get_movies(db, skip=skip, limit=limit)
-    
+
     return movies
+
 
 @app.post('/recommendation/', response_model=List[MovieSchema], tags=['movie'])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_db)):
-    recs = rssalgs.get_condition_prediction(rated_movies.ratings, \
-            rated_movies.user_id, rated_movies.rec_type, rated_movies.num_rec)
+    recs = rssalgs.get_condition_prediction(rated_movies.ratings,
+                                            rated_movies.user_id, rated_movies.rec_type, rated_movies.num_rec)
     movies = get_movies_by_ids(db, recs)
-    
+
     return movies
