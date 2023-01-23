@@ -32,12 +32,12 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-	username: str | None = None
+	username: Union[str, None] = None
 
 
 class AdminUser(BaseModel):
 	username: str
-	email: str | None = None
+	email: Union[str, None] = None
 	full_name: str | None = None
 	disabled: bool | None = None
 
