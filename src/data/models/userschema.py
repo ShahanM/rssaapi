@@ -33,7 +33,7 @@ class NewUserSchema(BaseModel):
 
 class NewQuestionResponseSchema(BaseModel):
     question_id: int
-    response: int | str
+    response: Union[int, str]
 
 
 class NewSurveyResponseSchema(BaseModel):
