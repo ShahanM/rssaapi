@@ -1,14 +1,14 @@
 from datetime import datetime
-from typing import List
+from typing import List, Union
 
 from pydantic import BaseModel
 
 
 class QuestionSchema(BaseModel):
-    id: int | None
-    page_id: int | None
-    question_order: int | None
-    question: str | None
+    id: Union[int, None]
+    page_id: Union[int, None]
+    question_order: Union[int, None]
+    question: Union[str, None]
 
     class Config:
         orm_mode = True
@@ -20,10 +20,10 @@ class NewQuestionSchema(BaseModel):
 
 
 class PageSchema(BaseModel):
-    id: int | None
-    step_id: int | None
-    page_order: int | None
-    page_name: str | None
+    id: Union[int, None]
+    step_id: Union[int, None]
+    page_order: Union[int, None]
+    page_name: Union[str, None]
 
     questions: List[QuestionSchema]
 
@@ -37,11 +37,11 @@ class NewPageSchema(BaseModel):
 
 
 class StepSchema(BaseModel):
-    id: int | None
-    study_id: int | None
-    step_order: int | None
-    step_name: str | None
-    step_description: str | None
+    id: Union[int, None]
+    study_id: Union[int, None]
+    step_order: Union[int, None]
+    step_name: Union[str, None]
+    step_description: Union[str, None]
 
     pages: List[PageSchema]
 
@@ -74,7 +74,7 @@ class StudySchema(BaseModel):
 
     class Config:
         orm_mode = True
-        
+
 
 class NewConditionSchema(BaseModel):
     condition_name: str
