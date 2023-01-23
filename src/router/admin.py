@@ -38,8 +38,8 @@ class TokenData(BaseModel):
 class AdminUser(BaseModel):
 	username: str
 	email: Union[str, None] = None
-	full_name: str | None = None
-	disabled: bool | None = None
+	full_name: Union[str, None] = None
+	disabled: Union[bool, None] = None
 
 
 class UserInDB(AdminUser):
