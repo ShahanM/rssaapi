@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from .models.study import Study, Step, Page, StudyCondition, PageQuestion
+import random
 from typing import List
 from .studydatabase import engine
 
@@ -33,6 +34,33 @@ def get_studies(db: Session) -> List[Study]:
 	studies = db.query(Study).all()
 	
 	return studies
+
+
+def get_study_conditions(db: Session, study_id: int) -> List[StudyCondition]:
+	conditions = db.query(StudyCondition).filter(StudyCondition.study_id == study_id).all()
+	
+	return conditions
+
+
+def create_study_condition(db: Session, study_id: int, condition_name: str) -> StudyCondition:
+	condition = StudyCondition(study_id=study_id, condition_name=condition_name)
+	db.add(condition)
+	db.commit()
+	db.refresh(condition)
+
+	study = get_study_by_id(db, study_id)
+	study.conditions.append(condition)
+	db.commit()
+	db.refresh(study)
+
+	return condition
+
+
+def get_random_study_condition(db: Session, study_id: int) -> StudyCondition:
+	conditions = get_study_conditions(db, study_id)
+	condition = random.choice(conditions)
+
+	return condition
 
 
 def create_study_step(db: Session, study_id: int, step_order: int, \

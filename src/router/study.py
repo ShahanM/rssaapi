@@ -47,6 +47,14 @@ async def get_all_studies(db: Session = Depends(get_db),
     return studies
 
 
+@router.put('/study/{study_id}/condition/', response_model=StudyConditionSchema, tags=[Tags.study, Tags.admin])
+async def create_new_condition(study_id: int, condition: NewConditionSchema, db: Session = Depends(get_db),
+                        current_user: AdminUser = Depends(get_current_active_user)):
+    condition = create_study_condition(db=db, study_id=study_id, **condition.dict())
+
+    return condition
+
+
 @router.get('/study/{study_id}', response_model=StudySchema, tags=[Tags.study])
 async def get_study(study_id: int, db: Session = Depends(get_db)):
     study = get_study_by_id(db, study_id)

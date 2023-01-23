@@ -74,3 +74,7 @@ class StudySchema(BaseModel):
 
     class Config:
         orm_mode = True
+        
+
+class NewConditionSchema(BaseModel):
+    condition_name: str
