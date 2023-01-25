@@ -70,11 +70,21 @@ def get_db():
 
 @app.get('/')
 async def root():
+    """
+    Hello World!
+    """
     return {'message': 'Hello World'}
 
 
 @app.get('/data/all/')
 async def get_data_zip():
+    """
+    Downloads a zip file containing data files and models to bootstrap the
+    project template for the Advanced Decision Support Systems course taught by
+    Dr. Bart Knijnenburg during the Fall 2022 semester.
+    
+    Returns a a zip file containing the data files and models.
+    """
     return FileResponse('datafiles/rssa_all.zip',
                         media_type='application/octet-stream',
                         filename='data/rssa_all.zip')
