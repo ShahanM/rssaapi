@@ -1,15 +1,17 @@
 from enum import Enum
 
 class TagsMetadataEnum(Enum):
-	movie = 'movie'
-	ers = 'ers movie'
-	cybered = 'cybered movie'
-	user = 'user'
-	study = 'study'
-	step = 'step'
-	page = 'page'
-	question = 'survey question'
-	admin = 'admin'
+    movie = 'movie'
+    ers = 'ers movie'
+    cybered = 'cybered movie'
+    user = 'user'
+    study = 'study'
+    condition = 'study condition'
+    step = 'step'
+    page = 'page'
+    question = 'survey question'
+    admin = 'admin'
+
 
 tags_metadata = [
     {
@@ -37,6 +39,10 @@ tags_metadata = [
         'name': TagsMetadataEnum.study.value,
         'description': 'The study API is a study meta API that is used to create and manage the study.' \
             + 'As such, it is only available to admin users.'
+    },
+    {
+        'name': TagsMetadataEnum.condition.value,
+        'description': 'The condition API is used to create and manage the study conditions.'
     },
     {
         'name': TagsMetadataEnum.step.value,

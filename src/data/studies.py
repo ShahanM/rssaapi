@@ -5,14 +5,6 @@ from typing import List
 from .studydatabase import engine
 
 
-def get_study_by_id(db: Session, study_id: int) -> Study:
-	study = db.query(Study).filter(Study.id == study_id).first()
-	if study:
-		return study
-	else:
-		return Study()
-
-
 def create_database():
 	Study.__table__.create(bind=engine, checkfirst=True)
 	StudyCondition.__table__.create(bind=engine, checkfirst=True)
@@ -21,6 +13,9 @@ def create_database():
 	PageQuestion.__table__.create(bind=engine, checkfirst=True)
 
 
+"""
+Study Queries
+"""
 def create_study(db: Session, studyname: str) -> Study:
 	study = Study(study_name=studyname)
 	db.add(study)
@@ -36,12 +31,35 @@ def get_studies(db: Session) -> List[Study]:
 	return studies
 
 
-def get_study_conditions(db: Session, study_id: int) -> List[StudyCondition]:
-	conditions = db.query(StudyCondition).filter(StudyCondition.study_id == study_id).all()
-	
-	return conditions
+def get_study_by_id(db: Session, study_id: int) -> Study:
+	study = db.query(Study).filter(Study.id == study_id).first()
+	if study:
+		return study
+	else:
+		raise Exception("Study not found")
 
 
+def update_study(db: Session, study_id: int, study_name: str) -> Study:
+	study = get_study_by_id(db, study_id)
+	setattr(study, 'study_name', study_name)
+	db.add(study)
+	db.commit()
+	db.refresh(study)
+
+	return study
+
+
+def delete_study_by_id(db: Session, study_id: int) -> Study:
+	study = get_study_by_id(db, study_id)
+	db.delete(study)
+	db.commit()
+
+	return study
+
+
+"""
+Study Condition Queries
+"""
 def create_study_condition(db: Session, study_id: int, condition_name: str) -> StudyCondition:
 	condition = StudyCondition(study_id=study_id, condition_name=condition_name)
 	db.add(condition)
@@ -55,6 +73,20 @@ def create_study_condition(db: Session, study_id: int, condition_name: str) -> S
 
 	return condition
 
+def get_study_conditions(db: Session, study_id: int) -> List[StudyCondition]:
+	conditions = db.query(StudyCondition).filter(StudyCondition.study_id == study_id).all()
+	
+	return conditions
+
+
+def get_study_condition_by_id(db: Session, study_id: int, condition_id: int) -> StudyCondition:
+	condition = db.query(StudyCondition).filter(StudyCondition.study_id == study_id).filter(StudyCondition.id == condition_id).first()
+
+	if condition:
+		return condition
+	else:
+		raise Exception("Condition not found")
+
 
 def get_random_study_condition(db: Session, study_id: int) -> StudyCondition:
 	conditions = get_study_conditions(db, study_id)
@@ -63,6 +95,27 @@ def get_random_study_condition(db: Session, study_id: int) -> StudyCondition:
 	return condition
 
 
+def update_study_condition(db: Session, study_id: int, condition_id: int, condition_name: str) -> StudyCondition:
+	condition = get_study_condition_by_id(db, study_id, condition_id)
+	setattr(condition, 'condition_name', condition_name)
+	db.add(condition)
+	db.commit()
+	db.refresh(condition)
+
+	return condition
+
+
+def delete_study_condition(db: Session, study_id: int, condition_id: int) -> StudyCondition:
+	condition = get_study_condition_by_id(db, study_id, condition_id)
+	db.delete(condition)
+	db.commit()
+
+	return condition
+
+
+"""
+Step Queries
+"""
 def create_study_step(db: Session, study_id: int, step_order: int, \
 	step_name: str, step_description: str) -> Step:
 
@@ -93,7 +146,7 @@ def get_step_by_id(db: Session, study_id: int, step_id: int) -> Step:
 	if step:
 		return step
 	else:
-		return Step()
+		raise Exception("Step not found")
 
 
 def get_first_study_step(db: Session, study_id: int) -> Step:
@@ -102,8 +155,7 @@ def get_first_study_step(db: Session, study_id: int) -> Step:
 	if step:
 		return step
 	else:
-		return Step()
-
+		raise Exception("There are no steps defined for this study.")
 
 def get_next_study_step(db: Session, study_id: int, step_id: int) -> Step:
 	current = get_step_by_id(db, study_id, step_id)
@@ -115,6 +167,19 @@ def get_next_study_step(db: Session, study_id: int, step_id: int) -> Step:
 		return Step()
 
 
+def update_study_step(db: Session, study_id: int, step_id: int, step_order: int, \
+	step_name: str, step_description: str) -> Step:
+	step = get_step_by_id(db, study_id, step_id)
+	setattr(step, 'step_order', step_order)
+	setattr(step, 'step_name', step_name)
+	setattr(step, 'step_description', step_description)
+	db.add(step)
+	db.commit()
+	db.refresh(step)
+
+	return step
+
+
 def delete_study_step(db: Session, study_id: int, step_id: int) -> Step:
 	step = get_step_by_id(db, study_id, step_id)
 	db.delete(step)
@@ -123,6 +188,9 @@ def delete_study_step(db: Session, study_id: int, step_id: int) -> Step:
 	return step
 
 
+"""
+Page Queries
+"""
 def create_study_page(db: Session, study_id: int, step_id: int, \
 	page_order: int, page_name: str) -> Page:
 
@@ -141,6 +209,7 @@ def create_study_page(db: Session, study_id: int, step_id: int, \
 
 	return page
 
+
 #FIXME study pages are not the same as step pages
 def get_study_pages(db: Session, study_id: int, step_id: int) -> List[Page]:
 	pages = db.query(Page).filter(Page.study_id == study_id).filter(Page.step_id == step_id).all()
@@ -154,7 +223,7 @@ def get_page_by_id(db: Session, study_id: int, step_id: int, page_id: int) -> Pa
 	if page:
 		return page
 	else:
-		return Page()
+		raise Exception("Page not found")
 
 
 def get_first_step_page(db: Session, study_id: int, step_id: int) -> Page:
@@ -163,7 +232,7 @@ def get_first_step_page(db: Session, study_id: int, step_id: int) -> Page:
 	if page:
 		return page
 	else:
-		return Page()
+		raise Exception("There are no pages defined for this step.")
 
 
 def get_next_step_page(db: Session, study_id: int, step_id: int, page_id: int) -> Page:
@@ -176,7 +245,19 @@ def get_next_step_page(db: Session, study_id: int, step_id: int, page_id: int) -
 		return Page()
 
 
-def delete_study_page(db: Session, study_id: int, step_id: int, page_id: int) -> Page:
+def update_step_page(db: Session, study_id: int, step_id: int, page_id: int, \
+	page_order: int, page_name: str) -> Page:
+	page = get_page_by_id(db, study_id, step_id, page_id)
+	setattr(page, 'page_order', page_order)
+	setattr(page, 'page_name', page_name)
+	db.add(page)
+	db.commit()
+	db.refresh(page)
+
+	return page
+
+
+def delete_step_page(db: Session, study_id: int, step_id: int, page_id: int) -> Page:
 	page = get_page_by_id(db, study_id, step_id, page_id)
 	db.delete(page)
 	db.commit
@@ -184,6 +265,9 @@ def delete_study_page(db: Session, study_id: int, step_id: int, page_id: int) ->
 	return page
 
 
+"""
+Question Queries
+"""
 def create_survey_question(db: Session, study_id: int, step_id: int, \
 	page_id: int, question_order: int, questiontxt: str) -> PageQuestion:
 	question = PageQuestion(study_id=study_id, step_id=step_id, page_id=page_id, \
@@ -202,6 +286,28 @@ def get_page_questions(db: Session, study_id: int, step_id: int, page_id: int) -
 	questions = db.query(PageQuestion).filter(PageQuestion.study_id == study_id).filter(PageQuestion.step_id == step_id).filter(PageQuestion.page_id == page_id).all()
 	print(questions)
 	return questions
+
+
+def get_question_by_id(db: Session, study_id: int, step_id: int, page_id: int, question_id: int) -> PageQuestion:
+	question = db.query(PageQuestion).filter(PageQuestion.study_id == study_id).filter(PageQuestion.step_id == step_id).filter(PageQuestion.page_id == page_id).filter(PageQuestion.id == question_id).first()
+
+	if question:
+		return question
+	else:
+		raise Exception("Question not found")
+
+
+def update_survey_question(db: Session, study_id: int, step_id: int, page_id: int, question_id: int, \
+	question_order: int, questiontxt: str) -> PageQuestion:
+	question = get_question_by_id(db, study_id, step_id, page_id, question_id)
+	setattr(question, 'question_order', question_order)
+	# setattr(question, 'page_id', 'page_id')
+	setattr(question, 'question', questiontxt)
+	db.add(question)
+	db.commit()
+	db.refresh(question)
+
+	return question
 
 
 def delete_survey_question(db: Session, study_id: int, step_id: int, page_id: int, question_id: int) -> PageQuestion:
