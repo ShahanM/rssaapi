@@ -47,6 +47,16 @@ def instantiate_user_response(user: User, study_id: int, \
 	return response
 
 
+def instantiate_user_text_response(user: User, study_id: int, \
+	page_id: int, questionresponse: NewQuestionResponseSchema) \
+		-> SurveyTextResponse:
+	response = SurveyTextResponse(user=user, study_id=study_id, \
+		page_id=page_id, question_id=questionresponse.question_id, \
+		response=questionresponse.response)
+
+	return response
+
+
 def create_survey_response(db: Session, user_id: int, \
 	newresponse: NewSurveyResponseSchema) -> List[SurveyResponse]:
 	user = get_user(db, user_id)
@@ -67,6 +77,26 @@ def create_survey_response(db: Session, user_id: int, \
 	return responses
 
 
+def create_survey_text_response(db: Session, user_id: int, \
+	newresponse: NewSurveyResponseSchema) -> List[SurveyTextResponse]:
+	user = get_user(db, user_id)
+
+	responses = []
+
+	for qresponse in newresponse.responses:
+		response = instantiate_user_text_response(user, newresponse.study_id, \
+			newresponse.page_id, qresponse)
+		responses.append(response)
+
+	db.add_all(responses)
+	db.commit()
+
+	user.text_responses.extend(responses)
+	db.commit()
+	db.refresh(user)
+
+	return responses
+
 def create_rating_response(db: Session, user_id: int, \
 	ratings: RatingResponseSchema) -> List[RatingResponse]:
 	user = get_user(db, user_id)
@@ -86,6 +116,7 @@ def create_rating_response(db: Session, user_id: int, \
 	db.refresh(user)
 
 	return ratingresponses
+
 
 def create_seen_items_if_not_exist(db: Session, user_id: int, \
 	seenitems: SeenItemsSchema) -> List[SeenItem]:

@@ -79,6 +79,12 @@ async def create_new_response(user_id: int, type: str, \
             return True
         else:
             return False
+    elif type == 'freetext':
+        res = create_survey_text_response(db, user_id, response)
+        if res:
+            return True
+        else:
+            return False
 
     # TODO: Add other types of responses (free text)
 
