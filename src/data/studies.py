@@ -192,11 +192,11 @@ def delete_study_step(db: Session, study_id: int, step_id: int) -> Step:
 Page Queries
 """
 def create_study_page(db: Session, study_id: int, step_id: int, \
-	page_order: int, page_name: str) -> Page:
+	page_order: int, page_name: str, page_instruction: str) -> Page:
 
 	# FIXME page_order should be unique for a step
 	page = Page(study_id=study_id, step_id=step_id, page_order=page_order, \
-		page_name=page_name)
+		page_name=page_name, page_instruction=page_instruction)
 	db.add(page)
 	db.commit()
 	db.refresh(page)
