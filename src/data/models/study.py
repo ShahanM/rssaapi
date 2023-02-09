@@ -57,6 +57,7 @@ class Page(Base):
 
 	page_order = Column(Integer, nullable=False)
 	page_name = Column(String, nullable=False)
+	page_instruction = Column(String, nullable=True)
 
 	step = relationship('Step', back_populates='pages')
 	questions = relationship('PageQuestion', back_populates='page', \

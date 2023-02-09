@@ -246,10 +246,11 @@ def get_next_step_page(db: Session, study_id: int, step_id: int, page_id: int) -
 
 
 def update_step_page(db: Session, study_id: int, step_id: int, page_id: int, \
-	page_order: int, page_name: str) -> Page:
+	page_order: int, page_name: str, page_instruction: str) -> Page:
 	page = get_page_by_id(db, study_id, step_id, page_id)
 	setattr(page, 'page_order', page_order)
 	setattr(page, 'page_name', page_name)
+	setattr(page, 'page_instruction', page_instruction)
 	db.add(page)
 	db.commit()
 	db.refresh(page)
