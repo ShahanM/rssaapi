@@ -92,6 +92,29 @@ class IERSCompute:
 			user_id, numRec)
 		
 		return list(map(int, topN_discounted['item']))
+	
+	def predict_diverseN(self, ratings: List[RatedItemSchema], user_id: int, \
+		numRec: int) -> List[int]:
+		'''
+		Predict diverse N items using the Diverse Top-N recommendation by
+		diversifying the RSSA discounted predictions
+
+		Parameters
+		----------
+		ratings : List[RatedItemSchema]
+			List of rated items
+		user_id : int
+			User ID
+
+		Returns
+		-------
+		diverseN : List[int]
+			Diverse N items
+		'''
+		diverseN = self.__predict_diverseN_by_emotion(ratings, \
+			user_id, self.num_topN)
+		
+		return list(map(int, diverseN['item']))		
 
 	def __live_prediction(self, algo, liveUserID, new_ratings, item_popularity):
 		'''
@@ -203,7 +226,7 @@ class IERSCompute:
 		candidate_item_ids = candidate_item_emotions.item.unique()
 		
 		distance_to_input = \
-			self.emotion_distance(candidate_item_specified_emotions_ndarray, \
+			self.__emotion_distance(candidate_item_specified_emotions_ndarray, \
 				user_emotion_vals)
 		distance_to_input_df = pd.DataFrame({'item': candidate_item_ids, \
 			'distance': distance_to_input}, columns = ['item', 'distance'])
@@ -255,8 +278,6 @@ class IERSCompute:
 		Predict top N items using the Top-N recommendation from the RSSA
 		discounted predictions tuned by user emotion input
 		
-		Traditional top-N + Taking inputs
-		
 		Parameters
 		----------
 		ratings : List[RatedItemSchema]
@@ -278,7 +299,7 @@ class IERSCompute:
 		
 		tuned_topN, _ = self.__predict_tuned_topN(ratings, user_id, \
 			user_specified_emotion_tags, user_specified_emotion_vals, \
-				False, numRec)
+				True, numRec)
 		
 		return list(map(int, tuned_topN.head(numRec)['item']))
 
@@ -329,7 +350,7 @@ class IERSCompute:
 		
 		return list(map(int, tuned_topN.head(numRec)['item']))
 
-	def predict_discrete_diverseN_by_emotion(self, \
+	def predict_discrete_tuned_diverseN(self, \
 		ratings: List[RatedItemSchema], user_id: int, \
 		emotion_input: List[EmotionDiscreteInputSchema], numRec: int) \
 			-> List[int]:
@@ -367,14 +388,14 @@ class IERSCompute:
 		
 		weighting = 0
 		[rec_diverseEmotion, rec_itemEmotion] = \
-			self.diversify_item_feature(tuned_topN, 
+			self.__diversify_item_feature(tuned_topN, 
 				unspecified_emotions_ndarray, \
 					candidate_item_emotions.item.unique(), weighting, numRec)
 		
 		return list(map(int, rec_diverseEmotion['item']))
 
-	def predict_diverseN_by_emotion(self, ratings: List[RatedItemSchema], \
-		user_id:int, numRec: int) -> List[int]:
+	def __predict_diverseN_by_emotion(self, ratings: List[RatedItemSchema], \
+		user_id:int, numRec: int) -> pd.DataFrame:
 		'''
 		Predict top N items using the diversified recommendation from the RSSA
 		discounted predictions
@@ -391,8 +412,8 @@ class IERSCompute:
 
 		Returns
 		-------
-		topN : List[int]
-			Top N items
+		diverseTopN : pd.DataFrame
+			Predicted diverse N items
 		'''
 		candidates = self.__get_rssa_discounted_prediction(ratings, user_id, \
 			self.num_topN)[['item', 'discounted_score']]
@@ -402,12 +423,12 @@ class IERSCompute:
 		
 		weighting = 0
 		[rec_diverseEmotion, rec_itemEmotion] = \
-			self.diversify_item_feature(candidates, item_emotions_ndarray, \
+			self.__diversify_item_feature(candidates, item_emotions_ndarray, \
 				item_ids, weighting, numRec)
 	
-		return list(map(int, rec_diverseEmotion['item']))
+		return rec_diverseEmotion
 
-	def diversify_item_feature(self, candidates, vectors, items, weighting=0, \
+	def __diversify_item_feature(self, candidates, vectors, items, weighting=0, \
 		numRecs = 10, weight_sigma = None):
 		'''
 		Diversify items based on item features
@@ -455,7 +476,7 @@ class IERSCompute:
 		diverse_itemIDs = []
 		diverse_vectors = np.empty([0, vectors.shape[1]])
 		
-		firstItem_index_val = self.first_item(centroid_vector, \
+		firstItem_index_val = self.__first_item(centroid_vector, \
 			candidate_vectors, items_candidate_vectors)
 		firstItem_vector = \
 			candidate_vectorsDf[candidate_vectorsDf.index.isin(\
@@ -470,7 +491,7 @@ class IERSCompute:
 		# Find the best next item one by one
 		while len(diverse_itemIDs) < numRecs:
 			nextItem_vector, nextItem_index = \
-				self.sum_distance(candidate_vectorsDf_left, diverse_vectors)
+				self.__sum_distance(candidate_vectorsDf_left, diverse_vectors)
 			candidate_vectorsDf_left = candidate_vectorsDf_left.drop(
 				pd.Index([nextItem_index]), axis = 0)
 			diverse_vectors = np.concatenate((diverse_vectors, \
@@ -492,7 +513,7 @@ class IERSCompute:
 		
 		return recommendations, diverse_vectorsDf
         
-	def first_item(self, centroid, candidate_vectors, candidate_items):
+	def __first_item(self, centroid, candidate_vectors, candidate_items):
 		'''
 		Find the first item
 
@@ -512,7 +533,7 @@ class IERSCompute:
 		'''
 		distance_cityblock = []
 		for row in candidate_vectors:
-			dist = self.sqrt_cityblock(row, centroid)
+			dist = self.__sqrt_cityblock(row, centroid)
 			distance_cityblock.append(dist)
 			
 		distance_cityblock = pd.DataFrame({'distance': distance_cityblock})
@@ -522,7 +543,7 @@ class IERSCompute:
 		first_index_val = distance_cityblock_sorted.index[0]
 		return  first_index_val
         
-	def sum_distance(self, candidate_vectorsDf, diverse_set):
+	def __sum_distance(self, candidate_vectorsDf, diverse_set):
 		'''
 		Find the next best item
 
@@ -545,7 +566,7 @@ class IERSCompute:
 		for row_candidate_vec in candidate_vectors:
 			sum_dist = 0
 			for row_diverse in diverse_set:
-				dist = self.sqrt_cityblock(row_candidate_vec, row_diverse)
+				dist = self.__sqrt_cityblock(row_candidate_vec, row_diverse)
 				sum_dist = sum_dist + dist
 			distance_cumulate.append(sum_dist)
 		distance_cumulate = pd.DataFrame({'sum_distance': distance_cumulate})
@@ -559,7 +580,7 @@ class IERSCompute:
 		
 		return bestItem_vector, bestItem_index
     
-	def sqrt_cityblock(self, point1, point2):
+	def __sqrt_cityblock(self, point1, point2):
 		'''
 		Calculate the square root of the cityblock distance between two points
 
@@ -582,7 +603,7 @@ class IERSCompute:
 
 		return sqrt_city_block  
 
-	def emotion_distance(self, matrix, vector):
+	def __emotion_distance(self, matrix, vector):
 		'''
 		Calculate the distance between an emotion vector and the overall
 		emotion matrix

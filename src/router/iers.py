@@ -35,7 +35,9 @@ async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get
 
 @router.post('/ers/recommendation/', response_model=List[MovieSchema], tags=['ers movie'])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_db)):
-    recs = iersalgs.predict_topN(rated_movies.ratings, \
+    # recs = iersalgs.predict_topN(rated_movies.ratings, \
+    #         rated_movies.user_id, rated_movies.num_rec)
+    recs = iersalgs.predict_diverseN(rated_movies.ratings, \
             rated_movies.user_id, rated_movies.num_rec)
     movies = get_ers_movies_by_ids(db, recs)
     
@@ -47,7 +49,9 @@ async def update_recommendations(rated_movies: EmotionInputSchema, db: Session =
 	if rated_movies.input_type == 'discrete':
 		print(rated_movies.emotion_input)
 		emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
-		recs = iersalgs.predict_discrete_tuned_topN(rated_movies.ratings, \
+		# recs = iersalgs.predict_discrete_tuned_topN(rated_movies.ratings, \
+		# 	rated_movies.user_id, emo_in, rated_movies.num_rec)
+		recs = iersalgs.predict_discrete_tuned_diverseN(rated_movies.ratings, \
 			rated_movies.user_id, emo_in, rated_movies.num_rec)
 	elif rated_movies.input_type == 'continuous':
 		print(rated_movies.emotion_input)
