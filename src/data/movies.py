@@ -15,6 +15,9 @@ def get_movie(db: Session, movie_id: int) -> Movie:
 def get_movies_by_ids(db: Session, movie_ids: List[int]) -> List[Movie]:
 	return db.query(Movie).filter(Movie.movie_id.in_(movie_ids)).all()  # type: ignore
 
+def get_all_ers_movies(db: Session) -> List[Movie]:
+	return db.query(Movie).filter(Movie.emotions != None).all()  # type: ignore
+
 def get_ers_movies(db: Session, skip: int = 0, limit: int = 30) -> List[Movie]:
 	return db.query(Movie).filter(Movie.emotions != None).offset(skip).limit(limit).all()  # type: ignore
 

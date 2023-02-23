@@ -9,7 +9,7 @@ from data.moviedatabase import SessionLocal
 from data.models.schema import (EmotionContinuousInputSchema,
                                 EmotionDiscreteInputSchema, EmotionInputSchema,
                                 MovieSchema, RatingsSchema)
-from data.movies import get_ers_movies, get_ers_movies_by_ids
+from data.movies import *
 
 router = APIRouter()
 
@@ -25,6 +25,14 @@ def get_db():
         yield db
     finally:
         db.close()
+        
+
+@router.get('/ers/movies/ids/', response_model=List[int], tags=['ers movie'])
+async def read_movies_ids(db: Session = Depends(get_db)):
+    movies = get_all_ers_movies(db)
+    ids = [movie.movie_id for movie in movies]
+    # print(ids)
+    return ids
 
 
 @router.get('/ers/movies/', response_model=List[MovieSchema], tags=['ers movie'])
@@ -32,6 +40,14 @@ async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get
     movies = get_ers_movies(db, skip=skip, limit=limit)
     
     return movies
+
+
+@router.post('/ers/movies/', response_model=List[MovieSchema], tags=['ers movie'])
+async def read_movies_by_ids(movie_ids: List[int], db: Session = Depends(get_db)):
+	movies = get_ers_movies_by_ids(db, movie_ids)
+	
+	return movies
+
 
 @router.post('/ers/recommendation/', response_model=List[MovieSchema], tags=['ers movie'])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_db)):
@@ -42,6 +58,7 @@ async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depe
     movies = get_ers_movies_by_ids(db, recs)
     
     return movies
+
 
 @router.post('/ers/updaterecommendations/', response_model=List[MovieSchema], tags=['ers movie'])
 async def update_recommendations(rated_movies: EmotionInputSchema, db: Session = Depends(get_db)):
