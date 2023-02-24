@@ -22,4 +22,11 @@ def get_ers_movies(db: Session, skip: int = 0, limit: int = 30) -> List[Movie]:
 	return db.query(Movie).filter(Movie.emotions != None).offset(skip).limit(limit).all()  # type: ignore
 
 def get_ers_movies_by_ids(db: Session, movie_ids: List[int]) -> List[Movie]:
-	return db.query(Movie).filter(Movie.movie_id.in_(movie_ids)).filter(Movie.emotions != None).all()  # type: ignore
+	movies = db.query(Movie).filter(Movie.movie_id.in_(movie_ids))\
+		.filter(Movie.emotions != None).all()
+	for movie in movies:
+		if movie.cast == None:
+			movie.cast = ''
+		if movie.ave_rating == None:
+			movie.ave_rating = 0
+	return movies 
