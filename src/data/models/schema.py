@@ -44,6 +44,7 @@ class RatedItemSchema(BaseModel):
 
 class RatingsSchema(BaseModel):
 	user_id: int
+	user_condition: int
 	ratings: List[RatedItemSchema]
 	rec_type: int
 	num_rec: int = 10
@@ -65,6 +66,7 @@ class EmotionDiscreteInputSchema(BaseModel):
 
 class EmotionInputSchema(BaseModel):
 	user_id: int
+	user_condition: int
 	input_type: Literal["discrete", "continuous"]
 	emotion_input: Union[List[EmotionDiscreteInputSchema], \
 		List[EmotionContinuousInputSchema]]

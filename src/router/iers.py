@@ -1,14 +1,14 @@
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from compute.iers import IERSCompute
 from compute.utils import *
 from data.moviedatabase import SessionLocal
 from data.models.schema import (EmotionContinuousInputSchema,
-                                EmotionDiscreteInputSchema, EmotionInputSchema,
-                                MovieSchema, RatingsSchema)
+								EmotionDiscreteInputSchema, EmotionInputSchema,
+								MovieSchema, RatingsSchema)
 from data.movies import *
 
 router = APIRouter()
@@ -20,26 +20,25 @@ iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
 
 # Dependency
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        
+	db = SessionLocal()
+	try:
+		yield db
+	finally:
+		db.close()
+		
 
 @router.get('/ers/movies/ids/', response_model=List[int], tags=['ers movie'])
 async def read_movies_ids(db: Session = Depends(get_db)):
-    movies = get_all_ers_movies(db)
-    ids = [movie.movie_id for movie in movies]
-    # print(ids)
-    return ids
+	movies = get_all_ers_movies(db)
+	ids = [movie.movie_id for movie in movies]
+	return ids
 
 
 @router.get('/ers/movies/', response_model=List[MovieSchema], tags=['ers movie'])
 async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    movies = get_ers_movies(db, skip=skip, limit=limit)
-    
-    return movies
+	movies = get_ers_movies(db, skip=skip, limit=limit)
+	
+	return movies
 
 
 @router.post('/ers/movies/', response_model=List[MovieSchema], tags=['ers movie'])
@@ -51,30 +50,42 @@ async def read_movies_by_ids(movie_ids: List[int], db: Session = Depends(get_db)
 
 @router.post('/ers/recommendation/', response_model=List[MovieSchema], tags=['ers movie'])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_db)):
-    # recs = iersalgs.predict_topN(rated_movies.ratings, \
-    #         rated_movies.user_id, rated_movies.num_rec)
-    recs = iersalgs.predict_diverseN(rated_movies.ratings, \
-            rated_movies.user_id, rated_movies.num_rec)
-    movies = get_ers_movies_by_ids(db, recs)
-    
-    return movies
+	recs: List[int] = []
+	if rated_movies.user_condition in [1, 2, 3, 4]:
+		recs = iersalgs.predict_topN(rated_movies.ratings, \
+			rated_movies.user_id, rated_movies.num_rec)
+	elif (rated_movies.user_condition in [5, 6, 7, 8]):
+		recs = iersalgs.predict_diverseN(rated_movies.ratings, \
+			rated_movies.user_id, rated_movies.num_rec)
+	
+	if len(recs) == 0:
+		raise HTTPException(status_code=406, detail="User condition not found")
+	movies = get_ers_movies_by_ids(db, recs)
+	
+	return movies
 
 
 @router.post('/ers/updaterecommendations/', response_model=List[MovieSchema], tags=['ers movie'])
 async def update_recommendations(rated_movies: EmotionInputSchema, db: Session = Depends(get_db)):
 	recs = []
 	if rated_movies.input_type == 'discrete':
-		print(rated_movies.emotion_input)
 		emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
-		# recs = iersalgs.predict_discrete_tuned_topN(rated_movies.ratings, \
-		# 	rated_movies.user_id, emo_in, rated_movies.num_rec)
-		recs = iersalgs.predict_discrete_tuned_diverseN(rated_movies.ratings, \
-			rated_movies.user_id, emo_in, rated_movies.num_rec)
+
+		if rated_movies.user_condition in [1, 2, 3, 4]:
+			recs = iersalgs.predict_discrete_tuned_topN(rated_movies.ratings, \
+				rated_movies.user_id, emo_in, rated_movies.num_rec)
+		elif (rated_movies.user_condition in [5, 6, 7, 8]):
+			recs = iersalgs.predict_discrete_tuned_diverseN(rated_movies.ratings, \
+				rated_movies.user_id, emo_in, rated_movies.num_rec)
+			
 	elif rated_movies.input_type == 'continuous':
-		print(rated_movies.emotion_input)
 		emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
-		recs = iersalgs.predict_continuous_tuned_topN(rated_movies.ratings, \
-			rated_movies.user_id, emo_in, rated_movies.num_rec)
+		if rated_movies.user_condition in [1, 2, 3, 4]:
+			recs = iersalgs.predict_continuous_tuned_topN(rated_movies.ratings, \
+				rated_movies.user_id, emo_in, rated_movies.num_rec)
+	
+	if len(recs) == 0:
+		raise HTTPException(status_code=406, detail="User condition not found")
 	movies = get_ers_movies_by_ids(db, recs)
 	
 	return movies
