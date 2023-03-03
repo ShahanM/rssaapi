@@ -72,3 +72,27 @@ class EmotionInputSchema(BaseModel):
 		List[EmotionContinuousInputSchema]]
 	ratings: List[RatedItemSchema]
 	num_rec: int
+
+
+class RatingSchemaExperimental(BaseModel):
+	user_id: int
+	user_condition: int
+	ratings: List[RatedItemSchema]
+	rec_type: int
+	num_rec: int = 10
+	low_val: float = 0.3
+	high_val: float = 0.8
+
+
+class EmotionInputSchemaExperimental(BaseModel):
+	user_id: int
+	condition_algo: int
+	input_type: Literal["discrete", "continuous"]
+	emotion_input: Union[List[EmotionDiscreteInputSchema], \
+		List[EmotionContinuousInputSchema]]
+	ratings: List[RatedItemSchema]
+	num_rec: int
+	scale_vector: bool = False
+	low_val: float = 0.3
+	high_val: float = 0.8
+	algo: str
