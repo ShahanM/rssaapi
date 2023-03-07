@@ -105,7 +105,8 @@ async def update_recommendations_experimental(rated_movies: EmotionInputSchemaEx
 				scale_vector=rated_movies.scale_vector, \
 				lowval=rated_movies.low_val, \
 				highval=rated_movies.high_val,
-				algo=rated_movies.algo)
+				algo=rated_movies.algo,
+				dist_method=rated_movies.dist_method)
 		elif rated_movies.condition_algo == 2:
 			recs = iersalgs.predict_discrete_tuned_diverseN( \
 				ratings=rated_movies.ratings, \
@@ -115,7 +116,8 @@ async def update_recommendations_experimental(rated_movies: EmotionInputSchemaEx
 				scale_vector=rated_movies.scale_vector, \
 				lowval=rated_movies.low_val, \
 				highval=rated_movies.high_val,
-				algo=rated_movies.algo)
+				algo=rated_movies.algo,
+				div_crit=rated_movies.diversity_criterion,)
 			
 	elif rated_movies.input_type == 'continuous':
 		emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]

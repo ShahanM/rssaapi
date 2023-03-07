@@ -96,3 +96,5 @@ class EmotionInputSchemaExperimental(BaseModel):
 	low_val: float = 0.3
 	high_val: float = 0.8
 	algo: str
+	dist_method: str
+	diversity_criterion: str
