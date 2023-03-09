@@ -95,7 +95,7 @@ async def update_recommendations_experimental(rated_movies: EmotionInputSchemaEx
 	recs = []
 	if rated_movies.input_type == 'discrete':
 		emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
-
+		# print('Rated Movies params:', rated_movies)
 		if rated_movies.condition_algo == 1:
 			recs = iersalgs.predict_discrete_tuned_topN(\
 				ratings=rated_movies.ratings, \
@@ -127,6 +127,16 @@ async def update_recommendations_experimental(rated_movies: EmotionInputSchemaEx
 	
 	if len(recs) == 0:
 		raise HTTPException(status_code=406, detail="User condition not found")
+	
+	#FIXME order movies in the same order as recs before returning
+
+	# print('Recs:', recs)
 	movies = get_ers_movies_by_ids(db, recs)
+	# print('Movies:', list(map(lambda x: x.movie_id, movies)))
+	movie_dict = {movie.movie_id: movie for movie in movies}
+	movies = [movie_dict[rec] for rec in recs]
+	# print('New Movies:', list(map(lambda x: x.movie_id, movies)))
+
+
 	
 	return movies

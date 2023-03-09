@@ -19,7 +19,7 @@ class EmotionsSchema(BaseModel):
 
 class MovieSchema(BaseModel):
 	id: int
-	movie_id: str
+	movie_id: int
 	title: str
 	year: int
 	ave_rating: float
