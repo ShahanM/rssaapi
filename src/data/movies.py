@@ -30,4 +30,8 @@ def get_ers_movies_by_ids(db: Session, movie_ids: List[int]) -> List[MovieSchema
 			movie.cast = ''
 		if movie.ave_rating == None:
 			movie.ave_rating = 0
+
+	# Order movies to main recommendation order
+	movie_dict = {movie.movie_id: movie for movie in movies}
+	movies = [movie_dict[movie_id] for movie_id in movie_ids]
 	return movies 

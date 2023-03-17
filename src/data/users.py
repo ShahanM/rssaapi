@@ -1,11 +1,14 @@
+import random
+from typing import List
+
 from sqlalchemy.orm import Session
+
+from data.models.schema import EmotionDiscreteInputSchema, RatedItemSchema
+
+from .models.schema import RatedItemSchema
 from .models.user import *
 from .models.userschema import *
-from typing import List
 from .userdatabase import engine
-from .models.schema import RatedItemSchema
-from data.models.schema import RatedItemSchema, EmotionDiscreteInputSchema
-import random
 
 
 def create_user(db: Session, newuser: NewUserSchema) -> User:

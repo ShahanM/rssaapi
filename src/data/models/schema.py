@@ -92,9 +92,11 @@ class EmotionInputSchemaExperimental(BaseModel):
 		List[EmotionContinuousInputSchema]]
 	ratings: List[RatedItemSchema]
 	num_rec: int
+	item_pool_size: int
 	scale_vector: bool = False
 	low_val: float = 0.3
 	high_val: float = 0.8
 	algo: str
 	dist_method: str
 	diversity_criterion: str
+	diversity_sample_size: None|int
