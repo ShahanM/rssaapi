@@ -99,4 +99,4 @@ class EmotionInputSchemaExperimental(BaseModel):
 	algo: str
 	dist_method: str
 	diversity_criterion: str
-	diversity_sample_size: None|int
+	diversity_sample_size: Optional[int]
