@@ -23,6 +23,18 @@ def create_user(db: Session, newuser: NewUserSchema) -> User:
 	return user
 
 
+def create_test_user(db: Session, newuser: NewUserSchema, condition: int) -> User:
+	usertype = get_user_type_by_str(db, newuser.user_type)
+	user = User(study_id=newuser.study_id, condition=condition, \
+		user_type=usertype)
+
+	db.add(user)
+	db.commit()
+	db.refresh(user)
+
+	return user
+
+
 def get_user(db: Session, user_id: int) -> User:
 	user = db.query(User).filter(User.id == user_id).first()
 	if user:

@@ -57,6 +57,23 @@ async def create_new_user(newuser: NewUserSchema, \
     return user
 
 
+@router.post('/user/consent/{condition_id}', response_model=UserSchema, tags=['user'])
+async def create_new_test_user(condition_id: int, newuser: NewUserSchema, \
+    db: Session = Depends(get_db)):
+    """
+    Create a new user in the database.
+    
+    This is automatically created when a user consents to the study.
+    An informed consent form must be signed by the user.
+
+    Returns the user object if the user was successfully created, None 
+    otherwise.
+    """
+    
+    user = create_test_user(db, newuser, condition_id)
+    return user
+
+
 @router.put('/user/{user_id}/response/{type}/', response_model=bool, \
     tags=['user'])
 async def create_new_response(user_id: int, type: str, \
