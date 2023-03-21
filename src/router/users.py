@@ -57,7 +57,7 @@ async def create_new_user(newuser: NewUserSchema, \
     return user
 
 
-@router.post('/user/consent/{condition_id}', response_model=UserSchema, tags=['user'])
+@router.post('/user/consent/{condition_id}/', response_model=UserSchema, tags=['user'])
 async def create_new_test_user(condition_id: int, newuser: NewUserSchema, \
     db: Session = Depends(get_db)):
     """
