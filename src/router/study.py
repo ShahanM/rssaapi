@@ -208,6 +208,13 @@ async def get_first_page(study_id: int, step_id: int, db: Session = Depends(get_
     return page
 
 
+@router.get('/study/{study_id}/step/{step_id}/page/last/', response_model=PageSchema, tags=[Tags.page])
+async def get_last_page(study_id: int, step_id: int, db: Session = Depends(get_db)):
+	page = get_last_step_page(db, study_id, step_id)
+
+	return page
+
+
 @router.get('/study/{study_id}/step/{step_id}/page/{page_id}/next', response_model=PageSchema, tags=[Tags.page])
 async def get_next_page(study_id: int, step_id: int, page_id: int, db: Session = Depends(get_db)):
     page = get_next_step_page(db, study_id, step_id, page_id)
