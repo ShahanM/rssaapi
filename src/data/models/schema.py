@@ -29,6 +29,7 @@ class MovieSchema(BaseModel):
 	description: str
 	poster: str
 	emotions: Optional[EmotionsSchema]
+	poster_identifier: Optional[str]
 
 	class Config:
 		orm_mode = True
