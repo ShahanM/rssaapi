@@ -36,7 +36,8 @@ class RSSACompute:
 			4: self.predict_user_no_clue_items
 		}
 
-	def get_condition_prediction(self, ratings: List[RatedItemSchema], user_id, condition, numRec=10) -> List[int]:
+	def get_condition_prediction(self, ratings: List[RatedItemSchema], \
+		user_id: int, condition: int, num_rec:int) -> List[int]:
 		"""
 		Parameters
 		----------
@@ -55,7 +56,7 @@ class RSSACompute:
 		List of item IDs
 		"""
 
-		return self.prediction_functions[condition](ratings, user_id, numRec)
+		return self.prediction_functions[condition](ratings, user_id, num_rec)
 			
 
 	def get_predictions(self, ratings: List[RatedItemSchema], user_id) -> pd.DataFrame:

@@ -4,7 +4,14 @@ from typing import List
 from .models.schema import MovieSchema
 
 def get_movies(db: Session, skip: int = 0, limit: int = 30) -> List[Movie]:
-	return db.query(Movie).offset(skip).limit(limit).all()
+	movies = db.query(Movie).offset(skip).limit(limit).all()
+	for movie in movies:
+		if movie.cast == None:
+			movie.cast = ''
+		if movie.ave_rating == None:
+			movie.ave_rating = 0
+
+	return movies
 
 def get_movie(db: Session, movie_id: int) -> Movie:
 	movie = db.query(Movie).filter(Movie.movie_id == movie_id).first()

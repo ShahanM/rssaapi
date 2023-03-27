@@ -16,11 +16,11 @@ from util.docs_metadata import tags_metadata
 
 # app = FastAPI(root_path='/newrs/api/v1')
 app = FastAPI(
-    openapi_tags=tags_metadata,
-    title='RSSA Project API',
-    description='API for all the RSSA projects, experiments, and alternate movie databases.',
-    version='0.0.1',
-    terms_of_service='https://rssa.recsys.dev/terms'
+	openapi_tags=tags_metadata,
+	title='RSSA Project API',
+	description='API for all the RSSA projects, experiments, and alternate movie databases.',
+	version='0.0.1',
+	terms_of_service='https://rssa.recsys.dev/terms'
 )
 
 # contact={
@@ -61,46 +61,49 @@ app.add_middleware(
 
 # Dependency
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+	db = SessionLocal()
+	try:
+		yield db
+	finally:
+		db.close()
 
 
 @app.get('/')
 async def root():
-    """
-    Hello World!
-    """
-    return {'message': 'Hello World'}
+	"""
+	Hello World!
+	"""
+	return {'message': 'Hello World'}
 
 
 @app.get('/data/all/')
 async def get_data_zip():
-    """
-    Downloads a zip file containing data files and models to bootstrap the
-    project template for the Advanced Decision Support Systems course taught by
-    Dr. Bart Knijnenburg during the Fall 2022 semester.
-    
-    Returns a a zip file containing the data files and models.
-    """
-    return FileResponse('datafiles/rssa_all.zip',
-                        media_type='application/octet-stream',
-                        filename='data/rssa_all.zip')
+	"""
+	Downloads a zip file containing data files and models to bootstrap the
+	project template for the Advanced Decision Support Systems course taught by
+	Dr. Bart Knijnenburg during the Fall 2022 semester.
+	
+	Returns a a zip file containing the data files and models.
+	"""
+	return FileResponse('datafiles/rssa_all.zip',
+						media_type='application/octet-stream',
+						filename='data/rssa_all.zip')
 
 
 @app.get('/movies/', response_model=List[MovieSchema], tags=['movie'])
-async def read_movies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    movies = get_movies(db, skip=skip, limit=limit)
-
-    return movies
+async def read_movies(skip: int=0, limit: int=100, db: Session=Depends(get_db)):
+	movies = get_movies(db, skip=skip, limit=limit)
+	
+	return movies
 
 
 @app.post('/recommendation/', response_model=List[MovieSchema], tags=['movie'])
-async def create_recommendations(rated_movies: RatingsSchema, db: Session = Depends(get_db)):
-    recs = rssalgs.get_condition_prediction(rated_movies.ratings,
-                                            rated_movies.user_id, rated_movies.rec_type, rated_movies.num_rec)
-    movies = get_movies_by_ids(db, recs)
+async def create_recommendations(rated_movies: RatingsSchema, db: Session=Depends(get_db)):
+	recs = rssalgs.get_condition_prediction(\
+			ratings=rated_movies.ratings, \
+			user_id=rated_movies.user_id, \
+			condition=rated_movies.rec_type, \
+			num_rec=rated_movies.num_rec)
+	movies = get_movies_by_ids(db, recs)
 
-    return movies
+	return movies
