@@ -45,7 +45,7 @@ class StepSchema(BaseModel):
 	step_name: Union[str, None]
 	step_description: Union[str, None]
 
-	pages: List[PageSchema]
+	# pages: List[PageSchema]
 
 	class Config:
 		orm_mode = True
@@ -71,7 +71,7 @@ class StudySchema(BaseModel):
 	date_created: datetime
 	study_name: str
 
-	steps: List[StepSchema]
+	# steps: List[StepSchema]
 	conditions: List[StudyConditionSchema]
 
 	class Config:

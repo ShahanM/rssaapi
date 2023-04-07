@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from compute.rssa import RSSACompute
 from compute.utils import *
 from data.moviedatabase import SessionLocal
-from data.models.schema import MovieSchema, RatingsSchema
+from data.models.movieschema import MovieSchema, RatingsSchema
 from router import cybered, iers, users, study, admin
 from data.movies import get_movies, get_movies_by_ids
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from compute.iers import IERSCompute
 from compute.utils import *
 from data.moviedatabase import SessionLocal
-from data.models.schema import *
+from data.models.movieschema import *
 from data.movies import *
 
 router = APIRouter()

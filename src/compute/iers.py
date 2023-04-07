@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.spatial import distance
 from sklearn.preprocessing import MinMaxScaler
 
-from data.models.schema import (EmotionContinuousInputSchema,
+from data.models.movieschema import (EmotionContinuousInputSchema,
 								EmotionDiscreteInputSchema, RatedItemSchema)
 
 

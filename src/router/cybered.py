@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from compute.rssa import RSSACompute
 from compute.utils import *
 from data.cybereddatabase import SessionLocal as CyberedSessionLocal
-from data.models.schema import MovieSchema, RatingsSchema
+from data.models.movieschema import MovieSchema, RatingsSchema
 from data.movies import get_movie, get_movies, get_movies_by_ids
 
 router = APIRouter()

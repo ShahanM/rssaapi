@@ -4,7 +4,7 @@ from typing import List, Literal, Union
 
 import numpy as np
 import pandas as pd
-from data.models.schema import RatedItemSchema
+from data.models.movieschema import RatedItemSchema
 from pydantic.dataclasses import dataclass
 from scipy.spatial.distance import cosine
 

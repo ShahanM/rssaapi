@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from .models.movie import Movie
 from typing import List
-from .models.schema import MovieSchema
+from .models.movieschema import MovieSchema
 
 def get_movies(db: Session, skip: int = 0, limit: int = 30) -> List[Movie]:
 	movies = db.query(Movie).offset(skip).limit(limit).all()
