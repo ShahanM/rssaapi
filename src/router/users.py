@@ -14,6 +14,7 @@ from data.models.movieschema import RatedItemSchema, EmotionDiscreteInputSchema
 from util.docs_metadata import TagsMetadataEnum as Tags
 from .admin import get_current_active_user, AdminUser
 from .study import get_db as study_db
+from data.studies import get_count_of_questions_by_study_id
 from data.studies import get_study_by_id
 
 router = APIRouter()
@@ -253,3 +254,29 @@ async def create_interaction_log(log: InteractionLogSchema, db: Session = Depend
 	logid = log_interaction(db, log)
 
 	return logid
+
+
+@router.get('/user/{user_id}/completion', tags=['user'])
+async def get_completion_url(user_id: int, db: Session = Depends(get_db), \
+	studydb: Session = Depends(study_db), \
+	study: StudySchema = Depends(get_current_study)):
+	"""
+	Get the completion code for the user.
+	"""
+	# FIXME: This is weird coupling. We should not be using the study db here.
+	qcount = get_count_of_questions_by_study_id(studydb, study.id)
+	# TODO: Create a completion rubric for the study and use it here.
+
+	completed = validate_study_completion(db, user_id, qcount)
+	print(completed)
+	if(completed):
+		# FIXME: This should not be hardcoded but instead be a part of the study
+		return {
+			'status': 'completed',
+			'completion_url': 'https://app.prolific.co/submissions/complete?cc=CYIWLLZU'
+		}
+
+	return {
+		'status': 'incomplete',
+		'completion_url': None
+	}

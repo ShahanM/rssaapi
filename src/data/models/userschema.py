@@ -16,6 +16,7 @@ class UserSchema(BaseModel):
 
 	study_id: int
 	condition: int
+	completed: bool
 	user_type: UserTypeSchema
 
 	seen_items: List[int]
@@ -117,7 +118,7 @@ class DemographicInfoSchema(BaseModel):
 	user_id: int
 	study_id: int
 
-	age: int
+	age_group: str
 	gender: str
 	education: str
 

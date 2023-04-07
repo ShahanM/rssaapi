@@ -1,10 +1,6 @@
 from datetime import datetime
-from enum import unique
-from dataclasses import dataclass
-from typing import List
-# from data.userdatabase import Base
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric
 from sqlalchemy.orm import relationship
 
 Base = declarative_base()
@@ -18,6 +14,8 @@ class User(Base):
 
 	study_id = Column(Integer, nullable=False)
 	condition = Column(Integer, nullable=False)
+	
+	completed = Column(Integer, nullable=False, default=0)			
 
 	user_type_id = Column(Integer, ForeignKey('user_type.id'), nullable=False)
 	user_type = relationship('UserType', back_populates='users')
@@ -167,7 +165,7 @@ class DemographicInfo(Base):
 	user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
 	study_id = Column(Integer, nullable=False)
 
-	age = Column(Integer, nullable=False)
+	age_group = Column(String, nullable=False)
 	gender = Column(String(144), nullable=False)
 	education = Column(String(144), nullable=False)
 

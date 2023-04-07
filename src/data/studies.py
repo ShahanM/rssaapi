@@ -307,6 +307,18 @@ def get_question_by_id(db: Session, study_id: int, step_id: int, page_id: int, q
 		raise Exception("Question not found")
 
 
+def get_all_survey_questions(db: Session, study_id: int) -> List[PageQuestion]:
+	questions = db.query(PageQuestion).filter(PageQuestion.study_id == study_id).all()
+	
+	return questions
+
+
+def get_count_of_questions_by_study_id(db: Session, study_id: int) -> int:
+	count = db.query(PageQuestion).filter(PageQuestion.study_id == study_id).count()
+	
+	return count
+
+
 def update_survey_question(db: Session, study_id: int, step_id: int, page_id: int, question_id: int, \
 	question_order: int, questiontxt: str) -> PageQuestion:
 	question = get_question_by_id(db, study_id, step_id, page_id, question_id)

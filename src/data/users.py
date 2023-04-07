@@ -198,7 +198,7 @@ def create_demographic_info_response(db: Session, demo: DemographicInfoSchema) \
 	demographic = DemographicInfo(\
 		user_id=demo.user_id, \
 		study_id=demo.study_id, \
-		age=demo.age, \
+		age_group=demo.age_group, \
 		gender=demo.gender, \
 		education=demo.education)
 	
@@ -232,6 +232,46 @@ def log_interaction(db: Session, log: InteractionLogSchema) -> \
 	intid = interaction.id
 	assert type(intid) == int
 	return intid
+
+
+def validate_study_completion(db: Session, user_id: int, qcount) -> bool:
+	completed = False
+	user = get_user(db, user_id)
+	
+	rated_items = db.query(RatingResponse)\
+		.filter(RatingResponse.user_id == user.id).all()
+	completed = len(rated_items) >= 10
+
+	print('Checked rated items', completed)
+	
+	selected_item = db.query(RatingResponse)\
+		.filter(RatingResponse.user_id == user.id)\
+		.filter(RatingResponse.rating == 99).first()
+	completed = completed and selected_item is not None
+
+	print('Checked selected item', completed)
+
+	lik_res_count = db.query(SurveyResponse)\
+		.filter(SurveyResponse.user_id == user.id).count()
+	txt_res_count = db.query(SurveyTextResponse)\
+		.filter(SurveyTextResponse.user_id == user.id).count()
+	# print('Survey responses', len(survey_res) + len(survey_txt_res), qcount)
+	completed = completed and (lik_res_count + txt_res_count) >= qcount
+	
+	print('Checked survey responses', completed)
+
+	demoInfo = db.query(DemographicInfo)\
+		.filter(DemographicInfo.user_id == user.id).first()
+	completed = completed and demoInfo is not None
+
+	print('Checked demographic info', completed)
+
+	if completed and not user.completed == 1:
+		user.completed = 1  # type: ignore
+		db.commit()
+		db.refresh(user)
+
+	return completed
 
 # def create_database():
 # 	UserType.__table__.create(bind=engine, checkfirst=True)
