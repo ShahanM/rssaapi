@@ -1,8 +1,11 @@
 from sqlalchemy.orm import Session
-from .models.study import Study, Step, Page, StudyCondition, PageQuestion
+from .models.study import *
+from .models.studyschema import *
 import random
 from typing import List
 from .studydatabase import engine
+import json
+import os
 
 
 def create_database():
@@ -88,7 +91,36 @@ def get_study_condition_by_id(db: Session, study_id: int, condition_id: int) -> 
 		raise Exception("Condition not found")
 
 
-def get_random_study_condition(db: Session, study_id: int) -> StudyCondition:
+def is_condition_limit_defined():
+	print("Checking if condition limits are defined at ", os.path.abspath('config/conditionlimits.json'))
+	return os.path.isfile('config/conditionlimits.json')
+
+
+def get_random_study_condition_from_bucket(db: Session, study_id: int) -> StudyConditionSchema:
+	with open('config/conditionlimits.json') as f:
+		condition_limits = json.load(f)
+		print("Found condition limits:\n", condition_limits)
+
+	conditions = get_study_conditions(db, study_id)
+	condition = random.choice(conditions)
+
+	conditionlimits_key = str(condition.id)
+	if condition_limits[conditionlimits_key] > 0:
+		condition_limits[conditionlimits_key] -= 1
+
+		print("New condition limits:\n", condition_limits)
+		with open('config/conditionlimits.json', 'w') as f:
+			json.dump(condition_limits, f)
+		return condition
+	else:
+		return get_random_study_condition_from_bucket(db, study_id)
+
+
+def get_random_study_condition(db: Session, study_id: int) -> StudyConditionSchema:
+	if is_condition_limit_defined():
+		print("Using condition limits")
+		return get_random_study_condition_from_bucket(db, study_id)
+	print("Not using condition limits")
 	conditions = get_study_conditions(db, study_id)
 	condition = random.choice(conditions)
 

@@ -5,6 +5,7 @@ from typing import List
 from data.userdatabase import Base
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
+from pydantic_sqlalchemy import sqlalchemy_to_pydantic
 
 
 class Study(Base):
@@ -77,3 +78,6 @@ class PageQuestion(Base):
 
 	page = relationship('Page', back_populates='questions')
 	
+
+PydanticMovie = sqlalchemy_to_pydantic(Study)
+PydanticMovieEmotions = sqlalchemy_to_pydantic(StudyCondition)

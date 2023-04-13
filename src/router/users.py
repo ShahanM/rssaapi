@@ -16,6 +16,7 @@ from .admin import get_current_active_user, AdminUser
 from .study import get_db as study_db
 from data.studies import get_count_of_questions_by_study_id
 from data.studies import get_study_by_id
+from data.studies import get_random_study_condition, get_random_study_condition_from_bucket
 
 router = APIRouter()
 
@@ -85,7 +86,9 @@ async def create_db(study_id: int):
 
 @router.post('/user/consent/', response_model=UserSchema, tags=['user'])
 async def create_new_user(newuser: NewUserSchema, \
-	db: Session = Depends(get_db), study: StudySchema = Depends(get_current_study)):
+	db: Session = Depends(get_db), \
+	study: StudySchema = Depends(get_current_study),
+	study_db: Session = Depends(study_db)):
 	"""
 	Create a new user in the database.
 	
@@ -95,7 +98,10 @@ async def create_new_user(newuser: NewUserSchema, \
 	Returns the user object if the user was successfully created, None 
 	otherwise.
 	"""
-	condition_id = random.choice(study.conditions).id
+	# condition_id = random.choice(study.conditions).id
+	print("Getting random condition")
+	condition_id = get_random_study_condition(study_db, study.id).id
+	print("Got random condition:", condition_id)
 	user = create_user(db, newuser, condition_id)
 	return user
 
