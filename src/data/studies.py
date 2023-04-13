@@ -96,31 +96,44 @@ def is_condition_limit_defined():
 	return os.path.isfile('config/conditionlimits.json')
 
 
-def get_random_study_condition_from_bucket(db: Session, study_id: int) -> StudyConditionSchema:
+def get_available_condition_keys():
 	with open('config/conditionlimits.json') as f:
 		condition_limits = json.load(f)
-		print("Found condition limits:\n", condition_limits)
+		available_conditions = []
+		for key in condition_limits:
+			if condition_limits[key] > 0:
+				available_conditions.append(key)
+		return available_conditions
 
-	conditions = get_study_conditions(db, study_id)
-	condition = random.choice(conditions)
 
-	conditionlimits_key = str(condition.id)
-	if condition_limits[conditionlimits_key] > 0:
-		condition_limits[conditionlimits_key] -= 1
+def update_available_conditions(condition_key):
+	with open('config/conditionlimits.json') as f:
+		condition_limits = json.load(f)
 
-		print("New condition limits:\n", condition_limits)
+		condition_limits[condition_key] -= 1
 		with open('config/conditionlimits.json', 'w') as f:
 			json.dump(condition_limits, f)
-		return condition
-	else:
-		return get_random_study_condition_from_bucket(db, study_id)
+
+
+def get_random_study_condition_from_bucket(db: Session, study_id: int) -> StudyConditionSchema:
+	condition_keys = get_available_condition_keys()
+	print("Available condition keys: ", condition_keys)
+	if len(condition_keys) == 0:
+		os.remove('config/conditionlimits.json')
+		return get_random_study_condition(db, study_id)
+	
+	conditionid = random.choice(condition_keys)
+
+	condition = get_study_condition_by_id(db, study_id, conditionid)
+
+	update_available_conditions(conditionid)
+	return condition
 
 
 def get_random_study_condition(db: Session, study_id: int) -> StudyConditionSchema:
 	if is_condition_limit_defined():
-		print("Using condition limits")
 		return get_random_study_condition_from_bucket(db, study_id)
-	print("Not using condition limits")
+	
 	conditions = get_study_conditions(db, study_id)
 	condition = random.choice(conditions)
 
