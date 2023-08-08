@@ -25,7 +25,7 @@ class AdvisorSchema(BaseModel):
 	poster: str
 	emotions: Optional[EmotionsSchema]
 	poster_identifier: Optional[str]
-	profile: AdvisorProfileSchema
+	profile: Optional[AdvisorProfileSchema]
 	status: Literal["Pending", "Accepted", "Rejected"]
 
 	class Config:
