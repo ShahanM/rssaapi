@@ -3,17 +3,21 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from data.models.movieschema import EmotionDiscreteInputSchema, RatedItemSchema
+from data.models.schema.movieschema import EmotionDiscreteInputSchema
 
-from .models.movieschema import RatedItemSchema
+from .models.schema.userschema import *
 from .models.user import *
-from .models.userschema import *
-# from .userdatabase import engine
 
 
 def create_user(db: Session, newuser: NewUserSchema, condition: int) -> User:
 	usertype = get_user_type_by_str(db, newuser.user_type)
-	user = User(study_id=newuser.study_id, condition=condition, \
+	lastuserid = db.query(User).order_by(User.id.desc()).first()
+	if lastuserid:
+		lastuserid = lastuserid.id
+	else:
+		lastuserid = 0
+	testid = 161320
+	user = User(id=lastuserid+testid, study_id=newuser.study_id, condition=condition, \
 		user_type=usertype)
 	db.add(user)
 	db.commit()
@@ -27,6 +31,11 @@ def get_user(db: Session, user_id: int) -> User:
 		return user
 	else:
 		return User()
+	
+
+def get_study_users(db: Session, study_id: int) -> List[User]:
+	users = db.query(User).filter(User.study_id == study_id).all()
+	return users
 
 
 def get_user_type_by_str(db: Session, type_str: str) -> UserType:

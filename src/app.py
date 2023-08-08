@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 from compute.rssa import RSSACompute
 from compute.utils import *
 from data.moviedatabase import SessionLocal
-from data.models.movieschema import MovieSchema, RatingsSchema
-from router import cybered, iers, users, study, admin
+from data.models.schema.movieschema import MovieSchema, RatingsSchema
+from router import cybered, iers, users, study, admin, pref_comm, dataviewer, pref_viz
 from data.movies import get_movies, get_movies_by_ids
+from router.admin import get_current_active_user, AdminUser
+from middleware.error_handlers import ErrorHanlingMiddleware
+from middleware.infostats import RequestHandlingStatsMiddleware
 
 from util.docs_metadata import tags_metadata
 
@@ -42,10 +45,14 @@ origins = [
     'https://cybered.recsys.dev/*',
     'http://localhost:3000',
     'http://localhost:3000/*',
+    'http://localhost:3001/*',
 ]
 
 app.include_router(cybered.router)
 app.include_router(iers.router)
+app.include_router(pref_comm.router)
+app.include_router(dataviewer.router)
+app.include_router(pref_viz.router)
 app.include_router(users.router)
 app.include_router(study.router)
 app.include_router(admin.router)
@@ -57,6 +64,8 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+app.add_middleware(ErrorHanlingMiddleware)
+app.add_middleware(RequestHandlingStatsMiddleware)
 
 
 # Dependency
@@ -77,7 +86,8 @@ async def root():
 
 
 @app.get('/data/all/')
-async def get_data_zip():
+async def get_data_zip(
+	current_user: AdminUser = Depends(get_current_active_user)):
 	"""
 	Downloads a zip file containing data files and models to bootstrap the
 	project template for the Advanced Decision Support Systems course taught by

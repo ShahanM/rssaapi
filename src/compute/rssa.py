@@ -1,3 +1,11 @@
+"""
+This file contains all the RSSA-related functions and the API for the RSSA 
+study.
+
+@Author: Mehtab Iqbal (Shahan) and Lijie Guo
+@Affiliation: School of Computing, Clemson University
+"""
+
 import pickle
 from typing import List, Literal, Union
 

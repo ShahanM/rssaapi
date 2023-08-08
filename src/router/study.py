@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from compute.utils import *
 from data.studydatabase import SessionLocal
-from data.models.studyschema import *
+from data.models.schema.studyschema import *
 from data.studies import *
 from .admin import get_current_active_user, AdminUser
 from util.docs_metadata import TagsMetadataEnum as Tags

@@ -29,3 +29,6 @@ def get_iers_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
 
 def get_iers_model_path() -> str:
 	return 'algs/models/iers/'
+
+def get_rating_data_path() -> str:
+	return 'algs/data/iers/ieRS_ratings_g20.csv'

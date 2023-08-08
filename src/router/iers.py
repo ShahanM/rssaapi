@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from compute.iers import IERSCompute
 from compute.utils import *
 from data.moviedatabase import SessionLocal
-from data.models.movieschema import *
+from data.models.schema.movieschema import *
 from data.movies import *
 
 router = APIRouter()
@@ -156,7 +156,6 @@ async def update_recommendations(rated_movies: EmotionInputSchema, \
 	return movies
 
 
-
 @router.post('/ers/experimental/updaterecommendations/', \
 	response_model=List[MovieSchema], tags=['ers movie'])
 async def update_recommendations_experimental(\
@@ -195,6 +194,7 @@ async def update_recommendations_experimental(\
 				dist_method=rated_movies.dist_method)
 			
 	elif rated_movies.input_type == 'continuous':
+		# Not implemented yet
 		emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin \
 			in rated_movies.emotion_input]
 		if rated_movies.condition_algo == 1:

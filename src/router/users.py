@@ -5,11 +5,11 @@ from sqlalchemy.orm import Session
 
 from compute.utils import *
 # from data.userdatabase import SessionLocal
-from data.models.studyschema import StudySchema
+from data.models.schema.studyschema import StudySchema
 from data.userdatabase import get_user_db, create_database_meta
-from data.models.userschema import *
+from data.models.schema.userschema import *
 from data.users import *
-from data.models.movieschema import RatedItemSchema, EmotionDiscreteInputSchema
+from data.models.schema.movieschema import RatedItemSchema, EmotionDiscreteInputSchema
 
 from util.docs_metadata import TagsMetadataEnum as Tags
 from .admin import get_current_active_user, AdminUser

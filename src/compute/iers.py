@@ -1,3 +1,11 @@
+"""
+This file contains the IERS-related functions and the API for the IERS
+diversification algorithms.
+
+@Author: Mehtab Iqbal (Shahan) and Lijie Guo
+@Affiliation: School of Computing, Clemson University
+"""
+
 import pickle
 from typing import List, Tuple
 
@@ -6,7 +14,7 @@ import pandas as pd
 from scipy.spatial import distance
 from sklearn.preprocessing import MinMaxScaler
 
-from data.models.movieschema import (EmotionContinuousInputSchema,
+from data.models.schema.movieschema import (EmotionContinuousInputSchema,
 								EmotionDiscreteInputSchema, RatedItemSchema)
 
 
@@ -58,6 +66,18 @@ class IERSCompute:
 		f_import = open(self.model_path + 'ieRS_implictMF.pkl', 'rb')
 		trained_model = pickle.load(f_import)
 		f_import.close()
+
+		# imat = trained_model.item_features_
+		# items = trained_model.item_index_
+
+		# colnames = ['feat1', 'feat2', 'feat3', 'feat4', 'feat5', 'feat6', \
+		# 	'feat7', 'feat8', 'feat9', 'feat10', 'feat11', 'feat12', 'feat13', \
+		# 	'feat14', 'feat15', 'feat16', 'feat17', 'feat18', 'feat19', 'feat20']
+		# item_features = pd.DataFrame(imat, columns=colnames)
+		# item_ids = pd.DataFrame({'movie_id': items.values})
+		# item_latent_features = pd.concat([item_ids, item_features], axis=1)
+		# item_latent_features.to_csv(self.model_path + 'item_latent_features.csv', \
+		# 	index=False)
 
 		return trained_model
 

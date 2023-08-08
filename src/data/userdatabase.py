@@ -13,7 +13,7 @@ from .models.user import Base
 # Base = declarative_base()
 
 
-def  create_database_meta(study_id:  int):
+def create_database_meta(study_id:  int):
     user_database_uri = "sqlite:///data/db/userdatabase_"  +  str (study_id) +  ".db"
     user_engine = create_engine(
         user_database_uri, connect_args={"check_same_thread": False}

@@ -1,9 +1,8 @@
-from typing import List, Union
+from typing import Union
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
 
 from compute.utils import *
 from pydantic import BaseModel
@@ -132,9 +131,3 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @router.get('/users/me', response_model=AdminUser, tags=['admin'])
 async def read_users_me(current_user: AdminUser=Depends(get_current_active_user)):
 	return current_user
-
-
-# @app.get("/users/me/items/")
-# async def read_own_items(current_user: User = Depends(get_current_active_user)):
-#     return [{"item_id": "Foo", "owner": current_user.username}]
-
