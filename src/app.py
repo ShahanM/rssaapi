@@ -36,9 +36,6 @@ app = FastAPI(
 #     'url': '',
 # }
 
-rssa_itm_pop, rssa_ave_scores = get_rssa_data()
-rssa_model_path = get_rssa_model_path()
-rssalgs = RSSACompute(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
 
 origins = [
     'https://cybered.recsys.dev',
@@ -109,6 +106,9 @@ async def read_movies(skip: int=0, limit: int=100, db: Session=Depends(get_db)):
 
 @app.post('/recommendation/', response_model=List[MovieSchema], tags=['movie'])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session=Depends(get_db)):
+	rssa_itm_pop, rssa_ave_scores = get_rssa_data()
+	rssa_model_path = get_rssa_model_path()
+	rssalgs = RSSACompute(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
 	recs = rssalgs.get_condition_prediction(\
 			ratings=rated_movies.ratings, \
 			user_id=rated_movies.user_id, \

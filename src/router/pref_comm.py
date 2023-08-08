@@ -13,12 +13,6 @@ from collections import Counter, defaultdict
 
 router = APIRouter()
 
-rssa_pref_comm = RSSAPrefCommunity(get_rating_data_path())
-
-iers_item_pop, iersg20 = get_iers_data()
-iers_model_path = get_iers_model_path()
-iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
-
 # Dependency
 def get_db():
 	db = SessionLocal()
@@ -29,6 +23,12 @@ def get_db():
 @router.post("/prefComm/advisors/", response_model=List[AdvisorSchema], tags=[Tags.pref_comm])
 async def get_advisor(rated_movies: PrefCommRatingSchema, \
 	db: Session = Depends(get_db)):
+
+	# TODO make these singletons
+	rssa_pref_comm = RSSAPrefCommunity(get_rating_data_path())
+	iers_item_pop, iersg20 = get_iers_data()
+	iers_model_path = get_iers_model_path()
+	iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
 
 	advisors = []
 	

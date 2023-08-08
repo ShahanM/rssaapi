@@ -11,10 +11,6 @@ from data.movies import *
 
 router = APIRouter()
 
-iers_item_pop, iersg20 = get_iers_data()
-iers_model_path = get_iers_model_path()
-iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
-
 # TODO: Move to config file
 TOP_N_TUNING_PARAMS = {
 	'item_pool_size': 200,
@@ -76,6 +72,9 @@ async def read_movies_by_ids(movie_ids: List[int], \
 	tags=['ers movie'])
 async def create_recommendations(rated_movies: RatingsSchema, \
 	db: Session = Depends(get_db)):
+	iers_item_pop, iersg20 = get_iers_data()
+	iers_model_path = get_iers_model_path()
+	iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
 	recs: List[int] = []
 	if rated_movies.user_condition in [1, 2, 3, 4]:
 		recs = iersalgs.predict_topN(rated_movies.ratings, \
@@ -101,6 +100,9 @@ async def create_recommendations(rated_movies: RatingsSchema, \
 	tags=['ers movie'])
 async def update_recommendations(rated_movies: EmotionInputSchema, \
 	db: Session = Depends(get_db)):
+	iers_item_pop, iersg20 = get_iers_data()
+	iers_model_path = get_iers_model_path()
+	iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
 	recs = []
 	if rated_movies.input_type == 'discrete':
 		emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin \
@@ -160,6 +162,9 @@ async def update_recommendations(rated_movies: EmotionInputSchema, \
 	response_model=List[MovieSchema], tags=['ers movie'])
 async def update_recommendations_experimental(\
 	rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(get_db)):
+	iers_item_pop, iersg20 = get_iers_data()
+	iers_model_path = get_iers_model_path()
+	iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
 	recs = []
 	if rated_movies.input_type == 'discrete':
 		emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin \
