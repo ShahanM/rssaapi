@@ -5,7 +5,7 @@ autopep8==1.6.0
 backcall==0.2.0
 bcrypt==4.0.1
 binpickle==0.3.4
-certifi==2022.9.14
+certifi==2023.7.22
 cffi==1.15.0
 charset-normalizer==2.1.1
 click==8.1.3
