@@ -124,7 +124,7 @@ class AlternateRS(RSSABase):
 		num_bs = 1000
 		top_n = self.get_predictions(ratings, user_id).head(num_bs)
 
-		hip_items = top_n.sort_values(by ='count', ascending=True).head(n)
+		hip_items = top_n.sort_values(by='count', ascending=True).head(n)
 
 		return list(map(str, hip_items['item']))
 		

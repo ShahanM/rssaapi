@@ -33,7 +33,7 @@ class PreferenceVisualization(RSSABase):
 		new_ratings = pd.Series(np.array([np.float64(rating.rating) for rating \
 			in ratings]), index = rated_items)  
 		
-		als_preds = predict(self.trained_model, self.item_popularity, \
+		als_preds = predict(self.model, self.item_popularity, \
 			user_id, new_ratings)
 
 		return als_preds
