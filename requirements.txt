@@ -59,7 +59,7 @@ pexpect==4.8.0
 pickleshare==0.7.5
 platformdirs==3.5.1
 prompt-toolkit==3.0.30
-protobuf==4.21.2
+protobuf==4.21.6
 psutil==5.9.1
 psycopg2==2.9.3
 ptyprocess==0.7.0
