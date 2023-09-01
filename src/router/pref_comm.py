@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends
 from util.docs_metadata import TagsMetadataEnum as Tags
 from typing import List
 from data.models.schema.advisorschema import *
-from compute.iers import IERSCompute
+from compute.iers import EmotionsRS
 from compute.utils import get_rating_data_path, get_iers_data, get_iers_model_path
-from compute.rspc import RSSAPrefCommunity
+from compute.rspc import PreferenceCommunity
 from sqlalchemy.orm import Session
 from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import *
@@ -21,13 +21,15 @@ def get_db():
 	finally:
 		db.close()
 
+
 class AdvisorIDSchema (BaseModel):
 	advisor_id: int
+
 
 @router.post("/prefComm/advisor/profile/", response_model=AdvisorSchema, tags=[Tags.pref_comm])
 async def get_advisor_profile(advisor_id: AdvisorIDSchema, \
 	db: Session = Depends(get_db)):
-	rssa_pref_comm = RSSAPrefCommunity(get_rating_data_path())
+	rssa_pref_comm = PreferenceCommunity(get_rating_data_path())
 	advisor_data = rssa_pref_comm.get_advisor_profile(advisor_id.advisor_id)
 	ers_movie = get_ers_movie(db, advisor_id.advisor_id)
 
@@ -83,7 +85,7 @@ async def get_advisor(rated_movies: PrefCommRatingSchema, \
 	# TODO make these singletons
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
-	iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
+	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
 
 	advisors = []
 	

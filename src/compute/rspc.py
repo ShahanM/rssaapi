@@ -7,7 +7,7 @@ This file contains the RSSA Preference Community (RSPC) algorithms.
 
 import pandas as pd
 
-class RSSAPrefCommunity():
+class PreferenceCommunity:
 	def __init__(self, data_path: str):
 		self.data_path = data_path
 	

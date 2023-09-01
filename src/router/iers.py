@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from compute.iers import IERSCompute
+from compute.iers import EmotionsRS
 from compute.utils import *
 from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import *
@@ -74,7 +74,7 @@ async def create_recommendations(rated_movies: RatingsSchema, \
 	db: Session = Depends(get_db)):
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
-	iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
+	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
 	recs: List[int] = []
 	if rated_movies.user_condition in [1, 2, 3, 4]:
 		recs = iersalgs.predict_topN(rated_movies.ratings, \
@@ -102,7 +102,7 @@ async def update_recommendations(rated_movies: EmotionInputSchema, \
 	db: Session = Depends(get_db)):
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
-	iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
+	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
 	recs = []
 	if rated_movies.input_type == 'discrete':
 		emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin \
@@ -164,7 +164,7 @@ async def update_recommendations_experimental(\
 	rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(get_db)):
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
-	iersalgs = IERSCompute(iers_model_path, iers_item_pop, iersg20)
+	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
 	recs = []
 	if rated_movies.input_type == 'discrete':
 		emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin \

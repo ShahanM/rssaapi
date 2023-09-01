@@ -18,7 +18,7 @@ from data.models.schema.movieschema import (EmotionContinuousInputSchema,
 								EmotionDiscreteInputSchema, RatedItemSchema)
 
 
-class IERSCompute:
+class EmotionsRS:
 	def __init__(self, model_path: str, item_popularity: pd.DataFrame, \
 		iersg20: pd.DataFrame):
 		'''

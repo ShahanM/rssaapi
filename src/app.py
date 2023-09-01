@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from compute.rssa import RSSACompute
+from compute.rssa import AlternateRS
+
 from compute.utils import *
 from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import MovieSchema, RatingsSchema
@@ -106,9 +107,9 @@ async def read_movies(skip: int=0, limit: int=100, db: Session=Depends(get_db)):
 
 @app.post('/recommendation/', response_model=List[MovieSchema], tags=['movie'])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session=Depends(get_db)):
-	rssa_itm_pop, rssa_ave_scores = get_rssa_data()
+	rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
 	rssa_model_path = get_rssa_model_path()
-	rssalgs = RSSACompute(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
+	rssalgs = AlternateRS(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
 	recs = rssalgs.get_condition_prediction(\
 			ratings=rated_movies.ratings, \
 			user_id=rated_movies.user_id, \

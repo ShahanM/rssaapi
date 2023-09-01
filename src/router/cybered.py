@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from compute.rssa import RSSACompute
+from compute.rssa import AlternateRS
 from compute.utils import *
 from data.cybereddatabase import SessionLocal as CyberedSessionLocal
 from data.models.schema.movieschema import MovieSchema, RatingsSchema
@@ -28,7 +28,7 @@ async def create_cybered_recommendations(rated_movies: RatingsSchema, db: Sessio
 	
 	cybered_itm_pop, cybered_ave_scores = get_cybered_data()
 	cybered_model_path = get_cybered_model_path()
-	cybered = RSSACompute(cybered_model_path, cybered_itm_pop, cybered_ave_scores)
+	cybered = AlternateRS(cybered_model_path, cybered_itm_pop, cybered_ave_scores)
 
 	# temporary for data out
 	movie_ids = [movie.item_id for movie in rated_movies.ratings]
