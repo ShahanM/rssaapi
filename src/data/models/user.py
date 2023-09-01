@@ -1,11 +1,9 @@
 from datetime import datetime
-from enum import unique
-from dataclasses import dataclass
-from typing import List
-from data.userdatabase import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric, Boolean
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric
 from sqlalchemy.orm import relationship
 
+Base = declarative_base()
 
 class User(Base):
 	__tablename__ = 'user'
@@ -16,6 +14,8 @@ class User(Base):
 
 	study_id = Column(Integer, nullable=False)
 	condition = Column(Integer, nullable=False)
+	
+	completed = Column(Integer, nullable=False, default=0)			
 
 	user_type_id = Column(Integer, ForeignKey('user_type.id'), nullable=False)
 	user_type = relationship('UserType', back_populates='users')
@@ -33,6 +33,12 @@ class User(Base):
 
 	emotion_preference = relationship('EmotionPreference', \
 		back_populates='user', uselist=False, cascade='all, delete-orphan')
+	
+	interaction_log = relationship('InteractionLog', back_populates='user', \
+		uselist=False, cascade='all, delete-orphan')
+	
+	demographic_info = relationship('DemographicInfo', back_populates='user', \
+		uselist=False, cascade='all, delete-orphan')
 
 	# selected_item = Column(Integer, nullable=True)
 
@@ -96,6 +102,7 @@ class RatingResponse(Base):
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
 	user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+	study_id = Column(Integer, nullable=False)
 	page_id = Column(Integer, nullable=False)
 	item_id = Column(Integer, nullable=False)
 
@@ -122,3 +129,44 @@ class EmotionPreference(Base):
 	trust = Column(Numeric, nullable=False, default=-1.0)
 
 	user = relationship('User', back_populates='emotion_preference')
+
+class InteractionLog(Base):
+	__tablename__ = 'interaction_log'
+
+	id = Column(Integer, primary_key=True, autoincrement=True)
+	
+	user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+	study_id = Column(Integer, nullable=False)
+	step_id = Column(Integer, nullable=False)
+	
+	# steps with one page only has no page_id
+	page_id = Column(Integer, nullable=True)
+
+	user = relationship('User', back_populates='interaction_log')
+
+	# time of interaction (UTC) logged
+	time = Column(DateTime, nullable=False, default=datetime.utcnow)
+	time_spent = Column(Integer, nullable=False)
+
+	# action_type: 'click', 'rating', 'text', 'next', 'back'
+	interaction_type = Column(String(144), nullable=False)
+	# for the gallery, the target is in the form of 'gallery:pagenum'
+	interaction_target = Column(String(144), nullable=False)
+
+	# only applicable for rating action
+	item_id = Column(Integer, nullable=True)
+	rating = Column(Integer, nullable=True)
+
+
+class DemographicInfo(Base):
+	__tablename__ = 'demographic_info'
+
+	id = Column(Integer, primary_key=True, autoincrement=True)
+	user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+	study_id = Column(Integer, nullable=False)
+
+	age_group = Column(String, nullable=False)
+	gender = Column(String(144), nullable=False)
+	education = Column(String(144), nullable=False)
+
+	user = relationship('User', back_populates='demographic_info')

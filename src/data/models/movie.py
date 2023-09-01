@@ -33,6 +33,7 @@ class Movie(Base):
 	poster = Column(String(234), nullable=False)
 	count = Column(Integer, nullable=False)
 	rank = Column(Integer, nullable=False)
+	poster_identifier = Column(String(255), nullable=False)
 
 	rank_group = Column('rank_group', ForeignKey('rank_group.id'))
 	rank_group_idx = Index(rank_group, postgresql_using='hash')

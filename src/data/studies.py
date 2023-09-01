@@ -235,6 +235,15 @@ def get_first_step_page(db: Session, study_id: int, step_id: int) -> Page:
 		raise Exception("There are no pages defined for this step.")
 
 
+def get_last_step_page(db: Session, study_id: int, step_id: int) -> Page:
+	page = db.query(Page).filter(Page.study_id == study_id).filter(Page.step_id == step_id).order_by(Page.page_order.desc()).first()
+
+	if page:
+		return page
+	else:
+		raise Exception("There are no pages defined for this step.")
+
+
 def get_next_step_page(db: Session, study_id: int, step_id: int, page_id: int) -> Page:
 	current = get_page_by_id(db, study_id, step_id, page_id)
 	page = db.query(Page).filter(Page.study_id == study_id).filter(Page.step_id == step_id).filter(Page.page_order > current.page_order).order_by(Page.page_order).first()
@@ -296,6 +305,18 @@ def get_question_by_id(db: Session, study_id: int, step_id: int, page_id: int, q
 		return question
 	else:
 		raise Exception("Question not found")
+
+
+def get_all_survey_questions(db: Session, study_id: int) -> List[PageQuestion]:
+	questions = db.query(PageQuestion).filter(PageQuestion.study_id == study_id).all()
+	
+	return questions
+
+
+def get_count_of_questions_by_study_id(db: Session, study_id: int) -> int:
+	count = db.query(PageQuestion).filter(PageQuestion.study_id == study_id).count()
+	
+	return count
 
 
 def update_survey_question(db: Session, study_id: int, step_id: int, page_id: int, question_id: int, \

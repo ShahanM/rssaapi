@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from compute.utils import *
 from data.studydatabase import SessionLocal
-from data.models.studyschema import *
+from data.models.schema.studyschema import *
 from data.studies import *
 from .admin import get_current_active_user, AdminUser
 from util.docs_metadata import TagsMetadataEnum as Tags
@@ -206,6 +206,13 @@ async def get_first_page(study_id: int, step_id: int, db: Session = Depends(get_
     page = get_first_step_page(db, study_id, step_id)
 
     return page
+
+
+@router.get('/study/{study_id}/step/{step_id}/page/last/', response_model=PageSchema, tags=[Tags.page])
+async def get_last_page(study_id: int, step_id: int, db: Session = Depends(get_db)):
+	page = get_last_step_page(db, study_id, step_id)
+
+	return page
 
 
 @router.get('/study/{study_id}/step/{step_id}/page/{page_id}/next', response_model=PageSchema, tags=[Tags.page])

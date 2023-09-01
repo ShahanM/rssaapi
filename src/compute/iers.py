@@ -1,16 +1,43 @@
+"""
+This file contains the IERS-related functions and the API for the IERS
+diversification algorithms.
+
+@Author: Mehtab Iqbal (Shahan) and Lijie Guo
+@Affiliation: School of Computing, Clemson University
+"""
+
 import pickle
 from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy.spatial import distance
+from sklearn.preprocessing import MinMaxScaler
 
-from data.models.schema import (EmotionContinuousInputSchema,
-                                EmotionDiscreteInputSchema, RatedItemSchema)
+from data.models.schema.movieschema import (EmotionContinuousInputSchema,
+								EmotionDiscreteInputSchema, RatedItemSchema)
 
 
-class IERSCompute:
-	def __init__(self, model_path, item_popularity, iersg20):
+class EmotionsRS:
+	def __init__(self, model_path: str, item_popularity: pd.DataFrame, \
+		iersg20: pd.DataFrame):
+		'''
+		Constructor
+
+		Parameters
+		----------
+		model_path : str
+			Path to model used for recommendations
+		item_popularity : pd.DataFrame
+			Item popularity
+		iersg20 : pd.DataFrame
+			Movies dataset with all the movie ids that correspond to the
+			trained model, database, and item popularity
+
+		Returns
+		-------
+		None
+		'''
 		self.item_popularity = item_popularity
 		self.iersg20 = iersg20
 
@@ -21,8 +48,12 @@ class IERSCompute:
 			'joy', 'sadness', 'surprise', 'trust']
 		self.item_emotions = self.iersg20.rename({'movie_id' : 'item'}, \
 			axis = 1)
-
-		self.num_topN = 200
+		
+		self.distance_lambdas = {
+			'euclidean': distance.euclidean,
+			'cityblock': distance.cityblock,
+			'sqrtcityblock': self.__sqrt_cityblock,
+		}
 
 	def __import_trained_model(self):
 		'''
@@ -35,6 +66,18 @@ class IERSCompute:
 		f_import = open(self.model_path + 'ieRS_implictMF.pkl', 'rb')
 		trained_model = pickle.load(f_import)
 		f_import.close()
+
+		# imat = trained_model.item_features_
+		# items = trained_model.item_index_
+
+		# colnames = ['feat1', 'feat2', 'feat3', 'feat4', 'feat5', 'feat6', \
+		# 	'feat7', 'feat8', 'feat9', 'feat10', 'feat11', 'feat12', 'feat13', \
+		# 	'feat14', 'feat15', 'feat16', 'feat17', 'feat18', 'feat19', 'feat20']
+		# item_features = pd.DataFrame(imat, columns=colnames)
+		# item_ids = pd.DataFrame({'movie_id': items.values})
+		# item_latent_features = pd.concat([item_ids, item_features], axis=1)
+		# item_latent_features.to_csv(self.model_path + 'item_latent_features.csv', \
+		# 	index=False)
 
 		return trained_model
 
@@ -68,7 +111,7 @@ class IERSCompute:
 			
 		return RSSA_preds_noRatedItems
 
-	def predict_topN(self, ratings: List[RatedItemSchema], user_id, numRec) -> \
+	def predict_topN(self, ratings: List[RatedItemSchema], user_id, num_rec) -> \
 		List[int]:
 		'''
 		Predict top N items using the Tradional Top-N recommendation from the 
@@ -80,7 +123,7 @@ class IERSCompute:
 			List of rated items
 		user_id : int
 			User ID
-		numRec : int
+		num_rec : int
 			Number of recommendations
 
 		Returns
@@ -89,12 +132,13 @@ class IERSCompute:
 			Top N items
 		'''
 		topN_discounted = self.__get_rssa_discounted_prediction(ratings, \
-			user_id, numRec)
+			user_id, num_rec)
 		
 		return list(map(int, topN_discounted['item']))
 	
 	def predict_diverseN(self, ratings: List[RatedItemSchema], user_id: int, \
-		numRec: int) -> List[int]:
+		num_rec: int, dist_method:str, weight_sigma: float, item_pool_size:int,\
+		sampling_size: int) -> List[int]:
 		'''
 		Predict diverse N items using the Diverse Top-N recommendation by
 		diversifying the RSSA discounted predictions
@@ -105,6 +149,16 @@ class IERSCompute:
 			List of rated items
 		user_id : int
 			User ID
+		num_rec : int
+			Number of recommendations to make
+		dist_method : str
+			Distance method
+		weight_sigma : float
+			Weight sigma
+		item_pool_size : int
+			Item pool size to seed diverseN
+		sampling_size: int
+			Number of items to sample from the candidate item pool
 
 		Returns
 		-------
@@ -112,11 +166,12 @@ class IERSCompute:
 			Diverse N items
 		'''
 		diverseN = self.__predict_diverseN_by_emotion(ratings, \
-			user_id, self.num_topN)
+			user_id, dist_method, weight_sigma, item_pool_size, sampling_size)
 		
-		return list(map(int, diverseN['item']))		
+		return list(map(int, diverseN.head(num_rec)['item']))		
 
 	def __live_prediction(self, algo, liveUserID, new_ratings, item_popularity):
+		# TODO - add type hints
 		'''
 		Make live prediction
 
@@ -161,7 +216,7 @@ class IERSCompute:
 		return RSSA_preds_df, liveUser_feature
 	
 	def __get_rssa_discounted_prediction(self, ratings: List[RatedItemSchema], \
-		user_id, numRec) -> pd.DataFrame:
+		user_id:int, num_rec:int) -> pd.DataFrame:
 		'''
 		Get RSSA discounted predictions
 
@@ -182,10 +237,10 @@ class IERSCompute:
 		RSSA_preds_of_noRatedItems = self.get_predictions(ratings, user_id)
 		discounted_preds_sorted = RSSA_preds_of_noRatedItems.sort_values(by = \
 			'discounted_score', ascending = False)
-		return discounted_preds_sorted.head(numRec)
+		return discounted_preds_sorted.head(num_rec)
 	
 	def __get_candidate_item(self, ratings: List[RatedItemSchema], \
-			user_id) -> Tuple[pd.DataFrame, pd.DataFrame]:
+			user_id:int, item_pool_size:int) -> Tuple[pd.DataFrame, pd.DataFrame]:
 		'''
 		Get candidate items
 
@@ -195,6 +250,8 @@ class IERSCompute:
 			List of rated items
 		user_id : int
 			User ID
+		item_pool_size: int
+			Item pool size to generate initial candidate items
 
 		Returns
 		-------
@@ -204,19 +261,18 @@ class IERSCompute:
 			Candidate item emotions
 		'''
 		n_discounted_candidates = self.__get_rssa_discounted_prediction(ratings, \
-							user_id, self.num_topN)
+							user_id, item_pool_size)
 		candidate_ids = n_discounted_candidates.item.unique()
 
 		candidate_item_emotions = \
 			self.item_emotions[self.item_emotions['item'].isin(candidate_ids)]
 
-		# candidate_item_ids = candidate_item_emotions.item.unique()
-
 		return n_discounted_candidates, candidate_item_emotions
 
-	def __predict_tuned_topN(self, ratings: List[RatedItemSchema], user_id, \
+	def __predict_tuned_topN(self, ratings: List[RatedItemSchema], user_id: int, \
 		user_emotion_tags: List[str], user_emotion_vals: List[float], \
-			sort_order: bool) -> pd.DataFrame:
+			sort_order: bool, scale_vector: bool, ranking_strategy: str, \
+			dist_method: str, item_pool_size: int) -> pd.DataFrame:
 		'''
 		Predict top N items using the Top-N recommendation from the RSSA
 		discounted predictions tuned by user emotion input
@@ -233,47 +289,41 @@ class IERSCompute:
 			List of user emotion values
 		sort_order : bool
 			Sort order
-		numRec : int
-			Number of recommendations
+		scale_vector : bool
+			Scale vector
+		ranking_strategy : str
+			Ranking strategy (distance or weighted)
+		dist_method : str
+			Distance method (euclidean, cityblock, sqrt_cityblock)
+		item_pool_size : int
+			Item pool size to generate initial candidate items
 
 		Returns
 		-------
 		topN : pd.DataFrame
 			Top N items
 		'''
-		# topN_discounted = self.__get_rssa_discounted_prediction(ratings, \
-			# user_id, self.num_topN)
-		# candidate_ids = topN_discounted.item.unique()
-
-		# candidate_item_emotions = \
-			# self.item_emotions[self.item_emotions['item'].isin(candidate_ids)]
 
 		candidate_items, candidate_item_emotions = \
 			self.__get_candidate_item(ratings, \
-							user_id)
+							user_id, item_pool_size)
+		if ranking_strategy == 'distance':
+			return self.__get_distance_to_input( \
+				candidate_item_emotions, user_emotion_tags, user_emotion_vals, \
+				sort_order, scale_vector, dist_method)
 
-		# candidate_item_specified_emotions_ndarray = \
-		# 	candidate_item_emotions[user_emotion_tags].to_numpy()
+		if ranking_strategy == 'weighted':
+			new_ranking_score_df = self.__weighted_ranking(\
+				candidate_items[['item', 'discounted_score']], \
+				user_emotion_tags, user_emotion_vals, candidate_item_emotions)
+			new_ranking_score_df_sorted = new_ranking_score_df\
+				.sort_values(by = 'new_rank_score', ascending = False)
+			return new_ranking_score_df_sorted
 
-		# candidate_item_ids = candidate_item_emotions.item.unique()
-		
-		# distance_to_input = \
-		# 	self.__emotion_distance(candidate_item_specified_emotions_ndarray, \
-		# 		user_emotion_vals)
-		# distance_to_input_df = pd.DataFrame({'item': candidate_item_ids, \
-		# 	'distance': distance_to_input}, columns = ['item', 'distance'])
-		# distance_to_input_df_sorted = \
-		# 	distance_to_input_df.sort_values(by ='distance', \
-		# 		ascending=sort_order)
-
-		distance_to_input_df_sorted = self.__get_distance_to_input( \
-			candidate_item_emotions, user_emotion_tags, user_emotion_vals, \
-			sort_order)
-
-		return distance_to_input_df_sorted
+		raise NotImplementedError
 	
 	def __get_distance_to_input(self, emotions_items, user_emotion_tags, \
-			user_emotion_vals, sort_order) -> pd.DataFrame:
+			user_emotion_vals, sort_order, scale_vector, dist_method) -> pd.DataFrame:
 		'''
 		Get distance to input
 
@@ -283,6 +333,12 @@ class IERSCompute:
 			Emotion ndarray
 		user_emotion_vals : List[float]
 			List of user specified emotion values
+		sort_order : bool
+			Sort order
+		scale_vector : bool
+			Scale vector
+		dist_method : str
+			Distance method (euclidean, cityblock, sqrt_cityblock)
 
 		Returns
 		-------
@@ -290,14 +346,11 @@ class IERSCompute:
 			Distance to input
 		'''
 		emotion_item_ids = emotions_items.item.unique()
-
 		emotions_items_ndarray = \
 			emotions_items[user_emotion_tags].to_numpy()
-
 		distance_to_input = \
 			self.__emotion_distance(emotions_items_ndarray, \
-				user_emotion_vals)
-		
+				user_emotion_vals, scale_vector, dist_method)
 		distance_to_input_df = pd.DataFrame({'item': emotion_item_ids, \
 			'distance': distance_to_input}, columns = ['item', 'distance'])
 		distance_to_input_df_sorted = \
@@ -307,7 +360,8 @@ class IERSCompute:
 		return distance_to_input_df_sorted
 
 	def __process_discrete_emotion_input(self, \
-		emotion_input: List[EmotionDiscreteInputSchema]) \
+		emotion_input: List[EmotionDiscreteInputSchema], \
+		lowval: float, highval: float) \
 		-> Tuple[List[str], List[str], List[float]]:
 		'''
 		Process discrete emotion input
@@ -316,6 +370,10 @@ class IERSCompute:
 		----------
 		emotion_input : List[EmotionDiscreteInputSchema]
 			List of discrete emotion input
+		lowval [Optional]: float
+			Low value
+		highval [Optional]: float
+			High value
 
 		Returns
 		-------
@@ -331,19 +389,21 @@ class IERSCompute:
 		for emo in self.emotion_tags:
 			if emo_dict[emo] == 'low':
 				specified_emotion_tags.append(emo)
-				specified_emotion_vals.append(0.3)
+				specified_emotion_vals.append(lowval)
 			elif emo_dict[emo] == 'high':
 				specified_emotion_tags.append(emo)
-				specified_emotion_vals.append(0.8)
+				specified_emotion_vals.append(highval)
 			else:
 				unspecified_emotion_tags.append(emo)
-		
+
 		return specified_emotion_tags, unspecified_emotion_tags, \
 			specified_emotion_vals
 
 	def predict_discrete_tuned_topN(self, ratings: List[RatedItemSchema], \
 		user_id: int, emotion_input: List[EmotionDiscreteInputSchema], \
-			numRec: int) -> List[int]:
+			num_rec: int, scale_vector: bool, lowval: float, highval: float, \
+			ranking_strategy: str, dist_method: str, item_pool_size: int) -> \
+				List[int]:
 		'''
 		Predict top N items using the Top-N recommendation from the RSSA
 		discounted predictions tuned by user emotion input
@@ -356,8 +416,20 @@ class IERSCompute:
 			User ID
 		emotion_input : List[EmotionDiscreteInputSchema]
 			List of discrete emotion input
-		numRec : int
+		num_rec : int
 			Number of recommendations
+		scale_vector : bool
+			Scale vector
+		lowval : float
+			Low value
+		highval : float
+			High value
+		ranking_strategy : str
+			Ranking strategy (distance, weighted)
+		dist_method : str
+			Distance method (euclidean, cityblock, sqrt_cityblock)
+		item_pool_size : int
+			Item pool size
 
 		Returns
 		-------
@@ -365,17 +437,18 @@ class IERSCompute:
 			Top N items
 		'''
 		user_specified_emotion_tags, _, user_specified_emotion_vals = self.\
-				__process_discrete_emotion_input(emotion_input)
+				__process_discrete_emotion_input(emotion_input, lowval, highval)
 		
 		tuned_topN = self.__predict_tuned_topN(ratings, user_id, \
 			user_specified_emotion_tags, user_specified_emotion_vals, \
-				True)
+				True, scale_vector, ranking_strategy, dist_method, item_pool_size)
 		
-		return list(map(int, tuned_topN.head(numRec)['item']))
+		return list(map(int, tuned_topN.head(num_rec)['item']))
 
 	def predict_continuous_tuned_topN(self, ratings: List[RatedItemSchema], \
 		user_id, emotion_input: List[EmotionContinuousInputSchema], \
-			numRec: int) -> List[int]:
+			num_rec: int, scale_vector: bool, algo:str, \
+				dist_method:str, item_pool_size) -> List[int]:
 		'''
 		Predict top N items using the Top-N recommendation from the RSSA
 		discounted predictions tuned by user emotion input
@@ -388,8 +461,10 @@ class IERSCompute:
 			User ID
 		emotion_input : List[EmotionContinuousInputSchema]
 			List of continuous emotion input
-		numRec : int
+		num_rec : int
 			Number of recommendations
+		scale_vector : bool
+			Scale vector
 
 		Returns
 		-------
@@ -416,14 +491,16 @@ class IERSCompute:
 		
 		tuned_topN = self.__predict_tuned_topN(ratings, user_id, \
 			user_specified_emotion_tags, user_specified_emotion_vals, \
-				False)
+				False, scale_vector, algo, dist_method, item_pool_size)
 		
-		return list(map(int, tuned_topN.head(numRec)['item']))
+		return list(map(int, tuned_topN.head(num_rec)['item']))
 
 	def __predict_tuned_diverseN(self, ratings: List[RatedItemSchema], user_id, \
 		user_emotion_tags: List[str], user_emotion_vals: List[float], \
-		unspecified_emotion_tags: List[str], sort_order: bool, numDiv: int) \
-			-> pd.DataFrame:
+		unspecified_emotion_tags: List[str], sort_order: bool, \
+		scale_vector: bool, ranking_strategy: str, dist_method: str, div_crit: str,
+		item_pool_size: int, sampling_size: int) -> pd.DataFrame:
+		#FIXME: Incomplete docstring
 		'''
 		Predict top N items using the diversified recommendation from the RSSA
 		discounted predictions tuned by user emotion input
@@ -436,8 +513,7 @@ class IERSCompute:
 			User ID
 		sort_oder : bool
 			Sort order
-		numRec : int
-			Number of recommendations
+		
 
 		Returns
 		-------
@@ -446,37 +522,76 @@ class IERSCompute:
 		'''		
 		candidate_items, candidate_item_emotions = \
 			self.__get_candidate_item(ratings, \
-			user_id)
+			user_id, item_pool_size)
 		
-		candidate_item_unspecified_emotions_ndarray = \
-			candidate_item_emotions[unspecified_emotion_tags].to_numpy()
-		
-		# diverisfy emotions unspecified by user
-		weighting = 0
-		[diverseEmotion_unspecified, itemEmotion_unspecified] = \
-			self.__diversify_item_feature(candidate_items, 
-				candidate_item_unspecified_emotions_ndarray, \
-					candidate_item_emotions.item.unique(), weighting, numDiv)
-		
+		query_tags = self.emotion_tags
+		if div_crit == 'unspecifed':
+			query_tags = unspecified_emotion_tags
 
-		# find similar items to user specified emotions
-		candidates_for_similarity_ids = diverseEmotion_unspecified.item.unique()
+		candidate_ndarry = candidate_item_emotions[query_tags]\
+			.to_numpy()
+
+		weighting = 0
+
+		[rec_items, item_emotions] = \
+			self.__diversify_item_feature(candidate_items, candidate_ndarry, \
+				candidate_item_emotions.item.unique(), weighting, \
+				dist_method, weighting, sampling_size)
 		
+		# find similar items to user specified emotions
+		candidate_ids = rec_items.item.unique()
 		candidates_for_similarity_emotions = \
 			candidate_item_emotions[candidate_item_emotions['item']\
-			.isin(candidates_for_similarity_ids)]
-
-		distance_to_input_df_sorted = self.__get_distance_to_input( \
-			candidates_for_similarity_emotions, user_emotion_tags, \
-			user_emotion_vals, sort_order)
+			.isin(candidate_ids)]
 		
-		return distance_to_input_df_sorted
 
+		if ranking_strategy == 'distance':
+			return self.__get_distance_to_input( \
+			candidates_for_similarity_emotions, user_emotion_tags, \
+			user_emotion_vals, sort_order, scale_vector, dist_method)
+		
+		if ranking_strategy == 'weighted':
+			return self.__weighted_ranking(\
+			rec_items[['item', 'discounted_score']], \
+			user_emotion_tags, user_emotion_vals, \
+			candidates_for_similarity_emotions)
 
+		raise NotImplementedError
+	
+	def __weighted_ranking(self, original_rec_df: pd.DataFrame, \
+		user_emotion_tags: List[str], user_emotion_vals: List[float], \
+		candidate_item_emotions_df: pd.DataFrame) -> pd.DataFrame:
+		# TODO: add docstring
+		
+		original_rec_df.insert(original_rec_df.shape[1], 'ori_rank', \
+			range(original_rec_df.shape[0], 0, -1))
+		
+		recs_emotions_df = pd.merge(original_rec_df, candidate_item_emotions_df, \
+			on='item')
+		col_query = ['ori_rank']
+		col_query.extend(user_emotion_tags)
+		candidate_df_to_scale = recs_emotions_df[col_query]
+
+		scaler = MinMaxScaler()
+		candidates_df_scaled = scaler.fit_transform(candidate_df_to_scale.to_numpy())
+		candidates_df_scaled = pd.DataFrame(candidates_df_scaled, columns=col_query)
+
+		new_ranking_score = np.sum(candidates_df_scaled[user_emotion_tags].values \
+			* user_emotion_vals, axis=1) + (1-np.sum(np.absolute(user_emotion_vals))) \
+			* candidates_df_scaled['ori_rank'].values
+		
+		recs_emotions_df.insert(recs_emotions_df.shape[1], 'new_rank_score', new_ranking_score)
+		recs_emotions_df.sort_values(by='new_rank_score', \
+			ascending=False, inplace=True)
+
+		return recs_emotions_df
+    
 	def predict_discrete_tuned_diverseN(self, \
 		ratings: List[RatedItemSchema], user_id: int, \
-		emotion_input: List[EmotionDiscreteInputSchema], numRec: int) \
-			-> List[int]:
+		emotion_input: List[EmotionDiscreteInputSchema], \
+		num_rec: int, sampling_size: int, item_pool_size:int, scale_vector:bool, \
+		lowval:float, highval:float, ranking_strategy:str, dist_method:str, \
+		div_crit:str) -> List[int]:
 		'''
 		Predict top N items using the diversified recommendation from the RSSA
 		discounted predictions tuned by user emotion input
@@ -489,40 +604,47 @@ class IERSCompute:
 			User ID
 		emotion_input : List[EmotionDiscreteInputSchema]
 			List of discrete emotion input
-		numRec : int
+		num_rec : int
 			Number of recommendations
+		sampling_size: int
+			Number of items to sample from the candidate item pool
+		item_pool_size: int
+			Item pool size
+		scale_vector: bool
+			Scale vector
+		lowval: float
+			Low value
+		highval: float
+			High value
+		ranking_strategy: str
+			Ranking strategy (distance or weighted)
+		dist_method: str
+			Distance method (euclidean, cityblock, sqrtcityblock)
+		div_crt: str
+			Diversity criteria (all or unspecified emotion tags)
 
 		Returns
 		-------
 		topN : List[int]
 			Top N items
 		'''
-
 		user_specified_emotion_tags, user_unspecified_emotion_tags, \
 			user_specified_emotion_vals = \
-			self.__process_discrete_emotion_input(emotion_input)
-		# tuned_topN, candidate_item_emotions = \
-		# 	self.__predict_tuned_topN(ratings, user_id, \
-		# 	user_specified_emotion_tags, user_specified_emotion_vals, \
-		# 		True, 200)
-
-		# topN_discounted = self.__get_rssa_discounted_prediction(ratings, \
-			# user_id, 200)
+			self.__process_discrete_emotion_input(emotion_input, \
+					lowval, highval)
 		
-		
-		# candidate_item_specified_emotions_ndarray = \
-		# 	candidate_item_emotions[user_specified_emotion_tags].to_numpy()
-
-		# candidates_for_similarity_emotions_index = \
-		# 	candidates_for_similarity_emotions.item.unique()
 		rec_diverseEmotion = self.__predict_tuned_diverseN(ratings, user_id, \
 			user_specified_emotion_tags, user_specified_emotion_vals, \
-			user_unspecified_emotion_tags, True, 50)
+			user_unspecified_emotion_tags, True, scale_vector, \
+			ranking_strategy, dist_method, div_crit, item_pool_size, \
+			sampling_size)
 		
-		return list(map(int, rec_diverseEmotion.head(numRec)['item']))
+		return list(map(int, rec_diverseEmotion.head(num_rec)['item']))
 
 	def __predict_diverseN_by_emotion(self, ratings: List[RatedItemSchema], \
-		user_id:int, numRec: int) -> pd.DataFrame:
+		user_id:int, dist_method: str, weight_sigma:float, item_pool_size:int, \
+		sampling_size: int) -> pd.DataFrame:
+		#FIXME: Incomplete docstring
 		'''
 		Predict top N items using the diversified recommendation from the RSSA
 		discounted predictions
@@ -534,8 +656,8 @@ class IERSCompute:
 			List of rated items
 		user_id : int
 			User ID
-		numRec : int
-			Number of recommendations
+		dist_method: str
+			Distance method (euclidian, cityblock, sqrtcityblock)
 
 		Returns
 		-------
@@ -543,20 +665,21 @@ class IERSCompute:
 			Predicted diverse N items
 		'''
 		candidates = self.__get_rssa_discounted_prediction(ratings, user_id, \
-			self.num_topN)[['item', 'discounted_score']]
+			item_pool_size)[['item', 'discounted_score']]
 
 		item_emotions_ndarray = self.item_emotions[self.emotion_tags].to_numpy()
 		item_ids = self.item_emotions.item.unique()
 		
-		weighting = 0
+		weighting:float = 0
 		[rec_diverseEmotion, rec_itemEmotion] = \
 			self.__diversify_item_feature(candidates, item_emotions_ndarray, \
-				item_ids, weighting, numRec)
+				item_ids, weighting, dist_method, weight_sigma, sampling_size)
 	
 		return rec_diverseEmotion
 
-	def __diversify_item_feature(self, candidates, vectors, items, weighting=0, \
-		numRecs = 10, weight_sigma = None):
+	def __diversify_item_feature(self, candidates: pd.DataFrame, \
+		vectors, items, weighting: float, dist_method:str, weight_sigma:float, \
+		sampling_size:int):
 		'''
 		Diversify items based on item features
 
@@ -570,10 +693,10 @@ class IERSCompute:
 			List of item IDs
 		weighting : float, optional
 			Weighting factor, by default 0
-		numRecs : int, optional
-			Number of recommendations, by default 10
 		weight_sigma : float, optional
 			Weighting factor, by default None
+		sampling_size: int
+			Number of items to sample from the item pool
 
 		Returns
 		-------
@@ -616,9 +739,10 @@ class IERSCompute:
 			pd.Index([firstItem_index_val]), axis = 0)
 		
 		# Find the best next item one by one
-		while len(diverse_itemIDs) < numRecs:
+		while len(diverse_itemIDs) < sampling_size:
 			nextItem_vector, nextItem_index = \
-				self.__sum_distance(candidate_vectorsDf_left, diverse_vectors)
+				self.__sum_distance(candidate_vectorsDf_left, diverse_vectors, \
+					dist_method)
 			candidate_vectorsDf_left = candidate_vectorsDf_left.drop(
 				pd.Index([nextItem_index]), axis = 0)
 			diverse_vectors = np.concatenate((diverse_vectors, \
@@ -639,7 +763,7 @@ class IERSCompute:
 			diverse_items_shuffled.reindex(diverse_itemIDsDf.index)
 		
 		return recommendations, diverse_vectorsDf
-        
+		
 	def __first_item(self, centroid, candidate_vectors, candidate_items):
 		'''
 		Find the first item
@@ -669,8 +793,9 @@ class IERSCompute:
 			distance_cityblock.sort_values(by='distance', ascending=True)
 		first_index_val = distance_cityblock_sorted.index[0]
 		return  first_index_val
-        
-	def __sum_distance(self, candidate_vectorsDf, diverse_set):
+		
+	def __sum_distance(self, candidate_vectorsDf: pd.DataFrame, \
+		diverse_set, method):
 		'''
 		Find the next best item
 
@@ -693,7 +818,8 @@ class IERSCompute:
 		for row_candidate_vec in candidate_vectors:
 			sum_dist = 0
 			for row_diverse in diverse_set:
-				dist = self.__sqrt_cityblock(row_candidate_vec, row_diverse)
+				dist = self.distance_lambdas[method](row_candidate_vec, \
+					row_diverse)
 				sum_dist = sum_dist + dist
 			distance_cumulate.append(sum_dist)
 		distance_cumulate = pd.DataFrame({'sum_distance': distance_cumulate})
@@ -706,7 +832,7 @@ class IERSCompute:
 				candidate_vectorsDf.index.isin(pd.Index([bestItem_index]))]
 		
 		return bestItem_vector, bestItem_index
-    
+	
 	def __sqrt_cityblock(self, point1, point2):
 		'''
 		Calculate the square root of the cityblock distance between two points
@@ -730,7 +856,7 @@ class IERSCompute:
 
 		return sqrt_city_block  
 
-	def __emotion_distance(self, matrix, vector):
+	def __emotion_distance(self, matrix, vector, scale_vector, method):
 		'''
 		Calculate the distance between an emotion vector and the overall
 		emotion matrix
@@ -741,6 +867,10 @@ class IERSCompute:
 			Overall emotion matrix
 		vector : np.ndarray
 			Emotion vector
+		scale_vector: bool
+			Scale vector
+		method: str
+			Distance method (euclidian, cityblock, or sqrtcityblock)
 
 		Returns
 		-------
@@ -748,8 +878,13 @@ class IERSCompute:
 			Distance between the emotion vector and the overall emotion matrix
 		'''
 		dist_array = []
+		if scale_vector:
+			matrix_max = np.max(matrix, axis = 0)
+			matrix_min = np.min(matrix, axis = 0)
+			vector = (matrix_max - matrix_min) * vector
 		for row_vector in matrix:
-			dist = distance.euclidean(row_vector, vector)
+			dist = self.distance_lambdas[method](row_vector, vector)
 			dist_array.append(dist)
 		
 		return  dist_array
+

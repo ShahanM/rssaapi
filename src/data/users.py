@@ -1,22 +1,27 @@
-from sqlalchemy.orm import Session
-from .models.user import *
-from .models.userschema import *
-from typing import List
-from .userdatabase import engine
-from .models.schema import RatedItemSchema
-from data.models.schema import RatedItemSchema, EmotionDiscreteInputSchema
 import random
+from typing import List
+
+from sqlalchemy.orm import Session
+
+from data.models.schema.movieschema import EmotionDiscreteInputSchema
+
+from .models.schema.userschema import *
+from .models.user import *
 
 
-def create_user(db: Session, newuser: NewUserSchema) -> User:
+def create_user(db: Session, newuser: NewUserSchema, condition: int) -> User:
 	usertype = get_user_type_by_str(db, newuser.user_type)
-	user = User(study_id=newuser.study_id, condition=random.choice(newuser.study_conditions), \
+	lastuserid = db.query(User).order_by(User.id.desc()).first()
+	if lastuserid:
+		lastuserid = lastuserid.id
+	else:
+		lastuserid = 0
+	testid = 161320
+	user = User(id=lastuserid+testid, study_id=newuser.study_id, condition=condition, \
 		user_type=usertype)
-
 	db.add(user)
 	db.commit()
 	db.refresh(user)
-
 	return user
 
 
@@ -26,15 +31,23 @@ def get_user(db: Session, user_id: int) -> User:
 		return user
 	else:
 		return User()
+	
+
+def get_study_users(db: Session, study_id: int) -> List[User]:
+	users = db.query(User).filter(User.study_id == study_id).all()
+	return users
 
 
 def get_user_type_by_str(db: Session, type_str: str) -> UserType:
 	usertype = db.query(UserType).filter(UserType.type_str == type_str).first()
 
-	if usertype:
-		return usertype
-	else:
-		return UserType(type_str=type_str)
+	if not usertype:
+		usertype = UserType(type_str=type_str)
+		db.add(usertype)
+		db.commit()
+		db.refresh(usertype)
+	
+	return usertype
 
 
 def instantiate_user_response(user: User, study_id: int, \
@@ -104,7 +117,7 @@ def create_rating_response(db: Session, user_id: int, \
 	ratingresponses = []
 
 	for rating in ratings.ratings:
-		ratingresponses.append(RatingResponse(user=user, \
+		ratingresponses.append(RatingResponse(user=user, study_id=ratings.study_id, \
 		page_id=ratings.page_id, item_id=rating.item_id, rating=rating.rating, \
 		page_level=ratings.page_level))
 
@@ -173,7 +186,8 @@ def create_item_selection(db: Session, user_id: int, \
 	itemselection: SelectionResponseSchema) -> RatingResponse:
 	user = get_user(db, user_id)
 
-	selected = RatingResponse(user=user, page_id=itemselection.page_id, \
+	selected = RatingResponse(user=user, study_id=itemselection.study_id, \
+		page_id=itemselection.page_id, \
 		item_id=itemselection.selected_item.item_id, rating=99, page_level=0)
 
 	db.add(selected)
@@ -187,12 +201,92 @@ def create_item_selection(db: Session, user_id: int, \
 
 	return selected
 
+def create_demographic_info_response(db: Session, demo: DemographicInfoSchema) \
+	-> int:
+	
+	demographic = DemographicInfo(\
+		user_id=demo.user_id, \
+		study_id=demo.study_id, \
+		age_group=demo.age_group, \
+		gender=demo.gender, \
+		education=demo.education)
+	
+	db.add(demographic)
+	db.commit()
+	db.refresh(demographic)
 
-def create_database(base):
-	UserType.__table__.create(bind=engine, checkfirst=True)
-	User.__table__.create(bind=engine, checkfirst=True)
-	SeenItem.__table__.create(bind=engine, checkfirst=True)
-	SurveyResponse.__table__.create(bind=engine, checkfirst=True)
-	SurveyTextResponse.__table__.create(bind=engine, checkfirst=True)
-	RatingResponse.__table__.create(bind=engine, checkfirst=True)
-	EmotionPreference.__table__.create(bind=engine, checkfirst=True)
+	demoid = demographic.id
+	assert type(demoid) == int
+	return demoid
+
+
+def log_interaction(db: Session, log: InteractionLogSchema) -> \
+	int:
+
+	interaction = InteractionLog(\
+		user_id=log.user_id, \
+		study_id=log.study_id, \
+		step_id=log.step_id, \
+		page_id=log.page_id, \
+		time_spent=log.time_spent, \
+		interaction_type=log.interaction_type, \
+		interaction_target=log.interaction_target, \
+		item_id=log.item_id, \
+		rating=log.rating)
+
+	db.add(interaction)
+	db.commit()
+	db.refresh(interaction)
+
+	intid = interaction.id
+	assert type(intid) == int
+	return intid
+
+
+def validate_study_completion(db: Session, user_id: int, qcount) -> bool:
+	completed = False
+	user = get_user(db, user_id)
+	
+	rated_items = db.query(RatingResponse)\
+		.filter(RatingResponse.user_id == user.id).all()
+	completed = len(rated_items) >= 10
+
+	print('Checked rated items', completed)
+	
+	selected_item = db.query(RatingResponse)\
+		.filter(RatingResponse.user_id == user.id)\
+		.filter(RatingResponse.rating == 99).first()
+	completed = completed and selected_item is not None
+
+	print('Checked selected item', completed)
+
+	lik_res_count = db.query(SurveyResponse)\
+		.filter(SurveyResponse.user_id == user.id).count()
+	txt_res_count = db.query(SurveyTextResponse)\
+		.filter(SurveyTextResponse.user_id == user.id).count()
+	# print('Survey responses', len(survey_res) + len(survey_txt_res), qcount)
+	completed = completed and (lik_res_count + txt_res_count) >= qcount
+	
+	print('Checked survey responses', completed)
+
+	demoInfo = db.query(DemographicInfo)\
+		.filter(DemographicInfo.user_id == user.id).first()
+	completed = completed and demoInfo is not None
+
+	print('Checked demographic info', completed)
+
+	if completed and not user.completed == 1:
+		user.completed = 1  # type: ignore
+		db.commit()
+		db.refresh(user)
+
+	return completed
+
+# def create_database():
+# 	UserType.__table__.create(bind=engine, checkfirst=True)
+# 	User.__table__.create(bind=engine, checkfirst=True)
+# 	SeenItem.__table__.create(bind=engine, checkfirst=True)
+# 	SurveyResponse.__table__.create(bind=engine, checkfirst=True)
+# 	SurveyTextResponse.__table__.create(bind=engine, checkfirst=True)
+# 	RatingResponse.__table__.create(bind=engine, checkfirst=True)
+# 	EmotionPreference.__table__.create(bind=engine, checkfirst=True)

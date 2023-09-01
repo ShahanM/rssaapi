@@ -19,7 +19,7 @@ class EmotionsSchema(BaseModel):
 
 class MovieSchema(BaseModel):
 	id: int
-	movie_id: str
+	movie_id: int
 	title: str
 	year: int
 	ave_rating: float
@@ -29,6 +29,7 @@ class MovieSchema(BaseModel):
 	description: str
 	poster: str
 	emotions: Optional[EmotionsSchema]
+	poster_identifier: Optional[str]
 
 	class Config:
 		orm_mode = True
@@ -72,3 +73,31 @@ class EmotionInputSchema(BaseModel):
 		List[EmotionContinuousInputSchema]]
 	ratings: List[RatedItemSchema]
 	num_rec: int
+
+
+class RatingSchemaExperimental(BaseModel):
+	user_id: int
+	user_condition: int
+	ratings: List[RatedItemSchema]
+	rec_type: int
+	num_rec: int = 10
+	low_val: float = 0.3
+	high_val: float = 0.8
+
+
+class EmotionInputSchemaExperimental(BaseModel):
+	user_id: int
+	condition_algo: int
+	input_type: Literal["discrete", "continuous"]
+	emotion_input: Union[List[EmotionDiscreteInputSchema], \
+		List[EmotionContinuousInputSchema]]
+	ratings: List[RatedItemSchema]
+	num_rec: int
+	item_pool_size: int
+	scale_vector: bool = False
+	low_val: float = 0.3
+	high_val: float = 0.8
+	algo: str
+	dist_method: str
+	diversity_criterion: str
+	diversity_sample_size: Optional[int]
