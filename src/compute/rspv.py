@@ -38,7 +38,8 @@ class PreferenceVisualization(RSSABase):
 
 		return als_preds
 	
-	def predict_diverse_items(self, ratings: List[RatedItemSchema], user_id) \
+	def predict_diverse_items(self, ratings: List[RatedItemSchema],\
+		num_rec: int, user_id) \
 		-> List[PreferenceItem]:
 		# Get user predictions
 		preds = self.get_prediction(ratings, user_id)
@@ -52,9 +53,12 @@ class PreferenceVisualization(RSSABase):
 		n_cutoff = 50
 		candidates = preds[preds['count'] >= n_cutoff]
 
-		n = 80 # number of items to be recommended
+		# n = 80 # number of items to be recommended
 		# Apply the diversification algorithm
-		diverse_items = self.__fishingnet(candidates, n_cutoff, n)
+		# FIXME: THIS MIGHT NOT WORK / TRUNCATE RECOMMENDATIONS TO FIX
+		print("num_rec: ", num_rec)
+		# num_rec = 20
+		diverse_items = self.__fishingnet(candidates, n_cutoff, num_rec)
 		
 		scaled_items, scaled_avg_comm, scaled_avg_user = \
 			self.scale_and_label(diverse_items)

@@ -26,9 +26,9 @@ async def create_recommendations(rated_movies: RatingsSchema, \
 	item_pop, avg_score = get_pref_viz_data()
 	model_path = get_pref_viz_model_path()
 	pref_viz = PreferenceVisualization(model_path, item_pop, avg_score)
-	
+	print(f'/prefviz/recommendation/: {rated_movies}')
 	recs = pref_viz.predict_diverse_items(rated_movies.ratings,\
-				rated_movies.user_id)
+				rated_movies.num_rec, rated_movies.user_id)
 	
 	print(len(recs))
 	
