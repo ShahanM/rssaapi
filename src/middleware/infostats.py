@@ -41,5 +41,5 @@ class RequestHandlingStatsMiddleware:
 
 			request_stats["elapsed"] = elapsed
 		
-		print(request_stats)
+		# print(request_stats)
 			

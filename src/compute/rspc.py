@@ -1,7 +1,7 @@
 """
 This file contains the RSSA Preference Community (RSPC) algorithms.
 
-@Author: Mehtab Iqbal (Shahan)
+@Author: Mehtab "Shahan" Iqbal
 @Affiliation: School of Computing, Clemson University
 """
 
