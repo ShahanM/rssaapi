@@ -10,13 +10,13 @@ from compute.rssa import AlternateRS
 from compute.utils import *
 from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import MovieSchema, RatingsSchema
-from router import cybered, iers, users, study, admin, pref_comm, dataviewer, pref_viz
+from router import cybered, iers, users, study, admin, pref_comm, dataviewer, pref_viz, auth0
 from data.movies import get_movies, get_movies_by_ids
 from router.admin import get_current_active_user, AdminUser
 from middleware.error_handlers import ErrorHanlingMiddleware
 from middleware.infostats import RequestHandlingStatsMiddleware
 
-from util.docs_metadata import tags_metadata
+from docs.metadata import tags_metadata
 
 # app = FastAPI(root_path='/newrs/api/v1')
 app = FastAPI(
@@ -41,9 +41,10 @@ app = FastAPI(
 origins = [
     'https://cybered.recsys.dev',
     'https://cybered.recsys.dev/*',
-    'http://localhost:3000',
-    'http://localhost:3000/*',
-    'http://localhost:3001/*',
+    'http://localhost:3330',
+	'http://localhost:3330/*',
+	'http://localhost:3339',
+    'http://localhost:3339/*'
 ]
 
 app.include_router(cybered.router)
@@ -54,6 +55,8 @@ app.include_router(pref_viz.router)
 app.include_router(users.router)
 app.include_router(study.router)
 app.include_router(admin.router)
+
+app.include_router(auth0.router)
 
 app.add_middleware(
     CORSMiddleware,
