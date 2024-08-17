@@ -29,10 +29,16 @@ def auth0_bearer_token(request: Request):
 async def get_jwks():
 	url = f'https://{auth0_domain}/.well-known/jwks.json'
 	async with httpx.AsyncClient() as client:
-		response = await client.get(url)
-		response.raise_for_status()
-		return response.json()
-	
+		try:
+			response = await client.get(url)
+			response.raise_for_status()
+			return response.json()
+		except httpx.ConnectTimeout as e:
+			raise HTTPException(
+				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+				detail=str(e)
+			)
+
 
 async def decode_jwt(token: str):
 	jwks = await get_jwks()

@@ -8,18 +8,14 @@ from datetime import datetime, timezone
 from compute.utils import *
 from data.studydatabase import SessionLocal
 from data.models.schema.studyschema import *
-from data.studies import *
-from .admin import get_current_active_user, AdminUser
 from docs.metadata import TagsMetadataEnum as Tags
 
 from .auth0 import get_current_user as auth0_user
 from data.rssadb import get_db as rssadb
 
-from data.studies_v2 import \
-	create_study as create_study_v2, get_studies as get_studies_v2, \
-	create_study_step as create_study_step_v2, get_study_steps as get_study_steps_v2, \
-	get_step_pages as get_step_pages_v2, create_step_page as create_step_page_v2, \
-	log_access
+from data.studies_v2 import *
+from data.accessors.studies import *
+from data.accessors.survey_constructs import *
 
 import uuid
 
@@ -36,346 +32,233 @@ def get_db():
 
 base_path = lambda x: '/api/v2' + x
 
-# FIXME: udpate the function name
-@router.get(base_path('/study/'), response_model=List[StudySchemaV2], tags=[Tags.study])
-async def new_studies(db: Session = Depends(rssadb),
+@router.get(base_path('/study/'), response_model=List[StudySchema], tags=[Tags.study])
+async def retrieve_studies(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
-	studies = get_studies_v2(db)
+	studies = get_studies(db)
 	log_access(db, current_user.sub, 'read', 'studies')
 
 	return studies
 
 
-@router.post(base_path('/study/'), response_model=StudySchemaV2, tags=[Tags.study, Tags.admin])
-async def new_study(new_study: NewStudySchema, db: Session = Depends(rssadb),
+@router.post(base_path('/study/'), response_model=StudySchema, tags=[Tags.study, Tags.admin])
+async def new_study(new_study: CreateStudySchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 
-	study = create_study_v2(db, new_study.study_name, new_study.study_description)
+	study = create_study(db, new_study.name, new_study.description)
 	log_access(db, current_user.sub, 'create', 'study', study.id)
-	study = StudySchemaV2.from_orm(study)
+	study = StudySchema.from_orm(study)
 
 	return study
 
-# FIXME: update the function name
-@router.get(base_path('/step/{study_id}'), response_model=List[StudyStepSchemaV2], tags=[Tags.step, Tags.study])
-async def new_steps(study_id: str, db: Session = Depends(rssadb),
+
+@router.get(base_path('/studycondition/{study_id}'), response_model=List[StudyConditionSchema], tags=[Tags.study])
+async def retrieve_conditions(study_id: str, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	conditions = get_study_conditions(db, uuid.UUID(study_id))
+	log_access(db, current_user.sub, 'read', 'conditions for study', study_id)
+
+	return conditions
+
+
+@router.post(base_path('/studycondition/'), response_model=StudyConditionSchema, tags=[Tags.study, Tags.admin])
+async def new_condition(new_condition: CreateStudyConditionSchema, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	condition = create_study_condition(db, new_condition.study_id, new_condition.name, new_condition.description)
+	log_access(db, current_user.sub, 'create', 'condition', condition.id)
+
+	return condition
+
+
+@router.get(base_path('/step/{study_id}'), response_model=List[StudyStepSchema], tags=[Tags.step, Tags.study])
+async def retrieve_steps(study_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	
-	steps = get_study_steps_v2(db, uuid.UUID(study_id))
+	steps = get_study_steps(db, uuid.UUID(study_id))
+	print(steps)
 	log_access(db, current_user.sub, 'read', 'steps for study', study_id)
 
 	return steps
 
 
-@router.post('/v2/{study_id}/step/', response_model=StudyStepSchemaV2, tags=[Tags.step, Tags.study])
-async def new_step(new_step: NewStepSchemaV2, db: Session = Depends(rssadb),
+@router.post(base_path('/step/'), response_model=StudyStepSchema, tags=[Tags.step, Tags.study, Tags.admin])
+async def new_step(new_step: CreateStepSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
-	step = create_study_step_v2(db, **new_step.dict())
+	step = create_study_step(db, **new_step.dict())
 	log_access(db, current_user.sub, 'create', 'step', step.id)
 
 	return step
 
 
-@router.get(base_path('/page/{step_id}'), response_model=List[StepPageSchemaV2], tags=[Tags.page, Tags.study])
-async def new_pages(step_id: str, db: Session = Depends(rssadb),
+@router.get(base_path('/page/{step_id}'), response_model=List[StepPageSchema], tags=[Tags.page, Tags.study])
+async def retrieve_pages(step_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
-	pages = get_step_pages_v2(db, uuid.UUID(step_id))
+	pages = get_step_pages(db, uuid.UUID(step_id))
 	log_access(db, current_user.sub, 'read', 'page for step', step_id)
 
 	return pages
 
 
-@router.post('/v2/{study_id}/{step_id}/page/', response_model=StepPageSchemaV2, tags=[Tags.page, Tags.study])
-async def new_page(new_page: NewPageSchemaV2, db: Session = Depends(rssadb),
+@router.post(base_path('/page/'), response_model=StepPageSchema, tags=[Tags.page, Tags.study, Tags.admin])
+async def new_page(new_page: CreatePageSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 
-	page = create_step_page_v2(db, **new_page.dict())
+	page = create_step_page(db, **new_page.dict())
 	log_access(db, current_user.sub, 'create', 'page', page.id)
 
 	return page
 
 
+@router.get(base_path('/pagecontent/{page_id}'), response_model=List[SurveyConstructSchema], tags=[Tags.page, Tags.study])
+async def retrieve_page_content(page_id: str, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	constructs = get_page_content(db, uuid.UUID(page_id))
+	log_access(db, current_user.sub, 'read', 'page content', page_id)
 
+	return constructs
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@DeprecationWarning
-@router.post('/study/', response_model=StudySchema, tags=[Tags.study, Tags.admin])
-async def create_new_study(studyname: str, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	study = create_study(db=db, studyname=studyname)
-
-	return study
-
-
-@DeprecationWarning
-@router.get('/study/', response_model=List[StudySchema], tags=[Tags.study])
-async def get_all_studies(db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	studies = get_studies(db)
-
-	return studies
-
-
-@DeprecationWarning
-@router.get('/study/{study_id}', response_model=StudySchema, tags=[Tags.study])
-async def get_study(study_id: int, db: Session = Depends(get_db)):
-	study = get_study_by_id(db, study_id)
-
-	return study
-
-
-@router.put('/study/{study_id}', response_model=StudySchema, tags=[Tags.study, Tags.admin])
-async def update_study_details(study_id: int, study_name: str, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	study = update_study(db=db, study_id=study_id, study_name=study_name)
-
-	return study
-
-
-@router.delete('/study/{study_id}', response_model=StudySchema, tags=[Tags.study, Tags.admin])
-async def delete_study(study_id: int, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	study = delete_study_by_id(db, study_id)
-
-	return study
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"""
-Condition routes
-"""
-@router.post('/study/{study_id}/condition/', response_model=StudyConditionSchema, tags=[Tags.condition, Tags.admin])
-async def create_new_condition(study_id: int, condition: NewConditionSchema, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	condition = create_study_condition(db=db, study_id=study_id, **condition.dict())
-
-	return condition
-
-
-@router.get('/study/{study_id}/condition/', response_model=List[StudyConditionSchema], tags=[Tags.condition])
-async def get_all_conditions(study_id: int, db: Session = Depends(get_db)):
-	conditions = get_study_conditions(db, study_id)
-
-	return conditions
-
-
-@router.get('/study/{study_id}/condition/{condition_id}', response_model=StudyConditionSchema, tags=[Tags.condition])
-async def get_condition(study_id: int, condition_id: int, db: Session = Depends(get_db)):
-	condition = get_study_condition_by_id(db, study_id, condition_id)
-
-	return condition
-
-
-@router.get('/study/{study_id}/condition/random/', response_model=StudyConditionSchema, tags=[Tags.condition])
-async def get_random_condition(study_id: int, db: Session = Depends(get_db)):
-	condition = get_random_study_condition(db, study_id)
-
-	return condition
-
-
-@router.put('/study/{study_id}/condition/{condition_id}', response_model=StudyConditionSchema, tags=[Tags.condition, Tags.admin])
-async def update_condition(study_id: int, condition_id: int, condition: NewConditionSchema, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	condition = update_study_condition(db=db, study_id=study_id, condition_id=condition_id, **condition.dict())
-
-	return condition
-
-
-@router.delete('/study/{study_id}/condition/{condition_id}', response_model=StudyConditionSchema, tags=[Tags.condition, Tags.admin])
-async def delete_condition(study_id: int, condition_id: int, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	condition = delete_study_condition(db=db, study_id=study_id, condition_id=condition_id)
-
-	return condition
-
-
-"""
-Step routes
-"""
-@router.post('/study/{study_id}/step/', response_model=StepSchema, tags=[Tags.step, Tags.admin])
-async def create_new_step(study_id: int, step: NewStepSchema, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	step = create_study_step(db=db, study_id=study_id, **step.dict())
-
-	return step
-
-
-@router.get('/study/{study_id}/step/', response_model=List[StepSchema], tags=[Tags.step])
-async def get_all_steps(study_id: int, db: Session = Depends(get_db)):
-	steps = get_study_steps(db, study_id)
-
-	return steps
-
-
-@router.get('/study/{study_id}/step/{step_id}', response_model=StepSchema, tags=[Tags.step])
-async def get_step(study_id: int, step_id: int, db: Session = Depends(get_db)):
-	step = get_step_by_id(db, study_id, step_id)
-
-	return step
-
-
-@router.get('/study/{study_id}/step/first/', response_model=StepSchema, tags=[Tags.step])
-async def get_first_step(study_id: int, db: Session = Depends(get_db)):
-	step = get_first_study_step(db, study_id)
-
-	return step
-
-
-@router.get('/study/{study_id}/step/{step_id}/next', response_model=StepSchema, tags=[Tags.step])
-async def get_next_step(study_id: int, step_id: int, db: Session = Depends(get_db)):
-	step = get_next_study_step(db, study_id, step_id)
-
-	return step
-
-
-@router.put('/study/{study_id}/step/{step_id}', response_model=StepSchema, tags=[Tags.step, Tags.admin])
-async def update_step(study_id: int, step_id: int, step: NewStepSchema, db: Session = Depends(get_db),
-					current_user: AdminUser = Depends(get_current_active_user)):
-	step = update_study_step(db=db, study_id=study_id, step_id=step_id, **step.dict())
-
-	return step
+@router.post(base_path('/pagecontent/'), response_model=SurveyConstructSchema, tags=[Tags.page, Tags.study, Tags.admin])
+async def attach_content_to_page(page_content: CreatePageContentSchema, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
 	
+	pcont = create_page_content(db, page_content.page_id, page_content.construct_id, page_content.order_position)
+	construct = get_survey_construct_by_id(db, pcont.content_id)
+	log_access(db, current_user.sub, 'create', 'page content', pcont.page_id)
 
-@router.delete('/study/{study_id}/step/{step_id}', response_model=StepSchema, tags=[Tags.step, Tags.admin])
-async def delete_step(study_id: int, step_id: int, db: Session = Depends(get_db),
-					current_user: AdminUser = Depends(get_current_active_user)):
-	step = delete_study_step(db, study_id, step_id)
-
-	return step
+	return construct
 
 
 """
-Page routes
+The following routes regarding constructs should be moved to a separate router file
 """
-@router.post('/study/{study_id}/step/{step_id}/page/', response_model=PageSchema, tags=[Tags.page, Tags.admin])
-async def create_new_page(study_id: int, step_id: int, page: NewPageSchema, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	page = create_study_page(db=db, study_id=study_id,
-							 step_id=step_id, **page.dict())
+@router.get(base_path('/construct/'), response_model=List[SurveyConstructSchema], tags=[Tags.admin])
+async def retrieve_constructs(db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	constructs = get_survey_constructs(db)
+	log_access(db, current_user.sub, 'read', 'constructs')
 
-	return page
-
-
-@router.get('/study/{study_id}/step/{step_id}/page/', response_model=List[PageSchema], tags=[Tags.page])
-async def get_all_pages(study_id: int, step_id: int, db: Session = Depends(get_db)):
-	pages = get_study_pages(db, study_id, step_id)
-
-	return pages
+	return constructs
 
 
-@router.get('/study/{study_id}/step/{step_id}/page/{page_id}', response_model=PageSchema, tags=[Tags.page])
-async def get_page(study_id: int, step_id: int, page_id: int, db: Session = Depends(get_db)):
-	page = get_page_by_id(db, study_id, step_id, page_id)
+@router.post(base_path('/construct/'), response_model=SurveyConstructSchema, tags=[Tags.admin])
+async def new_construct(new_construct: NewSurveyConstructSchema, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	construct = create_survey_construct(db, new_construct.name, new_construct.desc, new_construct.type_id, new_construct.scale_id)
+	log_access(db, current_user.sub, 'create', 'construct', construct.id)
 
-	return page
-
-
-@router.get('/study/{study_id}/step/{step_id}/page/first/', response_model=PageSchema, tags=[Tags.page])
-async def get_first_page(study_id: int, step_id: int, db: Session = Depends(get_db)):
-	page = get_first_step_page(db, study_id, step_id)
-
-	return page
+	return construct
 
 
-@router.get('/study/{study_id}/step/{step_id}/page/last/', response_model=PageSchema, tags=[Tags.page])
-async def get_last_page(study_id: int, step_id: int, db: Session = Depends(get_db)):
-	page = get_last_step_page(db, study_id, step_id)
+@router.put(base_path('/construct/{construct_id}'), response_model=SurveyConstructSchema, tags=[Tags.admin])
+async def update_construct(construct_id: str, updated_construct: UpdateSurveyConstructSchema, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	
+	update = update_survey_construct(db, uuid.UUID(construct_id), **updated_construct.dict())
+	log_access(db, current_user.sub, 'update', 'construct', construct_id)
 
-	return page
-
-
-@router.get('/study/{study_id}/step/{step_id}/page/{page_id}/next', response_model=PageSchema, tags=[Tags.page])
-async def get_next_page(study_id: int, step_id: int, page_id: int, db: Session = Depends(get_db)):
-	page = get_next_step_page(db, study_id, step_id, page_id)
-
-	return page
+	return update
 
 
-@router.put('/study/{study_id}/step/{step_id}/page/{page_id}', response_model=PageSchema, tags=[Tags.page, Tags.admin])
-async def update_page(study_id: int, step_id: int, page_id: int, page: NewPageSchema, db: Session = Depends(get_db),
-					current_user: AdminUser = Depends(get_current_active_user)):
-	page = update_step_page(db=db, study_id=study_id, step_id=step_id, page_id=page_id, **page.dict())
+@router.get(base_path('/construct/{construct_id}'), response_model=SurveyConstructDetailSchema, tags=[Tags.admin])
+async def retrieve_construct_details(construct_id: str, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	
+	construct = get_survey_construct_by_id(db, uuid.UUID(construct_id))
+	construct_type = None
+	if construct.type:
+		construct_type = get_construct_type_by_id(db, construct.type)
+	construct_scale_deets = None
+	if construct.scale:
+		construct_scale = get_construct_scale_by_id(db, construct.scale)
+		scale_levels = get_construct_scale_levels(db, construct.scale)
+		construct_scale_deets = ConstructScaleDetailSchema(
+			id=construct_scale.id,
+			levels=construct_scale.levels,
+			name=construct_scale.name,
+			scale_levels=[ScaleLevelSchema(level=level.level, label=level.label, scale_id=level.scale_id) for level in scale_levels]
+		)
 
-	return page
+	construct_deets = SurveyConstructDetailSchema(
+		id=construct.id,
+		name=construct.name,
+		desc=construct.desc,
+		type=ConstructTypeSchema.from_orm(construct_type) if construct_type else None,
+		scale=construct_scale_deets,
+		items=construct.items
+	)
+	
+	log_access(db, current_user.sub, 'read', 'construct details', construct_id)
 
-
-@router.delete('/study/{study_id}/step/{step_id}/page/{page_id}', response_model=PageSchema, tags=[Tags.page, Tags.admin])
-async def delete_page(study_id: int, step_id: int, page_id: int, db: Session = Depends(get_db),
-					current_user: AdminUser = Depends(get_current_active_user)):
-	page = delete_step_page(db, study_id, step_id, page_id)
-
-	return page
-
-
-"""
-Question routes
-"""
-@router.post('/study/{study_id}/step/{step_id}/page/{page_id}/question/', response_model=QuestionSchema, tags=[Tags.question, Tags.admin])
-async def create_new_question(study_id: int, step_id: int, page_id: int, question: NewQuestionSchema, db: Session = Depends(get_db),
-							current_user: AdminUser = Depends(get_current_active_user)):
-	question = create_survey_question(
-		db=db, study_id=study_id, step_id=step_id, page_id=page_id, **question.dict())
-
-	return question
-
-
-@router.get('/study/{study_id}/step/{step_id}/page/{page_id}/question/', response_model=List[QuestionSchema], tags=[Tags.question])
-async def get_questions(study_id: int, step_id: int, page_id: int, db: Session = Depends(get_db)):
-	questions = get_page_questions(
-		db=db, study_id=study_id, step_id=step_id, page_id=page_id)
-
-	return questions
+	return construct_deets
 
 
-@router.get('/study/{study_id}/step/{step_id}/page/{page_id}/question/{question_id}', response_model=QuestionSchema, tags=[Tags.question])
-async def get_question(study_id: int, step_id: int, page_id: int, question_id: int, db: Session = Depends(get_db)):
-	question = get_question_by_id(
-		db=db, study_id=study_id, step_id=step_id, page_id=page_id, question_id=question_id)
+@router.get(base_path('/constructtype/'), response_model=List[ConstructItemTypeSchema], tags=[Tags.admin])
+async def retrieve_construct_types(db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	types = get_construct_types(db)
+	log_access(db, current_user.sub, 'read', 'construct types')
 
-	return question
-
-
-@router.put('/study/{study_id}/step/{step_id}/page/{page_id}/question/{question_id}', response_model=QuestionSchema, tags=[Tags.question, Tags.admin])
-async def update_question(study_id: int, step_id: int, page_id: int, question_id: int, question: NewQuestionSchema, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	question = update_survey_question(
-		db=db, study_id=study_id, step_id=step_id, page_id=page_id, question_id=question_id, **question.dict())
-
-	return question
+	return types
 
 
-@router.delete('/study/{study_id}/step/{step_id}/page/{page_id}/question/{question_id}', response_model=QuestionSchema, tags=[Tags.question, Tags.admin])
-async def delete_question(study_id: int, step_id: int, page_id: int, question_id: int, db: Session = Depends(get_db),
-						current_user: AdminUser = Depends(get_current_active_user)):
-	question = delete_survey_question(
-		db=db, study_id=study_id, step_id=step_id, page_id=page_id, question_id=question_id)
+@router.post(base_path('/constructtype/'), response_model=ConstructTypeSchema, tags=[Tags.admin])
+async def new_construct_type(new_type: NewConstructTypeSchema, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	item_type = create_construct_type(db, new_type.type)
+	log_access(db, current_user.sub, 'create', 'construct type', item_type.id)
 
-	return question
+	return item_type
+
+
+@router.get(base_path('/constructscale/'), response_model=List[ConstructScaleSchema], tags=[Tags.admin])
+async def retrieve_construct_scales(db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	scales = get_construct_scales(db)
+	log_access(db, current_user.sub, 'read', 'construct scales')
+
+	return scales
+
+
+@router.post(base_path('/constructscale/'), response_model=ConstructScaleSchema, tags=[Tags.admin])
+async def new_construct_scale(new_scale: NewConstructScaleSchema, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	scale = create_construct_scale(db, new_scale.levels, new_scale.name, new_scale.scale_levels)
+	log_access(db, current_user.sub, 'create', 'construct scale', scale.id)
+	return scale
+
+
+@router.get(base_path('/item/{construct_id}'), response_model=List[ConstructItemSchema], tags=[Tags.admin])
+async def retrieve_construct_items(construct_id: str, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	items = get_construct_items(db, uuid.UUID(construct_id))
+	log_access(db, current_user.sub, 'read', 'construct items', construct_id)
+
+	return items
+
+
+@router.post(base_path('/item/'), response_model=ConstructItemSchema, tags=[Tags.admin])
+async def new_construct_item(new_item: CreateConstructItemSchema, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	item = create_construct_item(db, new_item.construct_id, new_item.item_type, new_item.text, new_item.order_position)
+	log_access(db, current_user.sub, 'create', 'construct item', item.id)
+
+	return item
+
+
+@router.get(base_path('/itemtype/'), response_model=List[ConstructItemTypeSchema], tags=[Tags.admin])
+async def retrieve_construct_item_types(db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	types = get_item_types(db)
+	log_access(db, current_user.sub, 'read', 'construct item types')
+
+	return types
+
+
+@router.post(base_path('/itemtype/'), response_model=ConstructItemTypeSchema, tags=[Tags.admin])
+async def new_construct_item_type(new_type: NewConstructItemTypeSchema, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	item_type = create_item_type(db, new_type.type)
+	log_access(db, current_user.sub, 'create', 'construct item type', item_type.id)
+
+	return item_type
