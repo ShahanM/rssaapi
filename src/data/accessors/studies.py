@@ -30,6 +30,12 @@ def get_studies(db: Session) -> List[Study]:
 	return studies
 
 
+def get_study_by_id(db: Session, study_id: uuid.UUID) -> Study:
+	study = db.query(Study).where(Study.id == study_id).first()
+	
+	return study
+
+
 def get_study_conditions(db: Session, study_id: uuid.UUID) -> List[StudyCondition]:
 	conditions = db.query(StudyCondition).where(StudyCondition.study_id == study_id).all()
 	
@@ -53,6 +59,23 @@ def get_study_steps(db: Session, study_id: uuid.UUID) -> List[Step]:
 	steps = db.query(Step).where(Step.study_id == study_id).all()
 	
 	return steps
+
+
+def get_first_step(db: Session, study_id: uuid.UUID) -> Step:
+	step = db.query(Step).where(Step.study_id == study_id).order_by(Step.order_position).first()
+	
+	return step
+
+
+def get_next_step(db: Session, study_id: uuid.UUID, current_step_id: uuid.UUID) -> Union[Step, None]:
+	current = db.query(Step).where(Step.id == current_step_id).first()
+	steps = db.query(Step).where(and_(Step.study_id == study_id, Step.order_position > current.order_position))
+	if steps.count() == 0:
+		# No more steps
+		return None
+	step = steps.first()
+	
+	return step
 
 
 def create_study_step(db: Session, study_id: UUID, order_position: int,
@@ -118,3 +141,9 @@ def create_page_content(db: Session, page_id: uuid.UUID, content_id: uuid.UUID,
 	db.refresh(page_content)
 
 	return page_content
+
+
+def get_first_survey_page(db: Session, step_id: uuid.UUID) -> Page:
+	page = db.query(Page).where(Page.step_id == step_id).order_by(Page.order_position).first()
+	
+	return page

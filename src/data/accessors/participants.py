@@ -1,11 +1,13 @@
 from typing import List, Union
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone
 
 from ..models.schema.studyschema import NewScaleLevelSchema
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
 from ..models.participants import *
+
+from .studies import get_study_by_id, get_study_conditions
 
 from data.rssadb import Base
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
@@ -14,11 +16,21 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from fastapi import HTTPException
 
+import random
+
 
 def get_participant_types(db: Session) -> List[ParticipantType]:
 	types = db.query(ParticipantType).all()
 	
 	return types
+
+
+def get_participant_type_by_id(db: Session, type_id: uuid.UUID) -> ParticipantType:
+	ptype = db.query(ParticipantType).where(ParticipantType.id == type_id).first()
+	if not ptype:
+		raise HTTPException(status_code=404, detail='Participant type not found')
+	
+	return ptype
 
 
 def create_participant_type(db: Session, type: str) -> ParticipantType:
@@ -36,12 +48,37 @@ def get_study_participants(db: Session, study_id: uuid.UUID) -> List[Participant
 	return participants
 
 
-def create_study_participant(db: Session, participant_type: UUID, study_id: UUID,
-		condition_id: UUID, current_step: UUID,
-		current_page: Union[UUID, None] = None) -> Participant:
-	participant = Participant(participant_type=participant_type, study_id=study_id,
-			condition_id=condition_id, current_step=current_step,
-			current_page=current_page)
+def get_study_participant_by_id(db: Session, participant_id: uuid.UUID) -> Participant:
+	participant = db.query(Participant).where(Participant.id == participant_id).first()
+	if not participant:
+		raise HTTPException(status_code=404, detail='Participant not found')
+	
+	return participant
+
+
+def create_study_participant(db: Session, study_id: uuid.UUID, 
+		participant_type: uuid.UUID,
+		external_id: str,
+		current_step: uuid.UUID,
+		current_page: Union[uuid.UUID, None] = None) -> Participant:
+	
+	study = get_study_by_id(db, study_id)
+	study_conditions = get_study_conditions(db, study_id)
+
+	if not study_conditions:
+		raise HTTPException(status_code=404, detail='No study conditions found for study: ' + str(study.id))
+	
+	condition = random.choice(study_conditions)
+
+	cstep = db.query(Step).where(Step.id == current_step).first()
+	cpage = None
+	if current_page is not None:
+		cpage = db.query(Page).where(Page.id == current_page).first()
+	ptype = get_participant_type_by_id(db, participant_type)
+	participant = Participant(participant_type=ptype.id, study_id=study.id,
+			condition_id=condition.id, current_step=cstep.id,
+			external_id=external_id,
+			current_page=cpage.id if cpage is not None else None)
 	db.add(participant)
 	db.commit()
 	db.refresh(participant)

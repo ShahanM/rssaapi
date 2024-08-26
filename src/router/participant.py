@@ -12,6 +12,7 @@ from docs.metadata import TagsMetadataEnum as Tags
 
 from .auth0 import get_current_user as auth0_user
 from data.rssadb import get_db as rssadb
+from .study import get_current_registered_study
 
 from data.studies_v2 import *
 from data.accessors.studies import *
@@ -34,7 +35,7 @@ def get_db():
 base_path = lambda x: '/api/v2' + x
 
 
-@router.get(base_path('/participanttype/'), response_model=List[ParticipantTypeSchema], tags=[Tags.admin])
+@router.get(base_path('/meta/participanttype/'), response_model=List[ParticipantTypeSchema], tags=[Tags.admin])
 async def retrieve_participant_types(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	types = get_participant_types(db)
@@ -43,7 +44,7 @@ async def retrieve_participant_types(db: Session = Depends(rssadb),
 	return types
 
 
-@router.post(base_path('/participanttype/'), response_model=ParticipantTypeSchema, tags=[Tags.admin])
+@router.post(base_path('/meta/participanttype/'), response_model=ParticipantTypeSchema, tags=[Tags.admin])
 async def new_participant_type(new_type: NewParticipantTypeSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 
@@ -56,21 +57,28 @@ async def new_participant_type(new_type: NewParticipantTypeSchema, db: Session =
 
 @router.post(base_path('/participant/'), response_model=ParticipantSchema, tags=[Tags.study])
 async def new_study_participant(new_participant: NewParticipantSchema, db: Session = Depends(rssadb),
-					current_user = Depends(auth0_user)):
+					current_study = Depends(get_current_registered_study)):
 
-	# participant = create_study_participant(db, new_participant.participant_type,
-	# 		new_participant.study_id, new_participant.condition_id,
-	# 		new_participant.current_step, new_participant.current_page)
-	# log_access(db, current_user.sub, 'create', 'participant', participant.id)
-	# participant = ParticipantSchema.from_orm(participant)
-
-	participant = ParticipantSchema(
-		id=uuid.uuid4(),
+	participant = create_study_participant(db, study_id=new_participant.study_id, 
 		participant_type=new_participant.participant_type,
 		external_id=new_participant.external_id,
-		study_id=uuid.UUID('fc5ced48-dcbd-42b2-9f78-83f19eb4398b'),
-		condition_id=uuid.UUID(''),
 		current_step=new_participant.current_step,
 		current_page=new_participant.current_page)
 
+	log_access(db, f'study: {current_study.name} ({current_study.id})', 'create', 'participant', participant.id)
+
 	return participant
+
+
+@router.put(base_path('/participant/'), response_model=bool, tags=[Tags.study])
+async def update_participant(participant: ParticipantSchema, db: Session = Depends(rssadb),
+					current_study = Depends(get_current_registered_study)):
+	
+	current = get_study_participant_by_id(db, participant.id)
+	current = ParticipantSchema.from_orm(current)
+	diff = current.diff(participant)
+
+	log_access(db, f'study: {current_study.name} ({current_study.id})', 'update', 'participant', ';'.join(diff))
+
+	return True
+	

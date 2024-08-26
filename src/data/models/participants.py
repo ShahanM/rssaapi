@@ -24,6 +24,7 @@ class Participant(Base):
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	participant_type = Column(UUID(as_uuid=True), ForeignKey('participant_type.id'), nullable=False)
+	external_id = Column(String, nullable=True)
 	study_id = Column(UUID(as_uuid=True), ForeignKey('study.id'), nullable=False)
 	condition_id = Column(UUID(as_uuid=True), ForeignKey('study_condition.id'), nullable=False)
 	current_status = Column(String, nullable=False)
@@ -33,12 +34,16 @@ class Participant(Base):
 	date_updated = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	discarded = Column(Boolean, nullable=False, default=False)
 
+	# ptype = relationship('ParticipantType', uselist=False)
+
 	def __init__(self, participant_type: UUID, study_id: UUID, condition_id: UUID,
+			external_id: str,
 			current_step: UUID, current_page: Union[UUID, None] = None):
 		self.participant_type = participant_type
 		self.study_id = study_id
 		self.condition_id = condition_id
 		self.current_status = 'active'
+		self.external_id = external_id
 		self.current_step = current_step
 		self.current_page = current_page
 
@@ -54,7 +59,6 @@ class ParticipantResponse(Base):
 	discarded = Column(Boolean, nullable=False, default=False)
 
 	PrimaryKeyConstraint(participant_id, construct_id, item_id)
-
 
 	def __init__(self, participant_id: UUID, construct_id: UUID, response: str, item_id: Union[UUID, None] = None):
 		self.participant_id = participant_id
