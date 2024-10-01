@@ -51,11 +51,13 @@ class Participant(Base):
 class ParticipantResponse(Base):
 	__tablename__ = "participant_response"
 
+	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False)
 	construct_id = Column(UUID(as_uuid=True), ForeignKey('survey_construct.id'), nullable=False)
 	item_id = Column(UUID(as_uuid=True), ForeignKey('construct_item.id'), nullable=True)
 	response = Column(String, nullable=False)
 	date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	date_modified = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	discarded = Column(Boolean, nullable=False, default=False)
 
 	PrimaryKeyConstraint(participant_id, construct_id, item_id)

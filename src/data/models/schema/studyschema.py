@@ -308,59 +308,6 @@ class NewParticipantTypeSchema(BaseModel):
 class StepIdRequestSchema(BaseModel):
 	current_step_id: uuid.UUID
 
-
-
-class ParticipantSchema(BaseModel):
-	id: uuid.UUID
-	study_id: uuid.UUID
-	participant_type: uuid.UUID
-	external_id: str
-	condition_id: uuid.UUID
-	current_step: uuid.UUID
-	current_page: Union[uuid.UUID, None]
-	date_created: datetime
-
-	class Config:
-		orm_mode = True
-
-	def __eq__(self, other) -> bool:
-		if not isinstance(other, ParticipantSchema):
-			return False
-		
-		equalities = [self.id == other.id, self.study_id == other.study_id,\
-				self.participant_type == other.participant_type,\
-					self.date_created == other.date_created]
-
-		return all(equalities)
-	
-	def diff(self, other):
-		if self != other:
-			raise Exception('Not the same participant')
-		
-		mismatch = []
-		if self.external_id != other.external_id:
-			# Technically, this should never differ if the participant is the same
-			mismatch.append('external_id')
-		if self.condition_id != other.condition_id:
-			# Technically, this should never differ if the participant is the same
-			mismatch.append('condition_id')
-
-		if self.current_step != other.current_step:
-			mismatch.append('current_step')
-		if self.current_page != other.current_page:
-			mismatch.append('current_page')
-
-		return mismatch
-	
-
-class NewParticipantSchema(BaseModel):
-	study_id: uuid.UUID
-	participant_type: uuid.UUID
-	external_id: str
-	current_step: uuid.UUID
-	current_page: Union[uuid.UUID, None]
-
-
 # {
 # 	'iss': 'https://dev-ezaapkd1uq45qy8u.us.auth0.com/', 
 # 	'sub': 'auth0|667f78dc16bf3a06dc53f472', 

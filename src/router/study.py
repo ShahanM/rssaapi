@@ -116,3 +116,48 @@ async def retrieve_survey_page(step_id: uuid.UUID, db: Session = Depends(rssadb)
 	return survey
 
 
+@router.get(base_path('/survey/{page_id}'), response_model=SurveyPageSchema, tags=[Tags.study])
+async def retrieve_survey_page_by_id(page_id: uuid.UUID, db: Session = Depends(rssadb),
+					current_study = Depends(get_current_registered_study)):
+	
+	page = get_survey_page(db, page_id)
+	if not page:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND, 
+			detail='No survey page found'
+		)
+
+	construct = get_page_content(db, page.id)
+	if len(construct) == 0:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND, 
+			detail='No construct found for survey page'
+		)
+	
+	construct = construct[0] # FIXME: We currently only support one construct per page
+	items = get_construct_items(db, construct.id)
+	scalelevels = get_construct_scale_levels(db, construct.scale)
+
+	survey = SurveyPageSchema(
+		step_id=page.step_id,
+		page_id=page.id,
+		order_position=0,
+		construct_id=construct.id,
+		construct_items=[ConstructItemSchema.from_orm(item) for item in items],
+		construct_scale=[ScaleLevelSchema.from_orm(level) for level in scalelevels]
+	)
+
+	log_access(db, f'study: {current_study.name} ({current_study.id})', 'read', f'survey page {page.id}')
+	
+	return survey
+
+
+
+
+# class SurveyPageSchema(BaseModel):
+# 	step_id: uuid.UUID
+# 	page_id: uuid.UUID
+# 	order_position: int
+# 	construct_id: uuid.UUID
+# 	construct_items: List[ConstructItemSchema]
+# 	construct_scale: ConstructScaleDetailSchema

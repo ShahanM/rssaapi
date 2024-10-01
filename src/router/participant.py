@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from compute.utils import *
 from data.studydatabase import SessionLocal
 from data.models.schema.studyschema import *
+from data.models.schema.participanschema import *
 from docs.metadata import TagsMetadataEnum as Tags
 
 from .auth0 import get_current_user as auth0_user
@@ -18,6 +19,7 @@ from data.studies_v2 import *
 from data.accessors.studies import *
 from data.accessors.survey_constructs import *
 from data.accessors.participants import *
+from data.accessors.study_responses import *
 
 import uuid
 
@@ -82,3 +84,12 @@ async def update_participant(participant: ParticipantSchema, db: Session = Depen
 
 	return True
 	
+
+@router.post(base_path('/participant/{participant_id}/response/'), response_model=bool, tags=[Tags.study])
+async def new_participant_response(participant_id: uuid.UUID, response: SurveyResponse, db: Session = Depends(rssadb),
+					current_study = Depends(get_current_registered_study)):
+
+	success = create_survey_response(db, participant_id, response)
+	log_access(db, f'study: {current_study.name} ({current_study.id})', 'create', 'response', str(participant_id))
+
+	return success

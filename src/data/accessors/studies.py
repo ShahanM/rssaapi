@@ -147,3 +147,9 @@ def get_first_survey_page(db: Session, step_id: uuid.UUID) -> Page:
 	page = db.query(Page).where(Page.step_id == step_id).order_by(Page.order_position).first()
 	
 	return page
+
+
+def get_survey_page(db: Session, page_id: uuid.UUID) -> Page:
+	page = db.query(Page).where(Page.id == page_id).first()
+	
+	return page
