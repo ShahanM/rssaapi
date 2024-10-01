@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from util.docs_metadata import TagsMetadataEnum as Tags
+from docs.metadata import TagsMetadataEnum as Tags
 from typing import List
 from data.models.schema.advisorschema import *
 from compute.iers import EmotionsRS
@@ -78,11 +78,10 @@ async def get_advisor_profile(advisor_id: AdvisorIDSchema, \
 	return advisor
 
 
-@router.post("/prefComm/advisors/", response_model=List[AdvisorSchema], tags=[Tags.pref_comm])
+@router.post("/prefComm/advisors/", response_model=List[MovieSchema], tags=[Tags.pref_comm])
 async def get_advisor(rated_movies: PrefCommRatingSchema, \
 	db: Session = Depends(get_db)):
 
-	# TODO make these singletons
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
 	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
@@ -91,22 +90,23 @@ async def get_advisor(rated_movies: PrefCommRatingSchema, \
 	
 	recs = iersalgs.predict_topN(rated_movies.ratings, \
 			rated_movies.user_id, rated_movies.num_rec)
-	print(recs)
+	# print(recs)
 
 	recmovies = get_movies_by_ids(db, recs)
 
-	for advid, rec in enumerate(recmovies, 1):
-		advisor = AdvisorSchema(id=advid, \
-					movie_id=rec.movie_id,
-					name=rec.title, year=rec.year, \
-					ave_rating=rec.ave_rating, genre=rec.genre, \
-					director=rec.director, cast=rec.cast, \
-					description=rec.description, poster=rec.poster, \
-					emotions=None, poster_identifier=rec.poster_identifier, \
-					profile=None,
-					status="Pending")
-		advisors.append(advisor)
+	# for advid, rec in enumerate(recmovies, 1):
+	# 	advisor = AdvisorSchema(id=advid, \
+	# 				movie_id=rec.movie_id,
+	# 				name=rec.title, year=rec.year, \
+	# 				ave_rating=rec.ave_rating, genre=rec.genre, \
+	# 				director=rec.director, cast=rec.cast, \
+	# 				description=rec.description, poster=rec.poster, \
+	# 				emotions=None, poster_identifier=rec.poster_identifier, \
+	# 				profile=None,
+	# 				status="Pending")
+	# 	advisors.append(advisor)
 
-	print(advisors)
+	# print(advisors)
 
-	return advisors
+	# return advisors
+	return recmovies

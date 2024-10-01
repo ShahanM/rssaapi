@@ -11,7 +11,7 @@ from data.models.schema.userschema import *
 from data.users import *
 from data.models.schema.movieschema import RatedItemSchema, EmotionDiscreteInputSchema
 
-from util.docs_metadata import TagsMetadataEnum as Tags
+from docs.metadata import TagsMetadataEnum as Tags
 from .admin import get_current_active_user, AdminUser
 from .study import get_db as study_db
 from data.studies import get_count_of_questions_by_study_id

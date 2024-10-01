@@ -4,7 +4,7 @@ import random
 from typing import List
 from .studydatabase import engine
 
-
+@DeprecationWarning
 def create_database():
 	Study.__table__.create(bind=engine, checkfirst=True)
 	StudyCondition.__table__.create(bind=engine, checkfirst=True)
@@ -16,8 +16,17 @@ def create_database():
 """
 Study Queries
 """
+@DeprecationWarning
 def create_study(db: Session, studyname: str) -> Study:
 	study = Study(study_name=studyname)
+	db.add(study)
+	db.commit()
+	db.refresh(study)
+
+	return study
+
+def create_study(db: Session, study_name: str, description: str) -> Study:
+	study = Study(study_name=study_name, description=description)
 	db.add(study)
 	db.commit()
 	db.refresh(study)

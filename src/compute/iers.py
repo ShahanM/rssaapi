@@ -197,6 +197,11 @@ class EmotionsRS:
 		
 		als_implicit_preds, liveUser_feature = \
 			algo.predict_for_user(liveUserID, items, new_ratings)
+		
+		print("Number of movies predicted: ", len(als_implicit_preds))
+		print(liveUser_feature.shape)
+		print(liveUser_feature)
+
 		als_implicit_preds_df = als_implicit_preds.to_frame().reset_index()
 		als_implicit_preds_df.columns = ['item', 'score']
 		
