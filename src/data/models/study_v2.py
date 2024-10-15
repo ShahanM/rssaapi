@@ -39,12 +39,15 @@ class StudyCondition(Base):
 	name = Column(String, nullable=False)
 	description = Column(String, nullable=True)
 
+	recommendation_count = Column(Integer, nullable=False, default=10)
+
 	date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	enabled = Column(Boolean, nullable=False, default=True)
 
 	study = relationship('Study', back_populates='conditions')
 
-	def __init__(self, study_id: UUID, name: str, description: Union[str, None] = None):
+	def __init__(self, study_id: UUID, name: str, study_condition: int = 10, \
+		description: Union[str, None] = None):
 		self.study_id = study_id
 		self.name = name
 		self.description = description
@@ -109,3 +112,23 @@ class PageContent(Base):
 		self.page_id = page_id
 		self.content_id = content_id
 		self.order_position = order_position
+
+
+class Feedback(Base):
+	__tablename__ = 'feedback'
+
+	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False)
+	created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+	updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+	study_id = Column(UUID(as_uuid=True), ForeignKey('study.id'), nullable=False)
+	feedback = Column(String, nullable=False)
+	feedback_type = Column(String, nullable=False)
+	feedback_category = Column(String, nullable=False)
+
+	def __init__(self, participant_id: UUID, study_id: UUID, feedback: str, feedback_type: str, feedback_category: str):
+		self.participant_id = participant_id
+		self.study_id = study_id
+		self.feedback = feedback
+		self.feedback_type = feedback_type
+		self.feedback_category = feedback_category

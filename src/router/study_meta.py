@@ -144,7 +144,11 @@ async def retrieve_constructs(db: Session = Depends(rssadb),
 @router.post(base_path('/construct/'), response_model=SurveyConstructSchema, tags=[Tags.admin])
 async def new_construct(new_construct: NewSurveyConstructSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
-	construct = create_survey_construct(db, new_construct.name, new_construct.desc, new_construct.type_id, new_construct.scale_id)
+	if new_construct.scale_id == '':
+		construct = create_text_construct(db, new_construct.name, new_construct.desc, new_construct.type_id)
+	else:
+		construct = create_survey_construct(db, new_construct.name, new_construct.desc, new_construct.type_id, uuid.UUID(new_construct.scale_id))
+
 	log_access(db, current_user.sub, 'create', 'construct', construct.id)
 
 	return construct

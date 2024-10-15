@@ -1,5 +1,6 @@
 from typing import List, Optional, Literal, Union
 from pydantic import BaseModel
+import uuid
 
 
 class EmotionsSchema(BaseModel):
@@ -35,8 +36,26 @@ class MovieSchema(BaseModel):
 		orm_mode = True
 
 
+class MovieSchemaV2(BaseModel):
+	id: uuid.UUID
+	movielens_id: str
+	title: str
+	year: int
+	ave_rating: float
+	genre: str
+	director: Optional[str]
+	cast: str
+	description: str
+	poster: str
+	emotions: Optional[EmotionsSchema]
+	poster_identifier: Optional[str]
+
+	class Config:
+		orm_mode = True
+
+
 class RatedItemSchema(BaseModel):
-	item_id: int
+	movie_id: int
 	rating: int
 
 	class Config:

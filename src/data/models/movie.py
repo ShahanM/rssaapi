@@ -45,9 +45,12 @@ class Movie(Base):
 
 	emotions = relationship('MovieEmotions', back_populates='movie', \
 		uselist=False)
+	recommendation_text = relationship('MovieRecommendationText', \
+		back_populates='movie', uselist=False)
 
 	def __hash__(self):
 		return hash(self.movie_id)
+
 
 class MovieEmotions(Base):
 	__tablename__ = 'movie_emotions'
@@ -73,5 +76,21 @@ class MovieEmotions(Base):
 
 	movie = relationship('Movie', back_populates='emotions')
 
+
+class MovieRecommendationText(Base):
+	__tablename__ = "movie_recommendation_text"
+
+	id = Column(Integer, primary_key=True, autoincrement=True)
+
+	movie_id = Column(Integer, ForeignKey('movie.id'), \
+		nullable=False, unique=True)
+	
+	formal = Column(Text, nullable=False)
+	informal = Column(Text, nullable=False)
+
+	movie = relationship('Movie', back_populates='recommendation_text')
+
+
 PydanticMovie = sqlalchemy_to_pydantic(Movie)
 PydanticMovieEmotions = sqlalchemy_to_pydantic(MovieEmotions)
+PydanticMovieRecommendationText = sqlalchemy_to_pydantic(MovieRecommendationText)

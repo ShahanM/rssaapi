@@ -181,17 +181,6 @@ class CreateConstructItemSchema(BaseModel):
 	order_position: int
 
 
-
-class SurveyConstructSchema(BaseModel):
-	id: uuid.UUID
-	name: str
-	desc: str
-	# TODO: Add the name field for construct type and scale
-	class Config:
-		orm_mode = True
-
-
-
 class ConstructTypeSchema(BaseModel):
 	id: uuid.UUID
 	type: str
@@ -207,6 +196,18 @@ class ConstructScaleSchema(BaseModel):
 
 	class Config:
 		orm_mode = True
+
+
+class SurveyConstructSchema(BaseModel):
+	id: uuid.UUID
+	name: str
+	desc: str
+	type: ConstructTypeSchema
+	scale: Union[uuid.UUID, None]
+	class Config:
+		orm_mode = True
+
+
 
 class ScaleLevelSchema(BaseModel):
 	level: int
@@ -240,7 +241,7 @@ class NewSurveyConstructSchema(BaseModel):
 	name: str
 	desc: str
 	type_id: uuid.UUID
-	scale_id: uuid.UUID
+	scale_id: str
 
 
 class ConstructItemTypeSchema(BaseModel):
@@ -291,6 +292,28 @@ class SurveyPageSchema(BaseModel):
 	construct_id: uuid.UUID
 	construct_items: List[ConstructItemSchema]
 	construct_scale: List[ScaleLevelSchema]
+
+
+class PageContentSchema(BaseModel):
+	page_id: uuid.UUID
+	construct_id: uuid.UUID
+	order_position: int
+	construct_items: List[ConstructItemSchema]
+
+
+class TextConstructSchema(BaseModel):
+	id: uuid.UUID
+	name: str
+	desc: str
+	type: uuid.UUID
+	items: ConstructItemSchema
+
+
+class PageMultiConstructSchema(BaseModel):
+	page_id: uuid.UUID
+	step_id: uuid.UUID
+	order_position: int
+	constructs: List[TextConstructSchema]
 
 
 class ParticipantTypeSchema(BaseModel):
