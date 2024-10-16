@@ -30,7 +30,7 @@ def get_db():
 	finally:
 		db.close()
 
-base_path = lambda x: '/api/v2' + x
+base_path = lambda x: '/v2' + x
 
 
 def study_authorized_token(request: Request) -> str:

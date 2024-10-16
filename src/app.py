@@ -21,6 +21,7 @@ from docs.metadata import tags_metadata
 
 # app = FastAPI(root_path='/newrs/api/v1')
 app = FastAPI(
+	root_path='/rssa/api',
 	openapi_tags=tags_metadata,
 	title='RSSA Project API',
 	description='API for all the RSSA projects, experiments, and alternate movie databases.',

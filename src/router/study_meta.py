@@ -30,7 +30,7 @@ def get_db():
 	finally:
 		db.close()
 
-base_path = lambda x: '/api/v2/meta' + x
+base_path = lambda x: '/v2/meta' + x
 
 @router.get(base_path('/study/'), response_model=List[StudySchema], tags=[Tags.study, Tags.admin])
 async def retrieve_studies(db: Session = Depends(rssadb),

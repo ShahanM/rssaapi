@@ -19,7 +19,7 @@ import uuid
 
 router = APIRouter()
 
-base_path = lambda x: '/api/v2' + x
+base_path = lambda x: '/v2' + x
 
 # Dependency
 # def get_db():
