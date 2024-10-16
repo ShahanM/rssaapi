@@ -31,9 +31,9 @@ class PreferenceVisualization(RSSABase):
 	def __init__(self, model_path:str, item_popularity, ave_item_score):
 		super().__init__(model_path, item_popularity, ave_item_score)
 
-	def get_prediction(self, ratings: List[RatedItemSchema], user_id) \
+	def get_prediction(self, ratings: List[RatedItemSchema], user_id: str) \
 		-> pd.DataFrame:		
-		rated_items = np.array([np.int64(rating.item_id) for rating in ratings])
+		rated_items = np.array([np.int64(rating.movie_id) for rating in ratings])
 		new_ratings = pd.Series(np.array([np.float64(rating.rating) for rating \
 			in ratings]), index = rated_items)  
 		
@@ -43,7 +43,7 @@ class PreferenceVisualization(RSSABase):
 		return als_preds
 	
 	def predict_diverse_items(self, ratings: List[RatedItemSchema],\
-		num_rec: int, user_id:int, algo:str='fishnet', randomize:bool=False,\
+		num_rec: int, user_id:str, algo:str='fishnet', randomize:bool=False,\
 		init_sample_size:int=500, min_rating_count:int=50) \
 		-> List[PreferenceItem]:
 		# Get user predictions
@@ -55,7 +55,7 @@ class PreferenceVisualization(RSSABase):
 		# Merge the predictions with the item popularity
 		preds = pd.merge(preds, self.item_popularity, how ='left', on ='item')
 		
-		ratedset = tuple([r.item_id for r in ratings])
+		ratedset = tuple([r.movie_id for r in ratings])
 		seed = hash(ratedset)%(2**32)
 		
 		candidates = preds[preds['count'] >= min_rating_count]
