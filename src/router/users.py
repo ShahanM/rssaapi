@@ -17,7 +17,7 @@ from .study import get_db as study_db
 from data.studies import get_count_of_questions_by_study_id
 from data.studies import get_study_by_id
 
-router = APIRouter()
+router = APIRouter(deprecated=True)
 
 # async def verify_token(x_token: Annotated[str, Header()]):
 #     if x_token != "fake-super-secret-token":
@@ -36,7 +36,6 @@ async def get_current_study(study_id: Annotated[int, Header()], \
 	return study
 
 async def get_db(study: StudySchema = Depends(get_current_study)):
-	# db = SessionLocal()
 	db = get_user_db(study.id)
 	try:
 		yield db
@@ -44,31 +43,11 @@ async def get_db(study: StudySchema = Depends(get_current_study)):
 		db.close()
 
 
-# rom typing import Annotated
-
-# from fastapi import Depends, FastAPI, Header, HTTPException
-
-# app = FastAPI()
-
-
-# async def verify_token(x_token: Annotated[str, Header()]):
-#     if x_token != "fake-super-secret-token":
-#         raise HTTPException(status_code=400, detail="X-Token header invalid")
-
-
-# async def verify_key(x_key: Annotated[str, Header()]):
-#     if x_key != "fake-super-secret-key":
-#         raise HTTPException(status_code=400, detail="X-Key header invalid")
-#     return x_key
-
-
-# @app.get("/items/", dependencies=[Depends(verify_token), Depends(verify_key)])
-# async def read_items():
-#     return [{"item": "Foo"}, {"item": "Bar"}]
-
-
-@router.post("/user/create_db/", tags=[Tags.admin], \
-	dependencies=[Depends(get_current_study), Depends(get_current_active_user)])
+@router.post(
+	"/user/create_db/",
+	dependencies=[Depends(get_current_study),
+	Depends(get_current_active_user)],
+	include_in_schema=False)
 async def create_db(study_id: int):
 	"""
 	Create the database for the user data.
@@ -117,8 +96,10 @@ async def create_new_test_user(condition_id: int, newuser: NewUserSchema, \
 	return user
 
 
-@router.put('/user/{user_id}/response/{type}/', response_model=bool, \
-	tags=['user'])
+@router.put(
+	'/user/{user_id}/response/{type}/',
+	response_model=bool,
+	tags=[Tags.participant])
 async def create_new_response(user_id: int, type: str, \
 	response: NewSurveyResponseSchema, db: Session = Depends(get_db)):
 	"""
@@ -145,8 +126,6 @@ async def create_new_response(user_id: int, type: str, \
 			return True
 		else:
 			return False
-
-	# TODO: Add other types of responses (free text)
 
 
 @router.put('/user/{user_id}/itemrating/', \

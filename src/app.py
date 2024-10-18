@@ -10,34 +10,26 @@ from compute.rssa import AlternateRS
 from compute.utils import *
 from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import MovieSchema, RatingsSchema
-from router import cybered, iers, users, study_meta, admin, pref_comm,\
+from router import iers, users, study_meta, admin, pref_comm,\
 	dataviewer, pref_viz, auth0, participant, study, movies
 from data.movies import get_movies, get_movies_by_ids
 from router.admin import get_current_active_user, AdminUser
 from middleware.error_handlers import ErrorHanlingMiddleware
 from middleware.infostats import RequestHandlingStatsMiddleware
+from middleware.access_logger import LoggingMiddleware
 
-from docs.metadata import tags_metadata
+from docs.metadata import tags_metadata, TagsMetadataEnum as Tags
 
-# app = FastAPI(root_path='/newrs/api/v1')
+
 app = FastAPI(
 	root_path='/rssa/api',
+	root_path_in_servers=False,
 	openapi_tags=tags_metadata,
 	title='RSSA Project API',
 	description='API for all the RSSA projects, experiments, and alternate movie databases.',
-	version='0.0.1',
+	version='0.1.0',
 	terms_of_service='https://rssa.recsys.dev/terms'
 )
-
-# contact={
-#     'name': '',
-#     'url': '',
-#     'email': '',
-# },
-# license_info={
-#     'name': '',
-#     'url': '',
-# }
 
 
 origins = [
@@ -46,10 +38,11 @@ origins = [
     'http://localhost:3330',
 	'http://localhost:3330/*',
 	'http://localhost:3339',
-    'http://localhost:3339/*'
+    'http://localhost:3339/*',
+	'http://localhost:3331',
 ]
 
-app.include_router(cybered.router)
+# app.include_router(cybered.router)
 app.include_router(iers.router)
 app.include_router(pref_comm.router)
 app.include_router(dataviewer.router)
@@ -59,6 +52,7 @@ app.include_router(study_meta.router)
 app.include_router(study.router)
 app.include_router(admin.router)
 app.include_router(movies.router)
+app.include_router(movies.router_deprecated)
 
 app.include_router(auth0.router)
 app.include_router(participant.router)
@@ -72,6 +66,7 @@ app.add_middleware(
 )
 app.add_middleware(ErrorHanlingMiddleware)
 app.add_middleware(RequestHandlingStatsMiddleware)
+app.add_middleware(LoggingMiddleware)
 
 
 # Dependency
@@ -91,7 +86,7 @@ async def root():
 	return {'message': 'Hello World'}
 
 
-@app.get('/data/all/')
+@app.get('/data/all/', include_in_schema=False)
 async def get_data_zip(
 	current_user: AdminUser = Depends(get_current_active_user)):
 	"""
@@ -106,14 +101,17 @@ async def get_data_zip(
 						filename='data/rssa_all.zip')
 
 
-@app.get('/movies/', response_model=List[MovieSchema], tags=['movie'])
+@app.get(
+	'/movies/',
+	response_model=List[MovieSchema],
+	tags=[Tags.movie])
 async def read_movies(skip: int=0, limit: int=100, db: Session=Depends(get_db)):
-	movies = get_movies(db, skip=skip, limit=limit)
+	movies = get_movies(db, skip=skip, limit=limit) # type: ignore
 	
 	return movies
 
 
-@app.post('/recommendation/', response_model=List[MovieSchema], tags=['movie'])
+@app.post('/recommendation/', response_model=List[MovieSchema])
 async def create_recommendations(rated_movies: RatingsSchema, db: Session=Depends(get_db)):
 	rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
 	rssa_model_path = get_rssa_model_path()

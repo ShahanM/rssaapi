@@ -7,7 +7,7 @@ from math import isnan
 import uuid
 
 
-@DeprecationWarning
+# Deprecated
 def sanitize_movie(movie: Movie_old) -> MovieSchema:
 	movie_ = MovieSchema.from_orm(movie)
 	if movie_.cast == None:
@@ -18,7 +18,7 @@ def sanitize_movie(movie: Movie_old) -> MovieSchema:
 	return movie_
 
 
-@DeprecationWarning
+# Deprecated
 def get_movies(db: Session, skip: int = 0, limit: int = 30) -> List[MovieSchema]:
 	movies = db.query(Movie_old).offset(skip).limit(limit).all()
 
@@ -35,9 +35,9 @@ def get_movies_by_ids(db: Session, movie_ids: List[int]) -> List[Movie]:
 	return db.query(Movie).filter(Movie.movie_id.in_(movie_ids)).all()  # type: ignore
 
 
-@DeprecationWarning
+# Deprecated
 def get_all_ers_movies(db: Session) -> List[Movie]:
-	return db.query(Movie_old).filter(Movie.emotions != None).all()  # type: ignore
+	return db.query(Movie_old).filter(Movie_old.emotions != None).all()  # type: ignore
 
 
 def get_all_ers_movies_v2(db: Session) -> List[Movie]:
@@ -47,10 +47,9 @@ def get_all_ers_movies_v2(db: Session) -> List[Movie]:
 	
 	return [result[0] for result in results]
 
-
-@DeprecationWarning
+# Deprecated
 def get_ers_movies(db: Session, skip: int = 0, limit: int = 30) -> List[Movie_old]:
-	return db.query(Movie_old).filter(Movie.emotions != None).offset(skip).limit(limit).all()  # type: ignore
+	return db.query(Movie_old).filter(Movie_old.emotions != None).offset(skip).limit(limit).all()  # type: ignore
 
 
 def get_ers_movies_v2(db: Session, skip: int = 0, limit: int = 30) -> List[Movie]:
@@ -59,10 +58,10 @@ def get_ers_movies_v2(db: Session, skip: int = 0, limit: int = 30) -> List[Movie
 		.offset(skip).limit(limit).all()
 
 
-@DeprecationWarning
+# Deprecated
 def get_ers_movies_by_ids(db: Session, movie_ids: List[int]) -> List[MovieSchema]:
-	movies = db.query(Movie_old).filter(Movie.movie_id.in_(movie_ids))\
-		.filter(Movie.emotions != None).all()
+	movies = db.query(Movie_old).filter(Movie_old.movie_id.in_(movie_ids))\
+		.filter(Movie_old.emotions != None).all()
 
 	# Order movies to main recommendation order
 	movie_dict = {movie.movie_id: movie for movie in movies}
@@ -96,7 +95,7 @@ def get_ers_movies_by_movielens_ids(db: Session, movielens_ids: List[str]) -> Li
 	return movies
 
 
-@DeprecationWarning
+# Deprecated
 def get_ers_movie(db: Session, movie_id: int) -> Movie_old:
 	movie = db.query(Movie_old).filter(Movie.movie_id == movie_id)\
 		.filter(Movie.emotions != None).first()

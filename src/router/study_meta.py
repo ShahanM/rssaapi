@@ -20,7 +20,7 @@ from data.accessors.survey_constructs import *
 import uuid
 
 
-router = APIRouter()
+router = APIRouter(prefix='/v2/meta')
 
 # Dependency
 def get_db():
@@ -32,7 +32,10 @@ def get_db():
 
 base_path = lambda x: '/v2/meta' + x
 
-@router.get(base_path('/study/'), response_model=List[StudySchema], tags=[Tags.study, Tags.admin])
+@router.get(
+	'/study/',
+	response_model=List[StudySchema],
+	tags=[Tags.meta])
 async def retrieve_studies(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	studies = get_studies(db)
@@ -41,7 +44,10 @@ async def retrieve_studies(db: Session = Depends(rssadb),
 	return studies
 
 
-@router.post(base_path('/study/'), response_model=StudySchema, tags=[Tags.study, Tags.admin])
+@router.post(
+	'/study/',
+	response_model=StudySchema,
+	tags=[Tags.meta])
 async def new_study(new_study: CreateStudySchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 
@@ -52,7 +58,10 @@ async def new_study(new_study: CreateStudySchema, db: Session = Depends(rssadb),
 	return study
 
 
-@router.get(base_path('/studycondition/{study_id}'), response_model=List[StudyConditionSchema], tags=[Tags.study])
+@router.get(
+	'/studycondition/{study_id}',
+	response_model=List[StudyConditionSchema],
+	tags=[Tags.meta])
 async def retrieve_conditions(study_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	conditions = get_study_conditions(db, uuid.UUID(study_id))
@@ -61,7 +70,10 @@ async def retrieve_conditions(study_id: str, db: Session = Depends(rssadb),
 	return conditions
 
 
-@router.post(base_path('/studycondition/'), response_model=StudyConditionSchema, tags=[Tags.study, Tags.admin])
+@router.post(
+	'/studycondition/',
+	response_model=StudyConditionSchema,
+	tags=[Tags.meta])
 async def new_condition(new_condition: CreateStudyConditionSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	condition = create_study_condition(db, new_condition.study_id, new_condition.name, new_condition.description)
@@ -70,18 +82,25 @@ async def new_condition(new_condition: CreateStudyConditionSchema, db: Session =
 	return condition
 
 
-@router.get(base_path('/step/{study_id}'), response_model=List[StudyStepSchema], tags=[Tags.step, Tags.study])
-async def retrieve_steps(study_id: str, db: Session = Depends(rssadb),
-					current_user = Depends(auth0_user)):
+@router.get(
+	'/step/{study_id}',
+	response_model=List[StudyStepSchema],
+	tags=[Tags.meta])
+async def retrieve_steps(
+	study_id: str, db: Session = Depends(rssadb),
+	current_user = Depends(auth0_user)):
 	
 	steps = get_study_steps(db, uuid.UUID(study_id))
-	print(steps)
+	
 	log_access(db, current_user.sub, 'read', 'steps for study', study_id)
 
 	return steps
 
 
-@router.post(base_path('/step/'), response_model=StudyStepSchema, tags=[Tags.step, Tags.study, Tags.admin])
+@router.post(
+	'/step/',
+	response_model=StudyStepSchema,
+	tags=[Tags.meta])
 async def new_step(new_step: CreateStepSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	step = create_study_step(db, **new_step.dict())
@@ -90,35 +109,50 @@ async def new_step(new_step: CreateStepSchema, db: Session = Depends(rssadb),
 	return step
 
 
-@router.get(base_path('/page/{step_id}'), response_model=List[StepPageSchema], tags=[Tags.page, Tags.study])
+@router.get(
+	'/page/{step_id}',
+	response_model=List[StepPageSchema],
+	tags=[Tags.study])
 async def retrieve_pages(step_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	pages = get_step_pages(db, uuid.UUID(step_id))
+	
 	log_access(db, current_user.sub, 'read', 'page for step', step_id)
 
 	return pages
 
 
-@router.post(base_path('/page/'), response_model=StepPageSchema, tags=[Tags.page, Tags.study, Tags.admin])
-async def new_page(new_page: CreatePageSchema, db: Session = Depends(rssadb),
-					current_user = Depends(auth0_user)):
+@router.post(
+	'/page/',
+	response_model=StepPageSchema,
+	tags=[Tags.meta])
+async def new_page(
+	new_page: CreatePageSchema, db: Session = Depends(rssadb),
+	current_user = Depends(auth0_user)):
 
 	page = create_step_page(db, **new_page.dict())
+	
 	log_access(db, current_user.sub, 'create', 'page', page.id)
 
 	return page
 
 
-@router.get(base_path('/pagecontent/{page_id}'), response_model=List[SurveyConstructSchema], tags=[Tags.page, Tags.study])
-async def retrieve_page_content(page_id: str, db: Session = Depends(rssadb),
-					current_user = Depends(auth0_user)):
+@router.get(
+	'/pagecontent/{page_id}',
+	response_model=List[SurveyConstructSchema],
+	tags=[Tags.meta])
+async def retrieve_page_content(
+	page_id: str, db: Session = Depends(rssadb),
+	current_user = Depends(auth0_user)):
+	
 	constructs = get_page_content(db, uuid.UUID(page_id))
+	
 	log_access(db, current_user.sub, 'read', 'page content', page_id)
 
 	return constructs
 
 
-@router.post(base_path('/pagecontent/'), response_model=SurveyConstructSchema, tags=[Tags.page, Tags.study, Tags.admin])
+@router.post('/pagecontent/', response_model=SurveyConstructSchema, tags=[Tags.meta])
 async def attach_content_to_page(page_content: CreatePageContentSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	
@@ -132,7 +166,10 @@ async def attach_content_to_page(page_content: CreatePageContentSchema, db: Sess
 """
 The following routes regarding constructs should be moved to a separate router file
 """
-@router.get(base_path('/construct/'), response_model=List[SurveyConstructSchema], tags=[Tags.admin])
+@router.get(
+	'/construct/',
+	response_model=List[SurveyConstructSchema],
+	tags=[Tags.meta])
 async def retrieve_constructs(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	constructs = get_survey_constructs(db)
@@ -141,7 +178,10 @@ async def retrieve_constructs(db: Session = Depends(rssadb),
 	return constructs
 
 
-@router.post(base_path('/construct/'), response_model=SurveyConstructSchema, tags=[Tags.admin])
+@router.post(
+	'/construct/',
+	response_model=SurveyConstructSchema,
+	tags=[Tags.meta])
 async def new_construct(new_construct: NewSurveyConstructSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	if new_construct.scale_id == '':
@@ -154,7 +194,10 @@ async def new_construct(new_construct: NewSurveyConstructSchema, db: Session = D
 	return construct
 
 
-@router.put(base_path('/construct/{construct_id}'), response_model=SurveyConstructSchema, tags=[Tags.admin])
+@router.put(
+	'/construct/{construct_id}',
+	response_model=SurveyConstructSchema,
+	tags=[Tags.meta])
 async def update_construct(construct_id: str, updated_construct: UpdateSurveyConstructSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	
@@ -164,7 +207,10 @@ async def update_construct(construct_id: str, updated_construct: UpdateSurveyCon
 	return update
 
 
-@router.get(base_path('/construct/{construct_id}'), response_model=SurveyConstructDetailSchema, tags=[Tags.admin])
+@router.get(
+	'/construct/{construct_id}',
+	response_model=SurveyConstructDetailSchema,
+	tags=[Tags.meta])
 async def retrieve_construct_details(construct_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	
@@ -197,7 +243,10 @@ async def retrieve_construct_details(construct_id: str, db: Session = Depends(rs
 	return construct_deets
 
 
-@router.get(base_path('/constructtype/'), response_model=List[ConstructItemTypeSchema], tags=[Tags.admin])
+@router.get(
+	'/constructtype/',
+	response_model=List[ConstructItemTypeSchema],
+	tags=[Tags.meta])
 async def retrieve_construct_types(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	types = get_construct_types(db)
@@ -206,7 +255,7 @@ async def retrieve_construct_types(db: Session = Depends(rssadb),
 	return types
 
 
-@router.post(base_path('/constructtype/'), response_model=ConstructTypeSchema, tags=[Tags.admin])
+@router.post('/constructtype/', response_model=ConstructTypeSchema, tags=[Tags.meta])
 async def new_construct_type(new_type: NewConstructTypeSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	item_type = create_construct_type(db, new_type.type)
@@ -215,7 +264,7 @@ async def new_construct_type(new_type: NewConstructTypeSchema, db: Session = Dep
 	return item_type
 
 
-@router.get(base_path('/constructscale/'), response_model=List[ConstructScaleSchema], tags=[Tags.admin])
+@router.get('/constructscale/', response_model=List[ConstructScaleSchema], tags=[Tags.meta])
 async def retrieve_construct_scales(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	scales = get_construct_scales(db)
@@ -224,7 +273,7 @@ async def retrieve_construct_scales(db: Session = Depends(rssadb),
 	return scales
 
 
-@router.post(base_path('/constructscale/'), response_model=ConstructScaleSchema, tags=[Tags.admin])
+@router.post('/constructscale/', response_model=ConstructScaleSchema, tags=[Tags.meta])
 async def new_construct_scale(new_scale: NewConstructScaleSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	scale = create_construct_scale(db, new_scale.levels, new_scale.name, new_scale.scale_levels)
@@ -232,7 +281,7 @@ async def new_construct_scale(new_scale: NewConstructScaleSchema, db: Session = 
 	return scale
 
 
-@router.get(base_path('/item/{construct_id}'), response_model=List[ConstructItemSchema], tags=[Tags.admin])
+@router.get('/item/{construct_id}', response_model=List[ConstructItemSchema], tags=[Tags.meta])
 async def retrieve_construct_items(construct_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	items = get_construct_items(db, uuid.UUID(construct_id))
@@ -241,7 +290,7 @@ async def retrieve_construct_items(construct_id: str, db: Session = Depends(rssa
 	return items
 
 
-@router.post(base_path('/item/'), response_model=ConstructItemSchema, tags=[Tags.admin])
+@router.post('/item/', response_model=ConstructItemSchema, tags=[Tags.meta])
 async def new_construct_item(new_item: CreateConstructItemSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	item = create_construct_item(db, new_item.construct_id, new_item.item_type, new_item.text, new_item.order_position)
@@ -250,7 +299,7 @@ async def new_construct_item(new_item: CreateConstructItemSchema, db: Session = 
 	return item
 
 
-@router.get(base_path('/itemtype/'), response_model=List[ConstructItemTypeSchema], tags=[Tags.admin])
+@router.get('/itemtype/', response_model=List[ConstructItemTypeSchema], tags=[Tags.meta])
 async def retrieve_construct_item_types(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	types = get_item_types(db)
@@ -259,7 +308,7 @@ async def retrieve_construct_item_types(db: Session = Depends(rssadb),
 	return types
 
 
-@router.post(base_path('/itemtype/'), response_model=ConstructItemTypeSchema, tags=[Tags.admin])
+@router.post('/itemtype/', response_model=ConstructItemTypeSchema, tags=[Tags.meta])
 async def new_construct_item_type(new_type: NewConstructItemTypeSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	item_type = create_item_type(db, new_type.type)

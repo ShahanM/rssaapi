@@ -3,12 +3,12 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from compute.rspv import PreferenceVisualization, PreferenceItem
+from compute.rspv import PreferenceVisualization, PreferenceItem, RatedItemSchema, RatedItemSchemaV2
 from compute.utils import *
 # from data.moviedatabase import SessionLocal
 from data.moviedb import get_db as movie_db
 from data.rssadb import get_db as rssa_db
-from data.models.schema.movieschema import *
+from data.models.schema.movieschema import BaseModel
 from data.movies import *
 from data.studies_v2 import Study
 from .study import get_current_registered_study
@@ -28,14 +28,14 @@ base_path = lambda x: '/v2' + x
 # 		yield db
 # 	finally:
 # 		db.close()
-class RatedItemSchemaV2(BaseModel):
-	id: uuid.UUID
-	rating: int
+
 
 
 class PrefVizRequestSchema(BaseModel):
-	user_id: uuid.UUID
-	user_condition: uuid.UUID
+	# user_id: uuid.UUID
+	# user_condition: uuid.UUID
+	user_id: int
+	user_condition: int
 	ratings: List[RatedItemSchema]
 	num_rec: int = 10
 	algo: str
@@ -53,7 +53,7 @@ class PrefVizRequestSchema(BaseModel):
 class PrefVizRequestSchemaV2(BaseModel):
 	user_id: uuid.UUID
 	user_condition: uuid.UUID
-	ratings: List[RatedItemSchema]
+	ratings: List[RatedItemSchemaV2]
 
 	def __hash__(self):
 		return self.json().__hash__()
@@ -96,8 +96,7 @@ CACHE = {}
 
 
 @router.post('/prefviz/recommendation/', response_model=PrefVizResponseSchema)
-async def create_recommendations(request_model: PrefVizRequestSchema, \
-	db: Session = Depends(rssa_db)):
+async def create_recommendations(request_model: PrefVizRequestSchema):
 
 	if request_model in CACHE:
 		print('Found request in cache. Returning cached response.')

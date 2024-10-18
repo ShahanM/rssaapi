@@ -35,8 +35,11 @@ def get_db():
 base_path = lambda x: '/v2' + x
 
 
-@router.get(base_path('/meta/participanttype/'),
-			response_model=List[ParticipantTypeSchema], tags=[Tags.admin])
+@router.get(
+		base_path('/meta/participanttype/'),
+		response_model=List[ParticipantTypeSchema],
+		summary='Retrieve all participant types',
+		tags=[Tags.meta])
 async def retrieve_participant_types(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	types = get_participant_types(db)
@@ -45,8 +48,10 @@ async def retrieve_participant_types(db: Session = Depends(rssadb),
 	return types
 
 
-@router.post(base_path('/meta/participanttype/'), 
-		response_model=ParticipantTypeSchema, tags=[Tags.admin])
+@router.post(
+	base_path('/meta/participanttype/'), 
+	response_model=ParticipantTypeSchema,
+	tags=[Tags.meta])
 async def new_participant_type(new_type: NewParticipantTypeSchema,
 		db: Session = Depends(rssadb), current_user = Depends(auth0_user)):
 	
@@ -58,8 +63,10 @@ async def new_participant_type(new_type: NewParticipantTypeSchema,
 	return participant_type
 
 
-@router.post(base_path('/participant/'), response_model=ParticipantSchema,
-		tags=[Tags.study])
+@router.post(
+	base_path('/participant/'),
+	response_model=ParticipantSchema,
+	tags=[Tags.participant])
 async def new_study_participant(new_participant: NewParticipantSchema,
 		db: Session = Depends(rssadb), 
 		current_study = Depends(get_current_registered_study)):
@@ -77,7 +84,10 @@ async def new_study_participant(new_participant: NewParticipantSchema,
 	return participant
 
 
-@router.put(base_path('/participant/'), response_model=bool, tags=[Tags.study])
+@router.put(
+	base_path('/participant/'), 
+	response_model=bool, 
+	tags=[Tags.participant])
 async def update_participant(participant: ParticipantSchema,
 		db: Session = Depends(rssadb),
 		current_study = Depends(get_current_registered_study)):
@@ -92,8 +102,10 @@ async def update_participant(participant: ParticipantSchema,
 	return True
 	
 
-@router.post(base_path('/participant/{participant_id}/surveyresponse/'),
-		response_model=bool, tags=[Tags.study])
+@router.post(
+	base_path('/participant/{participant_id}/surveyresponse/'),
+	response_model=bool,
+	tags=[Tags.participant])
 async def new_survey_response(participant_id: uuid.UUID,
 		response: SurveyResponse, db: Session = Depends(rssadb),
 		current_study = Depends(get_current_registered_study)):
@@ -105,8 +117,10 @@ async def new_survey_response(participant_id: uuid.UUID,
 	return success
 
 
-@router.post(base_path('/participant/{participant_id}/textresponse/'),
-		response_model=bool, tags=[Tags.study])
+@router.post(
+	base_path('/participant/{participant_id}/textresponse/'),
+	response_model=bool,
+	tags=[Tags.participant])
 async def new_text_response(participant_id: uuid.UUID, response: GroupedTextResponse,
 		db: Session = Depends(rssadb),
 		current_study = Depends(get_current_registered_study)):
@@ -128,8 +142,10 @@ async def new_text_response(participant_id: uuid.UUID, response: GroupedTextResp
 	return success
 
 
-@router.post(base_path('/participant/{participant_id}/demographics/'),
-		response_model=bool, tags=[Tags.study])
+@router.post(
+	base_path('/participant/{participant_id}/demographics/'),
+	response_model=bool,
+	tags=[Tags.participant])
 async def new_demographics(participant_id: uuid.UUID,
 		demographics: DemographicSchema, db: Session = Depends(rssadb),
 		current_study = Depends(get_current_registered_study)):
@@ -143,8 +159,10 @@ async def new_demographics(participant_id: uuid.UUID,
 	return success
 
 
-@router.post(base_path('/participant/{participant_id}/feedback/'),
-		response_model=bool, tags=[Tags.study])
+@router.post(
+	base_path('/participant/{participant_id}/feedback/'),
+	response_model=bool,
+	tags=[Tags.participant])
 async def new_feedback(participant_id: uuid.UUID, feedback: FeedbackSchema,
 		db: Session = Depends(rssadb),
 		current_study = Depends(get_current_registered_study)):

@@ -7,13 +7,13 @@ This file contains the RSSA Preference Visualization (RSPV) algorithms.
 
 from typing import List, Tuple
 
-from data.models.schema.movieschema import RatedItemSchema
 import pandas as pd
 import numpy as np
 from .common import RSSABase, predict, scale_value
 from pydantic import BaseModel
 import itertools
-import random
+from typing import Union
+import uuid
 
 import networkx as nx
 
@@ -27,13 +27,23 @@ class PreferenceItem(BaseModel):
 	cluster: int = 0
 
 
+class RatedItemSchema(BaseModel):
+	item_id: int
+	rating: int
+
+
+class RatedItemSchemaV2(BaseModel):
+	id: uuid.UUID
+	rating: int
+
+
 class PreferenceVisualization(RSSABase):
 	def __init__(self, model_path:str, item_popularity, ave_item_score):
 		super().__init__(model_path, item_popularity, ave_item_score)
 
 	def get_prediction(self, ratings: List[RatedItemSchema], user_id: str) \
 		-> pd.DataFrame:		
-		rated_items = np.array([np.int64(rating.movie_id) for rating in ratings])
+		rated_items = np.array([np.int64(rating.item_id) for rating in ratings])
 		new_ratings = pd.Series(np.array([np.float64(rating.rating) for rating \
 			in ratings]), index = rated_items)  
 		
@@ -42,7 +52,7 @@ class PreferenceVisualization(RSSABase):
 
 		return als_preds
 	
-	def predict_diverse_items(self, ratings: List[RatedItemSchema],\
+	def predict_diverse_items(self, ratings: List[Union[RatedItemSchema, RatedItemSchemaV2]],\
 		num_rec: int, user_id:str, algo:str='fishnet', randomize:bool=False,\
 		init_sample_size:int=500, min_rating_count:int=50) \
 		-> List[PreferenceItem]:
@@ -55,7 +65,7 @@ class PreferenceVisualization(RSSABase):
 		# Merge the predictions with the item popularity
 		preds = pd.merge(preds, self.item_popularity, how ='left', on ='item')
 		
-		ratedset = tuple([r.movie_id for r in ratings])
+		ratedset = tuple([r.item_id for r in ratings])
 		seed = hash(ratedset)%(2**32)
 		
 		candidates = preds[preds['count'] >= min_rating_count]
@@ -173,7 +183,7 @@ class PreferenceVisualization(RSSABase):
 			candidates_vector = np.delete(candidates_vector, \
 				idx_shortest_dist, axis=0)
 
-			item_idx = candidates.index[idx_shortest_dist]
+			item_idx = candidates.index[int(idx_shortest_dist)]
 			val_shortest_dist = dist[idx_shortest_dist]
 
 			grid_members[tuple(point)] = item_idx
