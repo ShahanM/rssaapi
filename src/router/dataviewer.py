@@ -14,7 +14,7 @@ from docs.metadata import TagsMetadataEnum as Tags
 from .study import get_db as study_db
 from .users import get_db as user_db
 
-router = APIRouter()
+router = APIRouter(include_in_schema=False)
 
 @router.get("/user/{user_id}", response_model=UserSchema, tags=['dataviewer'])
 async def get_rssa_user(user_id: int, db: Session = Depends(user_db)):

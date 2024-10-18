@@ -55,7 +55,8 @@ def create_survey_response(db: Session, participant_id: uuid.UUID,\
 		raise HTTPException(status_code=404, detail='Participant not found')
 	
 	pcontent = db.query(PageContent).where(PageContent.page_id == response.page_id).first()
-	res = get_responses(db, participant, pcontent.content_id, [res_item.item_id for res_item in response.responses])
+	res = get_responses(db, participant, pcontent.content_id, 
+			[res_item.item_id for res_item in response.responses if res_item.item_id])
 
 	if res:
 		for res_item in response.responses:
