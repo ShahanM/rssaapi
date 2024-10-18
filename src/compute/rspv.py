@@ -13,7 +13,6 @@ from .common import RSSABase, predict, scale_value
 from pydantic import BaseModel
 import itertools
 from typing import Union
-import uuid
 
 import networkx as nx
 
@@ -32,11 +31,6 @@ class RatedItemSchema(BaseModel):
 	rating: int
 
 
-class RatedItemSchemaV2(BaseModel):
-	id: uuid.UUID
-	rating: int
-
-
 class PreferenceVisualization(RSSABase):
 	def __init__(self, model_path:str, item_popularity, ave_item_score):
 		super().__init__(model_path, item_popularity, ave_item_score)
@@ -52,7 +46,7 @@ class PreferenceVisualization(RSSABase):
 
 		return als_preds
 	
-	def predict_diverse_items(self, ratings: List[Union[RatedItemSchema, RatedItemSchemaV2]],\
+	def predict_diverse_items(self, ratings: List[RatedItemSchema],\
 		num_rec: int, user_id:str, algo:str='fishnet', randomize:bool=False,\
 		init_sample_size:int=500, min_rating_count:int=50) \
 		-> List[PreferenceItem]:

@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from compute.rspv import PreferenceVisualization, PreferenceItem, RatedItemSchema, RatedItemSchemaV2
+from compute.rspv import PreferenceVisualization, PreferenceItem, RatedItemSchema
 from compute.utils import *
 # from data.moviedatabase import SessionLocal
 from data.moviedb import get_db as movie_db
@@ -53,7 +53,7 @@ class PrefVizRequestSchema(BaseModel):
 class PrefVizRequestSchemaV2(BaseModel):
 	user_id: uuid.UUID
 	user_condition: uuid.UUID
-	ratings: List[RatedItemSchemaV2]
+	ratings: List[RatedItemSchema]
 
 	def __hash__(self):
 		return self.json().__hash__()
