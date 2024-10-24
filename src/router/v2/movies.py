@@ -1,15 +1,12 @@
 from typing import List
 from random import shuffle
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
-from datetime import datetime, timezone
 
 from compute.utils import *
 from data.models.schema.studyschema import *
 from docs.metadata import TagsMetadataEnum as Tags
-
 
 from data.moviedatabase import SessionLocal
 from data.moviedb import get_db as movie_db_v2
@@ -20,7 +17,7 @@ import uuid
 
 
 router = APIRouter(prefix='/v2')
-router_deprecated = APIRouter()
+
 
 # Dependency
 def get_db():
@@ -29,8 +26,6 @@ def get_db():
 		yield db
 	finally:
 		db.close()
-
-base_path = lambda x: '/v2' + x
 
 
 @router.get(
@@ -69,36 +64,3 @@ async def read_movies_by_ids(movie_ids: List[uuid.UUID], \
 	return movies
 
 
-@router_deprecated.get(
-		'/ers/movies/ids/',
-		response_model=List[int],
-		tags=[Tags.ers],
-		deprecated=True)
-async def read_movies_ids_dep(db: Session = Depends(get_db)):
-	movies = get_all_ers_movies(db)
-	ids = [movie.movie_id for movie in movies]
-	return ids
-
-
-@router_deprecated.get(
-		'/ers/movies/',
-		response_model=List[MovieSchema],
-		tags=[Tags.ers],
-		deprecated=True)
-async def read_movies_dep(skip: int = 0, limit: int = 100, \
-	db: Session = Depends(get_db)):
-	movies = get_ers_movies(db, skip=skip, limit=limit)
-	
-	return movies
-
-
-@router_deprecated.post(
-		'/ers/movies/',
-		response_model=List[MovieSchema],
-		tags=[Tags.ers],
-		deprecated=True)
-async def read_movies_by_ids_dep(movie_ids: List[int], \
-	db: Session = Depends(get_db)):
-	movies = get_ers_movies_by_ids(db, movie_ids)
-	
-	return movies

@@ -8,12 +8,32 @@ from sqlalchemy.orm import Session
 from compute.rssa import AlternateRS
 
 from compute.utils import *
-from data.moviedatabase import SessionLocal
+from data.moviedatabase import SessionLocal # FIXME: Move to own file
+
 from data.models.schema.movieschema import MovieSchema, RatingsSchema
-from router import iers, users, study_meta, admin, pref_comm,\
-	dataviewer, pref_viz, auth0, participant, study, movies
+from router.v1 import (
+	movies as movies_v1,
+	users as users_v1, 
+	admin, 
+	study as study_v1,
+	iers
+)
+from router.v1.admin import get_current_active_user, AdminUser
+
+from router.v2 import (
+	study as study_v2,
+	movies,
+	study_meta,
+	auth0,
+	pref_viz,
+	participant
+)
+
+from router import (
+	pref_comm
+)
+
 from data.movies import get_movies, get_movies_by_ids
-from router.admin import get_current_active_user, AdminUser
 from middleware.error_handlers import ErrorHanlingMiddleware
 from middleware.infostats import RequestHandlingStatsMiddleware
 from middleware.access_logger import LoggingMiddleware
@@ -21,6 +41,10 @@ from middleware.access_logger import LoggingMiddleware
 from docs.metadata import tags_metadata, TagsMetadataEnum as Tags
 
 
+"""
+FastAPI App
+"""
+# TODO: Move string values to a config file
 app = FastAPI(
 	root_path='/rssa/api',
 	root_path_in_servers=False,
@@ -32,6 +56,10 @@ app = FastAPI(
 )
 
 
+"""
+CORS Origins
+"""
+# TODO: Move to a config file
 origins = [
     'https://cybered.recsys.dev',
     'https://cybered.recsys.dev/*',
@@ -40,23 +68,35 @@ origins = [
 	'http://localhost:3339',
     'http://localhost:3339/*',
 	'http://localhost:3331',
+	'http://localhost:3340',
 ]
 
-# app.include_router(cybered.router)
+
+"""
+v1 routers
+"""
+app.include_router(study_v1.router)
+app.include_router(users_v1.router)
+app.include_router(movies_v1.router)
 app.include_router(iers.router)
-app.include_router(pref_comm.router)
-app.include_router(dataviewer.router)
-app.include_router(pref_viz.router)
-app.include_router(users.router)
-app.include_router(study_meta.router)
-app.include_router(study.router)
+app.include_router(pref_comm.router) # FIXME: move to v1 module
 app.include_router(admin.router)
-app.include_router(movies.router)
-app.include_router(movies.router_deprecated)
 
-app.include_router(auth0.router)
+
+"""
+v2 routers
+"""
+app.include_router(study_v2.router)
+app.include_router(pref_viz.router)
+app.include_router(study_meta.router)
 app.include_router(participant.router)
+app.include_router(movies.router)
+app.include_router(auth0.router)
 
+
+"""
+Middlewares
+"""
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

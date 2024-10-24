@@ -60,7 +60,7 @@ class ParticipantResponse(Base):
 	date_modified = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	discarded = Column(Boolean, nullable=False, default=False)
 
-	PrimaryKeyConstraint(participant_id, construct_id, id)
+	# PrimaryKeyConstraint(participant_id, construct_id, id)
 
 	def __init__(self, participant_id: UUID, construct_id: UUID, response: str, item_id: Union[UUID, None] = None):
 		self.participant_id = participant_id

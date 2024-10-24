@@ -75,13 +75,13 @@ class PreferenceVisualization(RSSABase):
 
 		diverse_items: pd.DataFrame
 		if algo == 'fishnet':
-			print('Generating recommendations using fishnet')
+			# print('Generating recommendations using fishnet')
 			diverse_items, dists = self.__fishingnet(candidates, num_rec)
 			dists = sorted(dists, key=lambda x: x[1])
 			dists_n_idx = [item[0] for item in dists[:num_rec]]
 			diverse_items = diverse_items[diverse_items['item'].isin(dists_n_idx)]
 		elif algo == 'single_linkage':
-			print('Generating recommendations using single linkage clustering')
+
 			# sort the base on the score and pick top n
 			candidates.sort_values(by='score', ascending=False, inplace=True)
 			candlen = len(candidates)
@@ -91,32 +91,17 @@ class PreferenceVisualization(RSSABase):
 			topn_user = candidates.head(init_sample_size).copy()
 			botn_user = candidates.tail(init_sample_size).copy()
 			midn_user = candidates.iloc[midstart:midend].copy()
-			# print('Top n user: ', topn_user, len(topn_user))
-			# sort the base on the ave_score and pick top n
-			# candidates.sort_values(by='ave_score', ascending=False, inplace=True)
-			# topn_community = candidates.head(n).copy()
-			# botn_community = candidates.tail(n).copy()
-			# midn_community = candidates.iloc[midstart:midend].copy()
-			# print('Top n community: ', topn_community, len(topn_community))
-
-			# merge the two top n
-			# _candidates = pd.concat([topn_user, botn_user, midn_user,\
-			# 				topn_community, botn_community, midn_community])\
-			# 				.drop_duplicates()
 
 			candidates = pd.concat([topn_user, botn_user, midn_user])\
 							.drop_duplicates()
 			diverse_items = self.__single_linkage_clustering(candidates, num_rec)
 		elif algo == 'random':
-			print('Generating recommendations using random sampling')
 			diverse_items = candidates if randomize else \
 				candidates.sample(n=num_rec, random_state=seed)
 		elif algo == 'fishnet + single_linkage':
-			print('Generating recommendations using fishnet and single linkage clustering')
 			diverse_items, _ = self.__fishingnet(candidates, init_sample_size)
 			diverse_items = self.__single_linkage_clustering(diverse_items, num_rec)
 		else:
-			print('Generating recommendations without any diversification')
 			diverse_items = candidates
 		
 		scaled_items, scaled_avg_comm, scaled_avg_user = \
@@ -135,12 +120,10 @@ class PreferenceVisualization(RSSABase):
 		return recommended_items
 
 	def seeding(self, n, nb):
-		# ticks = [0]
 		ticks = [1] # we start from 1 because there is no rating 0
 		step = (n - 1) / nb
-		print('seeding', step, nb)
 		for i in range(nb):
-			print(ticks)
+			# print(ticks)
 			ticks.append(ticks[i] + step)
 			
 		return ticks

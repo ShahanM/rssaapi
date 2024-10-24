@@ -12,7 +12,6 @@ from passlib.context import CryptContext
 
 
 
-
 router = APIRouter()
 
 # Dependency
@@ -51,6 +50,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
 
 def verify_password(plain_password, hashed_password):
+	# print(pwd_context.hash(plain_password), hashed_password)
 	return pwd_context.verify(plain_password, hashed_password)
 
 
@@ -69,6 +69,7 @@ def authenticate_user(fake_db, username: str, password: str):
 	if not user:
 		return False
 	if not verify_password(password, user.hashed_password):
+		print(user)
 		return False
 	return user
 
@@ -121,10 +122,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 			detail='Incorrect username or password', 
 			headers={'WWW-Authenticate': 'Bearer'}
 		)
+		print("tello")
 	access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 	access_token = create_access_token(
 		data={'sub': user.username}, expires_delta=access_token_expires
 	)
+	print("token", access_token)
 	return {'access_token': access_token, 'token_type': 'bearer'}
 
 

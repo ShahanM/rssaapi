@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.orm import Session
 
 from compute.utils import *
-from data.studydatabase import SessionLocal
 from data.models.schema.studyschema import *
 from data.rssadb import get_db as rssadb
 from docs.metadata import TagsMetadataEnum as Tags
@@ -15,14 +14,6 @@ import uuid
 
 
 router = APIRouter(prefix='/v2')
-
-# TODO: Remove this dependency
-def get_db():
-	db = SessionLocal()
-	try:
-		yield db
-	finally:
-		db.close()
 
 
 def study_authorized_token(request: Request) -> str:

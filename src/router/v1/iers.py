@@ -9,7 +9,7 @@ from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import *
 from data.movies import *
 
-router = APIRouter()
+router = APIRouter(prefix='/v1')
 
 # TODO: Move to config file
 TOP_N_TUNING_PARAMS = {

@@ -1,5 +1,5 @@
-from typing import List, Union, Dict
-from sqlalchemy.orm import Session, joinedload
+from typing import List, Dict
+from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from ..models.schema.participanschema import *
@@ -7,16 +7,9 @@ from ..models.study_v2 import *
 from ..models.survey_constructs import *
 from ..models.participants import *
 
-from .studies import get_study_by_id, get_study_conditions
-
-from data.rssadb import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import and_
 import uuid
 from fastapi import HTTPException
-
-import random
 
 
 def get_responses(db: Session, participant: Participant,\

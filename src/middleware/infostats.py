@@ -6,6 +6,7 @@ class RequestHandlingStatsMiddleware:
 		self.app = app
 
 	async def __call__(self, scope, receive, send):
+
 		request_stats = {}
 		
 		start = time.time()
@@ -28,6 +29,9 @@ class RequestHandlingStatsMiddleware:
 
 			if not message.get("more_body", False):
 				request_stats["body_size"] = body_size
+
+			if message:
+				print(message)
 
 			return message
 		

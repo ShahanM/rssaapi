@@ -1,4 +1,3 @@
-from pydantic_sqlalchemy import sqlalchemy_to_pydantic
 from dataclasses import dataclass
 from sqlalchemy import Column, Integer, Text, String, ForeignKey, Index, \
 	Numeric
@@ -90,7 +89,3 @@ class MovieRecommendationText(Base):
 
 	movie = relationship('Movie', back_populates='recommendation_text')
 
-
-PydanticMovie = sqlalchemy_to_pydantic(Movie)
-PydanticMovieEmotions = sqlalchemy_to_pydantic(MovieEmotions)
-PydanticMovieRecommendationText = sqlalchemy_to_pydantic(MovieRecommendationText)

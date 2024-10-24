@@ -7,6 +7,7 @@ class ErrorHanlingMiddleware:
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send)\
 		-> None:
+
 		try:
 			await self.app(scope, receive, send)
 		except Exception as exc:

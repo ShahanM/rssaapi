@@ -2,16 +2,13 @@ from typing import List, Union
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from .models.schema.studyschema import NewScaleLevelSchema
 from .models.study_v2 import *
 from .models.survey_constructs import *
 
 from data.rssadb import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from fastapi import HTTPException
 
 
 class AccessLog(Base):

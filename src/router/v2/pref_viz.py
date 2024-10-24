@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from compute.rspv import PreferenceVisualization, PreferenceItem, RatedItemSchema
 from compute.utils import *
-# from data.moviedatabase import SessionLocal
 from data.moviedb import get_db as movie_db
 from data.rssadb import get_db as rssa_db
 from data.models.schema.movieschema import BaseModel
@@ -17,23 +16,10 @@ from data.accessors.studies import get_study_condition
 import uuid
 
 
-router = APIRouter()
-
-base_path = lambda x: '/v2' + x
-
-# Dependency
-# def get_db():
-# 	db = SessionLocal()
-# 	try:
-# 		yield db
-# 	finally:
-# 		db.close()
-
+router = APIRouter(prefix='/v2')
 
 
 class PrefVizRequestSchema(BaseModel):
-	# user_id: uuid.UUID
-	# user_condition: uuid.UUID
 	user_id: int
 	user_condition: int
 	ratings: List[RatedItemSchema]
@@ -44,10 +30,10 @@ class PrefVizRequestSchema(BaseModel):
 	min_rating_count: int
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 	def __hash__(self):
-		return self.json().__hash__()
+		return self.model_dump_json().__hash__()
 	
 
 class PrefVizRequestSchemaV2(BaseModel):
@@ -56,7 +42,7 @@ class PrefVizRequestSchemaV2(BaseModel):
 	ratings: List[RatedItemSchema]
 
 	def __hash__(self):
-		return self.json().__hash__()
+		return self.model_dump_json().__hash__()
 
 
 class PrefVizMetadata(BaseModel, frozen=True):
@@ -72,10 +58,10 @@ class PrefVizResponseSchema(BaseModel):
 	recommendations: List[PreferenceItem]
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 	def __hash__(self):
-		return self.json().__hash__()
+		return self.model_dump_json().__hash__()
 	
 
 class PreferenceItemV2(MovieSchemaV2, PreferenceItem):
@@ -87,7 +73,7 @@ class PrefVizResponseSchemaV2(BaseModel):
 	recommendations: List[PreferenceItem]
 
 	def __hash__(self):
-		return self.json().__hash__()
+		return self.model_dump_json().__hash__()
 
 
 CACHE_LIMIT = 100
@@ -95,7 +81,9 @@ queue = []
 CACHE = {}
 
 
-@router.post('/prefviz/recommendation/', response_model=PrefVizResponseSchema)
+@router.post(
+	'/demo/prefviz/recommendation/',
+	response_model=PrefVizResponseSchema)
 async def create_recommendations(request_model: PrefVizRequestSchema):
 
 	if request_model in CACHE:
@@ -132,10 +120,13 @@ async def create_recommendations(request_model: PrefVizRequestSchema):
 	return res
 
 
-@router.post(base_path('/prefviz/recommendation/'), response_model=List[PreferenceItemV2])
-async def recommend_for_study_condition(request_model: PrefVizRequestSchemaV2, \
-	db: Session = Depends(rssa_db), \
-	study: Study = Depends(get_current_registered_study),\
+@router.post(
+		'/prefviz/recommendation/',
+		response_model=List[PreferenceItemV2])
+async def recommend_for_study_condition(
+	request_model: PrefVizRequestSchemaV2,
+	db: Session = Depends(rssa_db),
+	study: Study = Depends(get_current_registered_study),
 	movie_db: Session = Depends(movie_db)):
 	
 	if request_model in CACHE:
@@ -175,8 +166,8 @@ async def recommend_for_study_condition(request_model: PrefVizRequestSchemaV2, \
 	res = []
 
 	for m in movies:
-		movie = MovieSchemaV2.from_orm(m)
-		pref_item = PreferenceItemV2(**movie.dict(), **recmap[m.movielens_id].dict())
+		movie = MovieSchemaV2.model_validate(m)
+		pref_item = PreferenceItemV2(**movie.model_dump(), **recmap[m.movielens_id].model_dump())
 		res.append(pref_item)
 
 	print('Updating cache')

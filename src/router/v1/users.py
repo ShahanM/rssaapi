@@ -17,7 +17,7 @@ from .study import get_db as study_db
 from data.studies import get_count_of_questions_by_study_id
 from data.studies import get_study_by_id
 
-router = APIRouter(deprecated=True)
+router = APIRouter(prefix='/v1', deprecated=True)
 
 # async def verify_token(x_token: Annotated[str, Header()]):
 #     if x_token != "fake-super-secret-token":

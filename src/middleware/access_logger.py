@@ -7,13 +7,6 @@ class LoggingMiddleware:
 		self.app = app
 
 	async def __call__(self, scope, receive, send):
-
-		print('LoggingMiddleware')
-		print('Scope: ', scope)
-		print('Receive: ', receive)
-		print(receive)
-		print('Send:', send)
-
 		request_stats = {}
 		
 		start = time.time()

@@ -60,7 +60,6 @@ class PreferenceCommunity:
 		# to get the least rated genre
 		# get_movies_from_database(least_movies['movie_id'].tolist())
 
-
 		return {
 			'favorite_movie': fav_movie,
 			'least_favorite_movie': least_fav_movie,

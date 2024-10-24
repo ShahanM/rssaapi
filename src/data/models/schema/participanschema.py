@@ -16,7 +16,8 @@ class ParticipantSchema(BaseModel):
 	date_created: datetime
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
+
 
 	def __eq__(self, other) -> bool:
 		if not isinstance(other, ParticipantSchema):

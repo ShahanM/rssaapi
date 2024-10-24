@@ -22,49 +22,52 @@ from data.accessors.study_responses import *
 import uuid
 
 
-router = APIRouter()
-
-# Dependency
-def get_db():
-	db = SessionLocal()
-	try:
-		yield db
-	finally:
-		db.close()
-
-base_path = lambda x: '/v2' + x
+router = APIRouter(prefix="/v2")
 
 
 @router.get(
-		base_path('/meta/participanttype/'),
+		'/meta/participanttype/',
 		response_model=List[ParticipantTypeSchema],
 		summary='Retrieve all participant types',
 		tags=[Tags.meta])
 async def retrieve_participant_types(db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	types = get_participant_types(db)
-	log_access(db, current_user.sub, 'read', 'participant types')
+
+	log_access(
+		db,
+		current_user.sub,
+		'read',
+		'participant types')
 
 	return types
 
 
 @router.post(
-	base_path('/meta/participanttype/'), 
-	response_model=ParticipantTypeSchema,
-	tags=[Tags.meta])
+		'/meta/participanttype/',
+		response_model=ParticipantTypeSchema,
+		tags=[Tags.meta])
 async def new_participant_type(new_type: NewParticipantTypeSchema,
 		db: Session = Depends(rssadb), current_user = Depends(auth0_user)):
 	
 	participant_type = create_participant_type(db, new_type.type)
-	log_access(db, current_user.sub, 'create', 'participant type',
+
+	if not participant_type:
+		return False
+	
+	log_access(
+		db,
+		current_user.sub, 
+		'create', 
+		'participant type',
 		participant_type.id)
-	participant_type = ParticipantTypeSchema.from_orm(participant_type)
+	participant_type = ParticipantTypeSchema.model_validate(participant_type)
 
 	return participant_type
 
 
 @router.post(
-	base_path('/participant/'),
+	'/participant/',
 	response_model=ParticipantSchema,
 	tags=[Tags.participant])
 async def new_study_participant(new_participant: NewParticipantSchema,
@@ -85,7 +88,7 @@ async def new_study_participant(new_participant: NewParticipantSchema,
 
 
 @router.put(
-	base_path('/participant/'), 
+	'/participant/', 
 	response_model=bool, 
 	tags=[Tags.participant])
 async def update_participant(participant: ParticipantSchema,
@@ -93,7 +96,7 @@ async def update_participant(participant: ParticipantSchema,
 		current_study = Depends(get_current_registered_study)):
 	
 	current = get_study_participant_by_id(db, participant.id)
-	current = ParticipantSchema.from_orm(current)
+	current = ParticipantSchema.model_validate(current)
 	diff = current.diff(participant)
 
 	log_access(db, f'study: {current_study.name} ({current_study.id})',
@@ -103,7 +106,7 @@ async def update_participant(participant: ParticipantSchema,
 	
 
 @router.post(
-	base_path('/participant/{participant_id}/surveyresponse/'),
+	'/participant/{participant_id}/surveyresponse/',
 	response_model=bool,
 	tags=[Tags.participant])
 async def new_survey_response(participant_id: uuid.UUID,
@@ -118,7 +121,7 @@ async def new_survey_response(participant_id: uuid.UUID,
 
 
 @router.post(
-	base_path('/participant/{participant_id}/textresponse/'),
+	'/participant/{participant_id}/textresponse/',
 	response_model=bool,
 	tags=[Tags.participant])
 async def new_text_response(participant_id: uuid.UUID, response: GroupedTextResponse,
@@ -143,7 +146,7 @@ async def new_text_response(participant_id: uuid.UUID, response: GroupedTextResp
 
 
 @router.post(
-	base_path('/participant/{participant_id}/demographics/'),
+	'/participant/{participant_id}/demographics/',
 	response_model=bool,
 	tags=[Tags.participant])
 async def new_demographics(participant_id: uuid.UUID,
@@ -160,7 +163,7 @@ async def new_demographics(participant_id: uuid.UUID,
 
 
 @router.post(
-	base_path('/participant/{participant_id}/feedback/'),
+	'/participant/{participant_id}/feedback/',
 	response_model=bool,
 	tags=[Tags.participant])
 async def new_feedback(participant_id: uuid.UUID, feedback: FeedbackSchema,
