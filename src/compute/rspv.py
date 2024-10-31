@@ -194,7 +194,6 @@ class PreferenceVisualization(RSSABase):
 		T = nx.minimum_spanning_tree(G)
 		# Delete the costliest edge and make two graphs
 		k = n
-		# subgraphs = [T]
 		edges = list(T.edges(data=True))
 		edges.sort(key=lambda x: x[2]['weight'], reverse=True)
 		while k >= 1:
