@@ -152,6 +152,12 @@ def create_page_content(db: Session, page_id: uuid.UUID, content_id: uuid.UUID,
 	if not content:
 		raise Exception('Content not found')
 	
+	# Check to see if the content is already in the page
+	existing = db.query(PageContent).where(and_(PageContent.page_id == page_id,
+			PageContent.content_id == content_id)).first()
+	if existing:
+		return existing
+	
 	page_content = PageContent(page_id=page.id, content_id=content.id, order_position=order_position)
 	db.add(page_content)
 	db.commit()

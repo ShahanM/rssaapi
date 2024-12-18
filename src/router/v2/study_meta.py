@@ -158,9 +158,20 @@ async def attach_content_to_page(page_content: CreatePageContentSchema, db: Sess
 	
 	pcont = create_page_content(db, page_content.page_id, page_content.construct_id, page_content.order_position)
 	construct = get_survey_construct_by_id(db, pcont.content_id)
+	construct_type = get_construct_type_by_id(db, construct.type)
+	
+	construct_schema = SurveyConstructSchema(
+		id=construct.id,
+		name=construct.name,
+		desc=construct.desc,
+		type=construct_type,
+		scale=construct.scale
+	)
+	# constructdeets = construct.__dict__
+	# print(constructdeets)
 	log_access(db, current_user.sub, 'create', 'page content', pcont.page_id)
 
-	return construct
+	return construct_schema
 
 
 """

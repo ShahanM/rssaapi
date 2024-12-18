@@ -61,7 +61,6 @@ def create_study_participant(db: Session, study_id: uuid.UUID,
 		external_id: str,
 		current_step: uuid.UUID,
 		current_page: Union[uuid.UUID, None] = None) -> Participant:
-	
 	study = get_study_by_id(db, study_id)
 	study_conditions = get_study_conditions(db, study_id)
 

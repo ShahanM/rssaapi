@@ -32,7 +32,7 @@ def get_movie(db: Session, movie_id: int) -> Movie:
 		return Movie()
 
 def get_movies_by_ids(db: Session, movie_ids: List[int]) -> List[Movie]:
-	return db.query(Movie).filter(Movie.movie_id.in_(movie_ids)).all()  # type: ignore
+	return db.query(Movie_old).filter(Movie_old.movie_id.in_(movie_ids)).all()  # type: ignore
 
 
 # Deprecated
@@ -83,6 +83,7 @@ def get_ers_movies_by_ids_v2(db: Session, movie_ids: List[uuid.UUID]) -> List[Mo
 
 
 def get_ers_movies_by_movielens_ids(db: Session, movielens_ids: List[str]) -> List[Movie]:
+	movielens_ids = list(map(str, movielens_ids))
 	results = db.query(Movie, MovieEmotions)\
 		.join(MovieEmotions, Movie.id == MovieEmotions.movie_id)\
 		.filter(Movie.movielens_id.in_(movielens_ids))\
@@ -97,8 +98,8 @@ def get_ers_movies_by_movielens_ids(db: Session, movielens_ids: List[str]) -> Li
 
 # Deprecated
 def get_ers_movie(db: Session, movie_id: int) -> Movie_old:
-	movie = db.query(Movie_old).filter(Movie.movie_id == movie_id)\
-		.filter(Movie.emotions != None).first()
+	movie = db.query(Movie_old).filter(Movie_old.movie_id == movie_id)\
+		.filter(Movie_old.emotions != None).first()
 	if movie:
 		return movie
 	else:

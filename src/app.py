@@ -5,18 +5,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from compute.rssa import AlternateRS
-
 from compute.utils import *
 from data.moviedatabase import SessionLocal # FIXME: Move to own file
 
-from data.models.schema.movieschema import MovieSchema, RatingsSchema
+from data.models.schema.movieschema import MovieSchema
 from router.v1 import (
 	movies as movies_v1,
 	users as users_v1, 
 	admin, 
 	study as study_v1,
-	iers
+	iers,
+	pref_comm
 )
 from router.v1.admin import get_current_active_user, AdminUser
 
@@ -26,12 +25,10 @@ from router.v2 import (
 	study_meta,
 	auth0,
 	pref_viz,
-	participant
+	participant,
+	alt_algo
 )
 
-from router import (
-	pref_comm
-)
 
 from data.movies import get_movies, get_movies_by_ids
 from middleware.error_handlers import ErrorHanlingMiddleware
@@ -69,6 +66,7 @@ origins = [
     'http://localhost:3339/*',
 	'http://localhost:3331',
 	'http://localhost:3340',
+	'http://localhost:3000'
 ]
 
 
@@ -87,6 +85,7 @@ app.include_router(admin.router)
 v2 routers
 """
 app.include_router(study_v2.router)
+app.include_router(alt_algo.router)
 app.include_router(pref_viz.router)
 app.include_router(study_meta.router)
 app.include_router(participant.router)
@@ -150,17 +149,3 @@ async def read_movies(skip: int=0, limit: int=100, db: Session=Depends(get_db)):
 	
 	return movies
 
-
-@app.post('/recommendation/', response_model=List[MovieSchema])
-async def create_recommendations(rated_movies: RatingsSchema, db: Session=Depends(get_db)):
-	rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
-	rssa_model_path = get_rssa_model_path()
-	rssalgs = AlternateRS(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
-	recs = rssalgs.get_condition_prediction(\
-			ratings=rated_movies.ratings, \
-			user_id=rated_movies.user_id, \
-			condition=rated_movies.rec_type, \
-			num_rec=rated_movies.num_rec)
-	movies = get_movies_by_ids(db, recs)
-
-	return movies

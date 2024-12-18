@@ -138,7 +138,7 @@ async def recommend_for_study_condition(
 	pref_viz = PreferenceVisualization(model_path, item_pop, avg_score)
 
 	study_condition = get_study_condition(db, request_model.user_condition)
-	if not study_condition or study_condition.study_id != study.id:
+	if not study_condition or study_condition.study_id != study.id: # type: ignore
 		raise HTTPException(status_code=404, detail='Study condition not found')
 	
 	# FIXME: These values are hardcoded for now but should be fetched from the 
@@ -150,7 +150,7 @@ async def recommend_for_study_condition(
 	
 	recs = pref_viz.predict_diverse_items(
 				request_model.ratings,
-				study_condition.recommendation_count,
+				study_condition.recommendation_count, # type: ignore
 				str(request_model.user_id),
 				algo,
 				randomize,
@@ -167,10 +167,9 @@ async def recommend_for_study_condition(
 
 	for m in movies:
 		movie = MovieSchemaV2.model_validate(m)
-		pref_item = PreferenceItemV2(**movie.model_dump(), **recmap[m.movielens_id].model_dump())
+		pref_item = PreferenceItemV2(**movie.model_dump(), **recmap[m.movielens_id].model_dump()) # type: ignore
 		res.append(pref_item)
 
-	print('Updating cache')
 	if len(queue) >= CACHE_LIMIT:
 		del CACHE[queue.pop(0)]
 	CACHE[request_model] = res

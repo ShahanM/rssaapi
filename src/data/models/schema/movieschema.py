@@ -75,6 +75,14 @@ class RatingsSchema(BaseModel):
 		from_attributes = True
 
 
+class RatingSchemaV2(BaseModel):
+	user_id: uuid.UUID
+	user_condition: uuid.UUID;
+	ratings: List[RatedItemSchema]
+	rec_type: int
+	num_rec: int = 10
+
+
 class EmotionContinuousInputSchema(BaseModel):
 	emotion: str
 	switch: Literal["ignore", "diverse", "specified"]

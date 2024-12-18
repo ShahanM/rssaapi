@@ -56,7 +56,7 @@ class AlternateRS(RSSABase):
 		return 10 ** len(str(max_count))
 
 	def get_condition_prediction(self, ratings: List[RatedItemSchema], \
-		user_id: int, condition: int, num_rec:int) -> List[int]:
+		user_id: str, condition: int, num_rec:int) -> List[str]:
 		"""
 		Parameters
 		----------
@@ -77,7 +77,7 @@ class AlternateRS(RSSABase):
 
 		return self.prediction_functions[condition](ratings, user_id, num_rec)
 			
-	def get_predictions(self, ratings: List[RatedItemSchema], user_id: int) \
+	def get_predictions(self, ratings: List[RatedItemSchema], user_id: str) \
 		-> pd.DataFrame:
 		"""
 		Parameters
@@ -148,6 +148,9 @@ class AlternateRS(RSSABase):
 		umat = self.model.user_features_
 		users = self.model.user_index_
 
+		print("USERS")
+		print(users)
+
 		user_features = get_user_feature(self.model, _ratings)
 
 		# FIXME - parameterize
@@ -156,6 +159,9 @@ class AlternateRS(RSSABase):
 
 		neighbors = self.__find_neighbors(umat, users, user_features, \
 			distance_method, numNeighbors)
+		
+		print("NEIGHBORS")
+		print(neighbors)
 
 		variance = self.__controversial(neighbors.user.unique())
 
@@ -239,5 +245,48 @@ class AlternateRS(RSSABase):
 		scores_df = pd.merge(scores_df, \
 			self.item_popularity, how='left', on='item')
 
-		return scores_df		
+		return scores_df
 
+
+	def get_advisors_with_profile(self, ratings: List[RatedItemSchema], \
+		user_id, numRec=10) -> dict:
+		_ratings = pd.Series([rating.rating for rating in ratings])
+		rated_items = np.array([np.int64(rating.item_id) for rating in ratings])
+
+		umat = self.model.user_features_
+		users = self.model.user_index_
+
+		print("USERS")
+		print(users)
+
+		user_features = get_user_feature(self.model, _ratings)
+
+		# FIXME - parameterize
+		distance_method = 'cosine'
+		numNeighbors = 200
+
+		neighbors = self.__find_neighbors(umat, users, user_features, \
+			distance_method, numNeighbors)
+		
+		print("NEIGHBORS")
+		print(neighbors)
+
+		neighbors.sort_values(by='distance', ascending=False, inplace=True)
+
+		neighbors = neighbors.head(numRec)
+		neighbors = neighbors['user'].tolist()
+
+		advisors = {}
+
+		for neighbor in neighbors:
+			preds = self.model.predict_for_user(neighbor, \
+				self.items)
+			preds = preds.to_frame().reset_index()
+			preds.columns = ['item', 'score']
+			preds = preds[~preds['item'].isin(rated_items)]
+			advisors[neighbor] = preds.sort_values(by='score', \
+				ascending=False).head(10)['item'].tolist()
+		
+		# TODO: find the movie that advisor would recommend
+
+		return advisors
