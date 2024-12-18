@@ -256,8 +256,8 @@ class AlternateRS(RSSABase):
 		umat = self.model.user_features_
 		users = self.model.user_index_
 
-		print("USERS")
-		print(users)
+		# print("USERS")
+		# print(users)
 
 		user_features = get_user_feature(self.model, _ratings)
 
@@ -268,25 +268,76 @@ class AlternateRS(RSSABase):
 		neighbors = self.__find_neighbors(umat, users, user_features, \
 			distance_method, numNeighbors)
 		
+
+		
 		print("NEIGHBORS")
-		print(neighbors)
 
 		neighbors.sort_values(by='distance', ascending=False, inplace=True)
+		print(neighbors)
 
 		neighbors = neighbors.head(numRec)
 		neighbors = neighbors['user'].tolist()
 
 		advisors = {}
-
+		advisor_preds = {}
 		for neighbor in neighbors:
 			preds = self.model.predict_for_user(neighbor, \
 				self.items)
 			preds = preds.to_frame().reset_index()
+			dist = [cosine(preds[i, ], self.model.item_features) for i in range(preds.shape[0])]
+			# TODO: check if we can use preds vector directly
+			print(dist)
 			preds.columns = ['item', 'score']
 			preds = preds[~preds['item'].isin(rated_items)]
-			advisors[neighbor] = preds.sort_values(by='score', \
-				ascending=False).head(10)['item'].tolist()
+			preds = preds.sort_values(by='score', ascending=False).head(200)
+			# advisors[neighbor] = preds.sort_values(by='score', \
+			# 	ascending=False).head(10)['item'].tolist()
+			advisors[neighbor] = preds.head(10)['item'].tolist()
+
 		
-		# TODO: find the movie that advisor would recommend
+			# TODO: find the movie that advisor would recommend
+			# Options:
+			# 1. item_features_[[top 200 movies for advisor], ]
+			# -> distance measure with item_features_[[rated_items], ]
+			# -> return the closest as a recommendation
+
+
+
+		print(self.model.item_features_)
+		print(self.model.item_index_)
+		print('Item features ', self.model.item_features_.shape)
+		print('Item index ', self.model.item_index_.shape)
+		nrows, _ = self.model.item_features_.shape
+		
+
+		# adv_predictions = {}
+		# for key, value in advisors.items():
+		# 	# advratings = [(item_id, 5) for item_id in value]
+		# 	rated_items = np.array(list(map(np.int64, value)))
+		# 	advratings = np.array([np.float64(5) for _ \
+		# 		in range(len(value))])
+		# 	new_ratings = pd.Series(np.array([np.float64(5) for _ \
+		# 		in range(len(value))]), index=rated_items)
+		# 	adv_predictions[key] = predict(self.model, self.item_popularity, key, new_ratings)
+
+
+		# print(adv_predictions)
+
+		print(self.item_popularity.head())
+
+
+		# adv_predictions = {}
+		# for key, value in advisors.items():
+		# 	distance = [cosine(self.model.item_index_[i, ], self.model.item_features_) \
+		# 		for i in value]
+		# 	adv_predictions[key] = distance
+		
+		# print(adv_predictions)
+
+		print(self.model.item_features_[339, ])
+
+
+		print(advisors)
+
 
 		return advisors
