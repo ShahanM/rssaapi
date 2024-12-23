@@ -36,6 +36,39 @@ def get_study_by_id(db: Session, study_id: uuid.UUID) -> Study:
 	return study
 
 
+def duplicate_study(db: Session, study_id: uuid.UUID) -> Study:
+	study = get_study_by_id(db, study_id)
+	if not study:
+		raise Exception('Study not found')
+	
+	copy_name = f'{study.name} (copy)'
+	new_study = Study(name=copy_name, description=study.description)
+	db.add(new_study)
+	db.commit()
+
+	# Duplicate conditions
+	conditions = get_study_conditions(db, study_id)
+	for condition in conditions:
+		_ = create_study_condition(db, new_study.id, condition.name, condition.description)
+	
+	# Duplicate steps
+	steps = get_study_steps(db, study_id)
+	for step in steps:
+		_ = create_study_step(db, new_study.id, step.order_position, step.name, step.description)
+
+		# Duplicate pages
+		pages = get_step_pages(db, step.id)
+		for page in pages:
+			_ = create_step_page(db, new_study.id, step.id, page.order_position, page.name, page.description)
+
+			# Duplicate page content
+			contents = get_page_content(db, page.id)
+			for content in contents:
+				_ = create_page_content(db, page.id, content.id, content.order_position)
+
+	return new_study
+
+
 def get_study_conditions(db: Session, study_id: uuid.UUID) -> List[StudyCondition]:
 	conditions = db.query(StudyCondition).where(StudyCondition.study_id == study_id).all()
 	

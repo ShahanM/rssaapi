@@ -52,7 +52,23 @@ async def new_study(new_study: CreateStudySchema, db: Session = Depends(rssadb),
 	return study
 
 
-@router.get(base_path('/studycondition/{study_id}'), response_model=List[StudyConditionSchema], tags=[Tags.study])
+@router.post(
+	'/study/{study_id}',
+	response_model=StudySchema,
+	tags=[Tags.admin])
+async def dupe_study(study_id: str, db: Session = Depends(rssadb),
+					current_user = Depends(auth0_user)):
+	
+	study = duplicate_study(db, uuid.UUID(study_id))
+	log_access(db, current_user.sub, 'create', 'study', study.id)
+
+	return study
+
+
+@router.get(
+	'/studycondition/{study_id}',
+	response_model=List[StudyConditionSchema],
+	tags=[Tags.admin])
 async def retrieve_conditions(study_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	conditions = get_study_conditions(db, uuid.UUID(study_id))
