@@ -61,7 +61,7 @@ async def new_study(new_study: CreateStudySchema, db: Session = Depends(rssadb),
 @router.post(
 	'/study/{study_id}',
 	response_model=StudySchema,
-	tags=[Tags.admin])
+	tags=[Tags.meta])
 async def dupe_study(study_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	
@@ -74,7 +74,7 @@ async def dupe_study(study_id: str, db: Session = Depends(rssadb),
 @router.get(
 	'/studycondition/{study_id}',
 	response_model=List[StudyConditionSchema],
-	tags=[Tags.admin])
+	tags=[Tags.meta])
 async def retrieve_conditions(study_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	conditions = get_study_conditions(db, uuid.UUID(study_id))
