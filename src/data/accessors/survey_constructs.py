@@ -2,7 +2,7 @@ from typing import List, Union
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from ..models.schema.studyschema import NewScaleLevelSchema
+from ..models.schema.studyschema import NewScaleLevelSchema, SurveyConstructSchema, ConstructTypeSchema
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
 
@@ -14,20 +14,36 @@ import uuid
 from fastapi import HTTPException
 
 
-def get_survey_constructs(db: Session) -> List[SurveyConstruct]:
-	constructs = db.query(SurveyConstruct).all()
+def get_survey_constructs(db: Session) -> List[SurveyConstructSchema]:
+	constructs = db.query(SurveyConstruct, ConstructType).join(ConstructType)\
+		.filter(SurveyConstruct.type == ConstructType.id).all()
+	print(constructs)
+	# constructs = db.query(SurveyConstruct).all()
+	svyconstructs = []
+	for construct in constructs:
+		svyconstruct = construct.SurveyConstruct
+		construct_type = construct.ConstructType
+		svyconstructs.append(SurveyConstructSchema(id=svyconstruct.id, name=svyconstruct.name,
+				desc=svyconstruct.desc, type=construct_type, scale=svyconstruct.scale))
 	
-	return constructs
+	return svyconstructs
 
 
 
 def get_survey_construct_by_id(db: Session, construct_id: uuid.UUID) -> SurveyConstruct:
-	construct = db.query(SurveyConstruct).where(SurveyConstruct.id == construct_id).first()
+	construct = db.query(SurveyConstruct)\
+		.where(SurveyConstruct.id == construct_id).first()
 	if not construct:
 		raise HTTPException(status_code=404, detail="Construct not found")
 	
-	if not construct.items:
-		construct.items = []
+	# if not construct.items:
+		# construct.items = []
+
+	# svyconstruct = construct[0]
+	# construct_type = construct[1]
+
+	# return SurveyConstructSchema(id=svyconstruct.id, name=svyconstruct.name,
+				# desc=svyconstruct.desc, type=construct_type)
 	
 	return construct
 
@@ -40,6 +56,23 @@ def create_survey_construct(db: Session, name: str, desc: str,
 	db.add(construct)
 	db.commit()
 	db.refresh(construct)
+
+	# svyconstruct = SurveyConstructSchema(id=construct.id, name=construct.name,
+	# 			desc=construct.desc, type=ConstructTypeSchema.from_orm(ctype))
+
+	return construct
+
+
+def create_text_construct(db: Session, name: str, desc: str,\
+		type_id: uuid.UUID) -> SurveyConstruct:
+	ctype = get_construct_type_by_id(db, type_id)
+	construct = SurveyConstruct(name=name, desc=desc, type_id=ctype.id)
+	db.add(construct)
+	db.commit()
+	db.refresh(construct)
+
+	# svyconstruct = SurveyConstructSchema(id=construct.id, name=construct.name,
+	# 				desc=construct.desc, type=ConstructTypeSchema.from_orm(ctype))
 
 	return construct
 

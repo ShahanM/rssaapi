@@ -13,23 +13,25 @@ import pickle
 
 
 def predict(model: MFPredictor, items: pd.DataFrame, \
-	userid: int, ratings: pd.Series) -> pd.DataFrame:
+	user_id: str, ratings: pd.Series) -> pd.DataFrame:
 
 	if isinstance(model, ImplicitMF):
 		model.use_ratings = True # FIXME: We should save the model with this flag
 	itemset = items.item.unique()
 
-	als_preds = model.predict_for_user(userid, itemset, ratings)
+	als_preds = model.predict_for_user(user_id, itemset, ratings)
 
 	# Convert the predictions to a dataframe
 	als_preds = als_preds.to_frame().reset_index()
 	als_preds.columns = ['item', 'score']
 
+	print("als_preds: ", als_preds)
+
 	return als_preds
 
 	
 def predict_discounted(model: ImplicitMF, items: pd.DataFrame, \
-	userid: int, ratings: pd.Series, factor: int, coeff: float=0.5) \
+	userid: str, ratings: pd.Series, factor: int, coeff: float=0.5) \
 	-> pd.DataFrame:    
 	"""Predict the ratings for the new items for the live user. 
 	Discount the score of the items based on their popularity and

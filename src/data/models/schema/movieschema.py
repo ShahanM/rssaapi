@@ -1,5 +1,8 @@
 from typing import List, Optional, Literal, Union
-from pydantic import BaseModel
+import pydantic
+print(pydantic.__version__)
+from pydantic import BaseModel, Field, AliasChoices
+import uuid
 
 
 class EmotionsSchema(BaseModel):
@@ -14,7 +17,7 @@ class EmotionsSchema(BaseModel):
 	trust: float
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class MovieSchema(BaseModel):
@@ -28,19 +31,37 @@ class MovieSchema(BaseModel):
 	cast: str
 	description: str
 	poster: str
-	emotions: Optional[EmotionsSchema]
+	emotions: Optional[EmotionsSchema] = None
 	poster_identifier: Optional[str]
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
+
+
+class MovieSchemaV2(BaseModel):
+	id: uuid.UUID
+	movielens_id: str
+	title: str
+	year: int
+	ave_rating: float
+	genre: str
+	director: Optional[str]
+	cast: str
+	description: str
+	poster: str
+	emotions: Optional[EmotionsSchema] = None
+	poster_identifier: Optional[str]
+
+	class Config:
+		from_attributes = True
 
 
 class RatedItemSchema(BaseModel):
-	item_id: int
+	item_id: int = Field(validation_alias=AliasChoices("movie_id", "item_id"))
 	rating: int
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class RatingsSchema(BaseModel):
@@ -51,7 +72,15 @@ class RatingsSchema(BaseModel):
 	num_rec: int = 10
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
+
+
+class RatingSchemaV2(BaseModel):
+	user_id: uuid.UUID
+	user_condition: uuid.UUID;
+	ratings: List[RatedItemSchema]
+	rec_type: int
+	num_rec: int = 10
 
 
 class EmotionContinuousInputSchema(BaseModel):

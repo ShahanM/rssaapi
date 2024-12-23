@@ -8,7 +8,7 @@ class UserTypeSchema(BaseModel):
 	type_str: str
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class UserSchema(BaseModel):
@@ -22,7 +22,7 @@ class UserSchema(BaseModel):
 	seen_items: List[int]
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class NewUserSchema(BaseModel):
@@ -73,7 +73,7 @@ class SeenItemSchema(BaseModel):
 	item_id: int
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class EmotionPreferenceSchema(BaseModel):
@@ -88,7 +88,7 @@ class EmotionPreferenceSchema(BaseModel):
 	trust: float
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class NewSurveyTextResponseSchema(BaseModel):
@@ -111,7 +111,7 @@ class InteractionLogSchema(BaseModel):
 	rating: Optional[int]
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class DemographicInfoSchema(BaseModel):
@@ -123,4 +123,4 @@ class DemographicInfoSchema(BaseModel):
 	education: str
 
 	class Config:
-		orm_mode = True
+		from_attributes = True

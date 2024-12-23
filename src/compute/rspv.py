@@ -7,13 +7,12 @@ This file contains the RSSA Preference Visualization (RSPV) algorithms.
 
 from typing import List, Tuple
 
-from data.models.schema.movieschema import RatedItemSchema
 import pandas as pd
 import numpy as np
 from .common import RSSABase, predict, scale_value
 from pydantic import BaseModel
 import itertools
-import random
+from typing import Union
 
 import networkx as nx
 
@@ -27,11 +26,16 @@ class PreferenceItem(BaseModel):
 	cluster: int = 0
 
 
+class RatedItemSchema(BaseModel):
+	item_id: int
+	rating: int
+
+
 class PreferenceVisualization(RSSABase):
 	def __init__(self, model_path:str, item_popularity, ave_item_score):
 		super().__init__(model_path, item_popularity, ave_item_score)
 
-	def get_prediction(self, ratings: List[RatedItemSchema], user_id) \
+	def get_prediction(self, ratings: List[RatedItemSchema], user_id: str) \
 		-> pd.DataFrame:		
 		rated_items = np.array([np.int64(rating.item_id) for rating in ratings])
 		new_ratings = pd.Series(np.array([np.float64(rating.rating) for rating \
@@ -43,7 +47,7 @@ class PreferenceVisualization(RSSABase):
 		return als_preds
 	
 	def predict_diverse_items(self, ratings: List[RatedItemSchema],\
-		num_rec: int, user_id:int, algo:str='fishnet', randomize:bool=False,\
+		num_rec: int, user_id:str, algo:str='fishnet', randomize:bool=False,\
 		init_sample_size:int=500, min_rating_count:int=50) \
 		-> List[PreferenceItem]:
 		# Get user predictions
@@ -71,13 +75,13 @@ class PreferenceVisualization(RSSABase):
 
 		diverse_items: pd.DataFrame
 		if algo == 'fishnet':
-			print('Generating recommendations using fishnet')
+			# print('Generating recommendations using fishnet')
 			diverse_items, dists = self.__fishingnet(candidates, num_rec)
 			dists = sorted(dists, key=lambda x: x[1])
 			dists_n_idx = [item[0] for item in dists[:num_rec]]
 			diverse_items = diverse_items[diverse_items['item'].isin(dists_n_idx)]
 		elif algo == 'single_linkage':
-			print('Generating recommendations using single linkage clustering')
+
 			# sort the base on the score and pick top n
 			candidates.sort_values(by='score', ascending=False, inplace=True)
 			candlen = len(candidates)
@@ -87,32 +91,17 @@ class PreferenceVisualization(RSSABase):
 			topn_user = candidates.head(init_sample_size).copy()
 			botn_user = candidates.tail(init_sample_size).copy()
 			midn_user = candidates.iloc[midstart:midend].copy()
-			# print('Top n user: ', topn_user, len(topn_user))
-			# sort the base on the ave_score and pick top n
-			# candidates.sort_values(by='ave_score', ascending=False, inplace=True)
-			# topn_community = candidates.head(n).copy()
-			# botn_community = candidates.tail(n).copy()
-			# midn_community = candidates.iloc[midstart:midend].copy()
-			# print('Top n community: ', topn_community, len(topn_community))
-
-			# merge the two top n
-			# _candidates = pd.concat([topn_user, botn_user, midn_user,\
-			# 				topn_community, botn_community, midn_community])\
-			# 				.drop_duplicates()
 
 			candidates = pd.concat([topn_user, botn_user, midn_user])\
 							.drop_duplicates()
 			diverse_items = self.__single_linkage_clustering(candidates, num_rec)
 		elif algo == 'random':
-			print('Generating recommendations using random sampling')
 			diverse_items = candidates if randomize else \
 				candidates.sample(n=num_rec, random_state=seed)
 		elif algo == 'fishnet + single_linkage':
-			print('Generating recommendations using fishnet and single linkage clustering')
 			diverse_items, _ = self.__fishingnet(candidates, init_sample_size)
 			diverse_items = self.__single_linkage_clustering(diverse_items, num_rec)
 		else:
-			print('Generating recommendations without any diversification')
 			diverse_items = candidates
 		
 		scaled_items, scaled_avg_comm, scaled_avg_user = \
@@ -131,12 +120,10 @@ class PreferenceVisualization(RSSABase):
 		return recommended_items
 
 	def seeding(self, n, nb):
-		# ticks = [0]
 		ticks = [1] # we start from 1 because there is no rating 0
 		step = (n - 1) / nb
-		print('seeding', step, nb)
 		for i in range(nb):
-			print(ticks)
+			# print(ticks)
 			ticks.append(ticks[i] + step)
 			
 		return ticks
@@ -173,7 +160,7 @@ class PreferenceVisualization(RSSABase):
 			candidates_vector = np.delete(candidates_vector, \
 				idx_shortest_dist, axis=0)
 
-			item_idx = candidates.index[idx_shortest_dist]
+			item_idx = candidates.index[int(idx_shortest_dist)]
 			val_shortest_dist = dist[idx_shortest_dist]
 
 			grid_members[tuple(point)] = item_idx
@@ -207,7 +194,6 @@ class PreferenceVisualization(RSSABase):
 		T = nx.minimum_spanning_tree(G)
 		# Delete the costliest edge and make two graphs
 		k = n
-		# subgraphs = [T]
 		edges = list(T.edges(data=True))
 		edges.sort(key=lambda x: x[2]['weight'], reverse=True)
 		while k >= 1:

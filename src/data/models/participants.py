@@ -60,7 +60,7 @@ class ParticipantResponse(Base):
 	date_modified = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	discarded = Column(Boolean, nullable=False, default=False)
 
-	PrimaryKeyConstraint(participant_id, construct_id, item_id)
+	# PrimaryKeyConstraint(participant_id, construct_id, id)
 
 	def __init__(self, participant_id: UUID, construct_id: UUID, response: str, item_id: Union[UUID, None] = None):
 		self.participant_id = participant_id
@@ -105,3 +105,32 @@ class ParticipantInteractionLog(Base):
 		self.action = action
 		self.action_data = action_data
 
+
+class Demographic(Base):
+	__tablename__ = "demographics"
+
+	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id'), primary_key=True)
+	age_range = Column(String, nullable=False)
+	gender = Column(String, nullable=False)
+	gender_other = Column(String, nullable=True)
+	race = Column(String, nullable=False)
+	race_other = Column(String, nullable=True)
+	education = Column(String, nullable=False)
+	country = Column(String, nullable=False)
+	state_region = Column(String, nullable=True)
+	date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	date_updated = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	discarded = Column(Boolean, nullable=False, default=False)
+
+	def __init__(self, participant_id: UUID, age_range: str, gender: str, race: str,\
+		education: str, country: str, state_region: Union[str, None] = None,\
+		gender_other: Union[str, None] = None, race_other: Union[str, None] = None):
+		self.participant_id = participant_id
+		self.age_range = age_range
+		self.gender = gender
+		self.gender_other = gender_other
+		self.race = race
+		self.race_other = race_other
+		self.education = education
+		self.country = country
+		self.state_region = state_region

@@ -1,4 +1,3 @@
-from pydantic_sqlalchemy import sqlalchemy_to_pydantic
 from dataclasses import dataclass
 from sqlalchemy import Column, Integer, Text, String, ForeignKey, Index, \
 	Numeric
@@ -45,9 +44,12 @@ class Movie(Base):
 
 	emotions = relationship('MovieEmotions', back_populates='movie', \
 		uselist=False)
+	recommendation_text = relationship('MovieRecommendationText', \
+		back_populates='movie', uselist=False)
 
 	def __hash__(self):
 		return hash(self.movie_id)
+
 
 class MovieEmotions(Base):
 	__tablename__ = 'movie_emotions'
@@ -73,5 +75,17 @@ class MovieEmotions(Base):
 
 	movie = relationship('Movie', back_populates='emotions')
 
-PydanticMovie = sqlalchemy_to_pydantic(Movie)
-PydanticMovieEmotions = sqlalchemy_to_pydantic(MovieEmotions)
+
+class MovieRecommendationText(Base):
+	__tablename__ = "movie_recommendation_text"
+
+	id = Column(Integer, primary_key=True, autoincrement=True)
+
+	movie_id = Column(Integer, ForeignKey('movie.id'), \
+		nullable=False, unique=True)
+	
+	formal = Column(Text, nullable=False)
+	informal = Column(Text, nullable=False)
+
+	movie = relationship('Movie', back_populates='recommendation_text')
+

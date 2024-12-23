@@ -112,7 +112,7 @@ async def get_current_admin_user(request: Request):
 	return current_user
 
 
-@router.get('/test/')
+@router.get('/test/', include_in_schema=False)
 async def test_api(current_user: dict = Depends(get_current_user)):
 	""" Testing Auth0 API to authenticate user
 		This is a protected route, only authenticated users can access this route
@@ -121,7 +121,7 @@ async def test_api(current_user: dict = Depends(get_current_user)):
 	return {'user': current_user}
 
 
-@router.get('/test2/')
+@router.get('/test2/', include_in_schema=False)
 async def test_api2(current_user: dict = Depends(get_current_admin_user)):
 	""" Testing user roles and permissions
 		This is a protected route, only authenticated users with read:all and 

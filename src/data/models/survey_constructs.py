@@ -22,7 +22,7 @@ class SurveyConstruct(Base):
 	items = relationship('ConstructItem', back_populates='construct', \
 		uselist=True, cascade='all, delete-orphan')
 	
-	def __init__(self, name: str, desc: str, type_id: UUID, scale_id: UUID):
+	def __init__(self, name: str, desc: str, type_id: UUID, scale_id: Union[UUID, None] = None):
 		self.name = name
 		self.desc = desc
 		self.type = type_id

@@ -29,7 +29,7 @@ class AdvisorSchema(BaseModel):
 	status: Literal["Pending", "Accepted", "Rejected"]
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class AdvisorSchemaTemp(BaseModel):
@@ -49,4 +49,4 @@ class PrefCommRatingSchema(BaseModel):
 	num_rec: int = 10
 
 	class Config:
-		orm_mode = True
+		from_attributes = True

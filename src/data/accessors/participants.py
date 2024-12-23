@@ -2,7 +2,7 @@ from typing import List, Union
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone
 
-from ..models.schema.studyschema import NewScaleLevelSchema
+from data.models.schema.participanschema import *
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
 from ..models.participants import *
@@ -61,7 +61,6 @@ def create_study_participant(db: Session, study_id: uuid.UUID,
 		external_id: str,
 		current_step: uuid.UUID,
 		current_page: Union[uuid.UUID, None] = None) -> Participant:
-	
 	study = get_study_by_id(db, study_id)
 	study_conditions = get_study_conditions(db, study_id)
 
@@ -86,13 +85,53 @@ def create_study_participant(db: Session, study_id: uuid.UUID,
 	return participant
 
 
-def create_participant_response(db: Session, participant_id: UUID, construct_id: UUID,
-		response: str, item_id: Union[UUID, None] = None) -> ParticipantResponse:
-	partres = ParticipantResponse(participant_id=participant_id, construct_id=construct_id,
-			response=response, item_id=item_id)
-	db.add(response)
+# def create_participant_response(db: Session, participant_id: UUID, construct_id: UUID,
+# 		response: str, item_id: Union[UUID, None] = None) -> ParticipantResponse:
+# 	partres = ParticipantResponse(participant_id=participant_id, construct_id=construct_id,
+# 			response=response, item_id=item_id)
+# 	db.add(response)
+# 	db.commit()
+# 	db.refresh(response)
+
+# 	return partres
+
+def create_participant_demographic(db: Session, participant_id: uuid.UUID,
+	demographic: DemographicSchema) -> bool:
+	participant = get_study_participant_by_id(db, participant_id)
+	if not participant:
+		raise HTTPException(status_code=404, detail='Participant not found')
+	
+	def none_if_empty(value: str) -> Union[str, None]:
+		return value if len(value) > 0 else None
+	
+	demog = Demographic(participant_id=participant.id,
+				age_range=demographic.age_range, gender=demographic.gender,
+				gender_other=none_if_empty(demographic.gender_other),
+				race=';'.join(demographic.race),
+				race_other=none_if_empty(demographic.race_other),
+				education=demographic.education, country=demographic.country,
+				state_region=none_if_empty(demographic.state_region))
+	
+	db.add(demog)
 	db.commit()
-	db.refresh(response)
+	db.refresh(demog)
 
-	return partres
+	return True
 
+
+def create_feedback(db: Session, participant_id: uuid.UUID,
+		feedback: str, feedback_type: str, feedback_category: str) -> bool:
+	
+	participant = get_study_participant_by_id(db, participant_id)
+	if not participant:
+		raise HTTPException(status_code=404, detail='Participant not found')
+	
+	feedbackobj = Feedback(participant_id=participant.id, study_id=participant.study_id,
+			feedback=feedback, feedback_type=feedback_type,
+			feedback_category=feedback_category)
+	
+	db.add(feedbackobj)
+	db.commit()
+	db.refresh(feedbackobj)
+
+	return True

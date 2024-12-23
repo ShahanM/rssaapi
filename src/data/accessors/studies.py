@@ -2,7 +2,8 @@ from typing import List, Union
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from ..models.schema.studyschema import NewScaleLevelSchema
+from ..models.schema.studyschema import NewScaleLevelSchema, SurveyConstructSchema,\
+	ConstructTypeSchema, PageContentSchema
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
 
@@ -73,6 +74,12 @@ def get_study_conditions(db: Session, study_id: uuid.UUID) -> List[StudyConditio
 	conditions = db.query(StudyCondition).where(StudyCondition.study_id == study_id).all()
 	
 	return conditions
+
+
+def get_study_condition(db: Session, condition_id: uuid.UUID) -> StudyCondition:
+	condition = db.query(StudyCondition).where(StudyCondition.id == condition_id).first()
+	
+	return condition
 
 
 def create_study_condition(db: Session, study_id: uuid.UUID, name: str, description: str) -> StudyCondition:
@@ -149,13 +156,23 @@ def create_step_page(db: Session, study_id: UUID, step_id: UUID,\
 	return page
 
 
-def get_page_content(db: Session, page_id: uuid.UUID) -> List[SurveyConstruct]:
-	query = select(SurveyConstruct)\
+def get_page_content(db: Session, page_id: uuid.UUID) -> List[SurveyConstructSchema]:
+	query = select(SurveyConstruct, ConstructType)\
 		.join(PageContent, SurveyConstruct.id == PageContent.content_id)\
+		.join(ConstructType, SurveyConstruct.type == ConstructType.id)\
 		.where(PageContent.page_id == page_id)
 	constructs = db.execute(query).all()
+	# query = select(SurveyConstruct, ConstructType)\
+	
+	svyconstructs = []
+	for construct in constructs:
+		svyconstruct = construct[0]
+		construct_type = construct[1]
+		svyconstructs.append(SurveyConstructSchema(id=svyconstruct.id, name=svyconstruct.name,
+				desc=svyconstruct.desc, type=construct_type, scale=svyconstruct.scale))
 
-	return [con[0] for con in constructs]
+	# return svyconstructs
+	return svyconstructs
 
 
 def create_page_content(db: Session, page_id: uuid.UUID, content_id: uuid.UUID,
@@ -167,6 +184,12 @@ def create_page_content(db: Session, page_id: uuid.UUID, content_id: uuid.UUID,
 	content = db.query(SurveyConstruct).where(SurveyConstruct.id == content_id).first()
 	if not content:
 		raise Exception('Content not found')
+	
+	# Check to see if the content is already in the page
+	existing = db.query(PageContent).where(and_(PageContent.page_id == page_id,
+			PageContent.content_id == content_id)).first()
+	if existing:
+		return existing
 	
 	page_content = PageContent(page_id=page.id, content_id=content.id, order_position=order_position)
 	db.add(page_content)

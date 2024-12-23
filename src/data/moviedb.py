@@ -8,7 +8,7 @@ dbuser = cfg.get_env_var("DB_USER")
 dbpass = cfg.get_env_var("DB_PASSWORD")
 dbhost = cfg.get_env_var("DB_HOST")
 dbport = cfg.get_env_var("DB_PORT")
-dbname = cfg.get_env_var("RSSA_DB_NAME")
+dbname = cfg.get_env_var("MOVIE_DB_NAME")
 
 RSSA_DB = f'postgresql+psycopg2://{dbuser}:{dbpass}@{dbhost}:{dbport}/{dbname}?client_encoding=utf8'
 

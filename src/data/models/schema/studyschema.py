@@ -5,83 +5,6 @@ import uuid
 from pydantic import BaseModel
 
 
-# class QuestionSchema(BaseModel):
-# 	id: Union[int, None]
-# 	page_id: Union[int, None]
-# 	question_order: Union[int, None]
-# 	question: Union[str, None]
-
-# 	class Config:
-# 		orm_mode = True
-
-
-# class NewQuestionSchema(BaseModel):
-# 	question_order: int
-# 	questiontxt: str
-
-
-# class PageSchema(BaseModel):
-# 	id: Union[int, None]
-# 	step_id: Union[int, None]
-# 	page_order: Union[int, None]
-# 	page_name: Union[str, None]
-# 	page_instruction: Union[str, None]
-
-# 	questions: List[QuestionSchema]
-
-# 	class Config:
-# 		orm_mode = True
-
-
-# class NewPageSchema(BaseModel):
-# 	page_order: int
-# 	page_name: str
-# 	page_instruction: str
-
-
-# class StepSchema(BaseModel):
-# 	id: Union[int, None]
-# 	study_id: Union[int, None]
-# 	step_order: Union[int, None]
-# 	step_name: Union[str, None]
-# 	step_description: Union[str, None]
-
-# 	# pages: List[PageSchema]
-
-# 	class Config:
-# 		orm_mode = True
-
-
-# class NewStepSchema(BaseModel):
-# 	step_order: int
-# 	step_name: str
-# 	step_description: str
-
-
-# class StudyConditionSchema(BaseModel):
-# 	id: int
-# 	study_id: int
-# 	condition_name: str
-
-# 	class Config:
-# 		orm_mode = True
-
-
-# class StudySchema(BaseModel):
-# 	id: int
-# 	date_created: datetime
-# 	study_name: str
-
-# 	# steps: List[StepSchema]
-# 	conditions: List[StudyConditionSchema]
-
-# 	class Config:
-# 		orm_mode = True
-
-
-# class NewConditionSchema(BaseModel):
-# 	condition_name: str
-
 # New schemas for API v2
 class CreateMetaModel(BaseModel):
 	name: str
@@ -93,7 +16,7 @@ class MetaModel(CreateMetaModel):
 	date_created: datetime
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class OrderedCreateMetaModel(CreateMetaModel):
@@ -104,7 +27,7 @@ class OrderedMetaModel(MetaModel):
 	order_position: int
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class CreateStudySchema(CreateMetaModel):
@@ -119,7 +42,7 @@ class StudyConditionSchema(MetaModel):
 	study_id: uuid.UUID
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class StudyAuthSchema(MetaModel):
@@ -130,7 +53,7 @@ class StudySchema(MetaModel):
 	conditions: List[StudyConditionSchema]
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class CreateStepSchema(OrderedCreateMetaModel):
@@ -171,7 +94,7 @@ class ConstructItemSchema(BaseModel):
 	item_type: uuid.UUID
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class CreateConstructItemSchema(BaseModel):
@@ -181,23 +104,12 @@ class CreateConstructItemSchema(BaseModel):
 	order_position: int
 
 
-
-class SurveyConstructSchema(BaseModel):
-	id: uuid.UUID
-	name: str
-	desc: str
-	# TODO: Add the name field for construct type and scale
-	class Config:
-		orm_mode = True
-
-
-
 class ConstructTypeSchema(BaseModel):
 	id: uuid.UUID
 	type: str
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class ConstructScaleSchema(BaseModel):
@@ -206,7 +118,19 @@ class ConstructScaleSchema(BaseModel):
 	name: str
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
+
+
+class SurveyConstructSchema(BaseModel):
+	id: uuid.UUID
+	name: str
+	desc: str
+	type: ConstructTypeSchema
+	scale: Union[uuid.UUID, None]
+	class Config:
+		from_attributes = True
+
+
 
 class ScaleLevelSchema(BaseModel):
 	level: int
@@ -214,14 +138,14 @@ class ScaleLevelSchema(BaseModel):
 	scale_id: uuid.UUID
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class ConstructScaleDetailSchema(ConstructScaleSchema):
 	scale_levels: List[ScaleLevelSchema]
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class SurveyConstructDetailSchema(BaseModel):
@@ -233,14 +157,14 @@ class SurveyConstructDetailSchema(BaseModel):
 	items: List[ConstructItemSchema]
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class NewSurveyConstructSchema(BaseModel):
 	name: str
 	desc: str
 	type_id: uuid.UUID
-	scale_id: uuid.UUID
+	scale_id: str
 
 
 class ConstructItemTypeSchema(BaseModel):
@@ -248,7 +172,7 @@ class ConstructItemTypeSchema(BaseModel):
 	type: str
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class NewConstructItemTypeSchema(BaseModel):
@@ -293,12 +217,34 @@ class SurveyPageSchema(BaseModel):
 	construct_scale: List[ScaleLevelSchema]
 
 
+class PageContentSchema(BaseModel):
+	page_id: uuid.UUID
+	construct_id: uuid.UUID
+	order_position: int
+	construct_items: List[ConstructItemSchema]
+
+
+class TextConstructSchema(BaseModel):
+	id: uuid.UUID
+	name: str
+	desc: str
+	type: uuid.UUID
+	items: ConstructItemSchema
+
+
+class PageMultiConstructSchema(BaseModel):
+	page_id: uuid.UUID
+	step_id: uuid.UUID
+	order_position: int
+	constructs: List[TextConstructSchema]
+
+
 class ParticipantTypeSchema(BaseModel):
-	id: str
+	id: uuid.UUID
 	type: str
 
 	class Config:
-		orm_mode = True
+		from_attributes = True
 
 
 class NewParticipantTypeSchema(BaseModel):

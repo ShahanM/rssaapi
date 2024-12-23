@@ -9,7 +9,7 @@ from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import *
 from data.movies import *
 
-router = APIRouter()
+router = APIRouter(prefix='/v1')
 
 # TODO: Move to config file
 TOP_N_TUNING_PARAMS = {
@@ -41,35 +41,9 @@ def get_db():
 		yield db
 	finally:
 		db.close()
-		
-
-@router.get('/ers/movies/ids/', response_model=List[int], tags=['ers movie'])
-async def read_movies_ids(db: Session = Depends(get_db)):
-	movies = get_all_ers_movies(db)
-	ids = [movie.movie_id for movie in movies]
-	return ids
 
 
-@router.get('/ers/movies/', response_model=List[MovieSchema], \
-	tags=['ers movie'])
-async def read_movies(skip: int = 0, limit: int = 100, \
-	db: Session = Depends(get_db)):
-	movies = get_ers_movies(db, skip=skip, limit=limit)
-	
-	return movies
-
-
-@router.post('/ers/movies/', response_model=List[MovieSchema], \
-	tags=['ers movie'])
-async def read_movies_by_ids(movie_ids: List[int], \
-	db: Session = Depends(get_db)):
-	movies = get_ers_movies_by_ids(db, movie_ids)
-	
-	return movies
-
-
-@router.post('/ers/recommendation/', response_model=List[MovieSchema], \
-	tags=['ers movie'])
+@router.post('/ers/recommendation/', response_model=List[MovieSchema])
 async def create_recommendations(rated_movies: RatingsSchema, \
 	db: Session = Depends(get_db)):
 	iers_item_pop, iersg20 = get_iers_data()
@@ -96,8 +70,7 @@ async def create_recommendations(rated_movies: RatingsSchema, \
 	return movies
 
 
-@router.post('/ers/updaterecommendations/', response_model=List[MovieSchema], \
-	tags=['ers movie'])
+@router.post('/ers/updaterecommendations/', response_model=List[MovieSchema])
 async def update_recommendations(rated_movies: EmotionInputSchema, \
 	db: Session = Depends(get_db)):
 	iers_item_pop, iersg20 = get_iers_data()
@@ -159,7 +132,7 @@ async def update_recommendations(rated_movies: EmotionInputSchema, \
 
 
 @router.post('/ers/experimental/updaterecommendations/', \
-	response_model=List[MovieSchema], tags=['ers movie'])
+	response_model=List[MovieSchema])
 async def update_recommendations_experimental(\
 	rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(get_db)):
 	iers_item_pop, iersg20 = get_iers_data()
