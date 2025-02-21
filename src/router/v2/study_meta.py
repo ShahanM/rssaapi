@@ -30,7 +30,7 @@ def get_db():
 	finally:
 		db.close()
 
-base_path = lambda x: '/v2/meta' + x
+# base_path = lambda x: '/v2/meta' + x
 
 @router.get(
 	'/study/',
@@ -52,8 +52,8 @@ async def new_study(new_study: CreateStudySchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 
 	study = create_study(db, new_study.name, new_study.description)
-	log_access(db, current_user.sub, 'create', 'study', study.id)
-	study = StudySchema.from_orm(study)
+	log_access(db, current_user.sub, 'create', 'study', str(study.id))
+	study = StudySchema.model_validate(study)
 
 	return study
 

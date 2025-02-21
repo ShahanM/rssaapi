@@ -40,6 +40,7 @@ class MovieSchema(BaseModel):
 
 class MovieSchemaV2(BaseModel):
 	id: uuid.UUID
+	tmdb_id: str
 	movielens_id: str
 	title: str
 	year: int

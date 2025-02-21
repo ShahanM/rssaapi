@@ -13,7 +13,10 @@ from data.accessors.survey_constructs import *
 import uuid
 
 
-router = APIRouter(prefix='/v2')
+router = APIRouter(
+	prefix='/v2',
+	tags=[Tags.study.value],
+	)
 
 
 def study_authorized_token(request: Request) -> str:
@@ -26,7 +29,7 @@ def study_authorized_token(request: Request) -> str:
 	return study_id
 
 
-def get_current_registered_study(request: Request) -> Study:
+def get_current_registered_study(request: Request) -> StudySchema:
 	study_id = study_authorized_token(request)
 	study = get_study_by_id(next(rssadb()), uuid.UUID(study_id))
 	
@@ -35,11 +38,11 @@ def get_current_registered_study(request: Request) -> Study:
 
 @router.get(
 	'/study/',
-	response_model=StudyAuthSchema,
-	tags=[Tags.study])
+	response_model=StudyAuthSchema)
 async def retrieve_study(
 	db: Session = Depends(rssadb),
-	current_study = Depends(get_current_registered_study)):
+	current_study: StudySchema = Depends(get_current_registered_study)
+	):
 	''' Get the study details as per the registered study id'''
 	
 	log_access(db, f'study: {current_study.name} ({current_study.id})', 'app access', 'study')
@@ -49,10 +52,11 @@ async def retrieve_study(
 
 @router.get(
 	'/studystep/first',
-	response_model=StudyStepSchema,
-	tags=[Tags.study])
-async def retrieve_first_step(db: Session = Depends(rssadb),
-					current_study = Depends(get_current_registered_study)):
+	response_model=StudyStepSchema)
+async def retrieve_first_step(
+	db: Session = Depends(rssadb),
+	current_study: StudySchema = Depends(get_current_registered_study)
+	):
 	step = get_first_step(db, current_study.id)
 	log_access(db, f'study: {current_study.name} ({current_study.id})', 'read', 'first step')
 
@@ -61,10 +65,9 @@ async def retrieve_first_step(db: Session = Depends(rssadb),
 
 @router.post(
 	'/studystep/next',
-	response_model=StudyStepSchema, 
-	tags=[Tags.study])
+	response_model=StudyStepSchema)
 async def retrieve_next_step(step_req: StepIdRequestSchema, db: Session = Depends(rssadb),
-					current_study = Depends(get_current_registered_study)):
+					current_study: StudySchema = Depends(get_current_registered_study)):
 	step = get_next_step(db, current_study.id, current_step_id=step_req.current_step_id)
 	if not step:
 		raise HTTPException(
@@ -78,10 +81,9 @@ async def retrieve_next_step(step_req: StepIdRequestSchema, db: Session = Depend
 
 @router.get(
 	'/survey/{step_id}/first',
-	response_model=SurveyPageSchema,
-	tags=[Tags.study])
+	response_model=SurveyPageSchema)
 async def retrieve_survey_page(step_id: uuid.UUID, db: Session = Depends(rssadb),
-					current_study = Depends(get_current_registered_study)):
+					current_study: StudySchema = Depends(get_current_registered_study)):
 	page = get_first_survey_page(db, step_id)
 	if not page:
 		raise HTTPException(
@@ -115,10 +117,9 @@ async def retrieve_survey_page(step_id: uuid.UUID, db: Session = Depends(rssadb)
 
 @router.get(
 	'/survey/{page_id}',
-	response_model=SurveyPageSchema,
-	tags=[Tags.study])
+	response_model=SurveyPageSchema)
 async def retrieve_survey_page_by_id(page_id: uuid.UUID, db: Session = Depends(rssadb),
-					current_study = Depends(get_current_registered_study)):
+					current_study: StudySchema = Depends(get_current_registered_study)):
 	
 	page = get_survey_page(db, page_id)
 	if not page:
@@ -155,10 +156,9 @@ async def retrieve_survey_page_by_id(page_id: uuid.UUID, db: Session = Depends(r
 
 @router.get(
 	'/page/{page_id}',
-	response_model=PageMultiConstructSchema,
-	tags=[Tags.study])
+	response_model=PageMultiConstructSchema)
 async def retrieve_page_content(page_id: uuid.UUID, db: Session = Depends(rssadb),
-					current_study = Depends(get_current_registered_study)):
+					current_study: StudySchema = Depends(get_current_registered_study)):
 	page = get_survey_page(db, page_id)
 	if not page:
 		raise HTTPException(

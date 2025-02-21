@@ -26,7 +26,8 @@ from router.v2 import (
 	auth0,
 	pref_viz,
 	participant,
-	alt_algo
+	alt_algo,
+	pref_comm as pref_comm_v2
 )
 
 
@@ -35,7 +36,11 @@ from middleware.error_handlers import ErrorHanlingMiddleware
 from middleware.infostats import RequestHandlingStatsMiddleware
 from middleware.access_logger import LoggingMiddleware
 
-from docs.metadata import tags_metadata, TagsMetadataEnum as Tags
+from docs.metadata import (
+	tags_metadata,
+	TagsMetadataEnum as Tags,
+	AppMetadata as App_Meta
+)
 
 
 """
@@ -46,8 +51,9 @@ app = FastAPI(
 	root_path='/rssa/api',
 	root_path_in_servers=False,
 	openapi_tags=tags_metadata,
-	title='RSSA Project API',
-	description='API for all the RSSA projects, experiments, and alternate movie databases.',
+	title=App_Meta.title,
+	summary=App_Meta.summary,
+	description=App_Meta.description,
 	version='0.1.0',
 	terms_of_service='https://rssa.recsys.dev/terms'
 )
@@ -91,6 +97,7 @@ app.include_router(study_meta.router)
 app.include_router(participant.router)
 app.include_router(movies.router)
 app.include_router(auth0.router)
+app.include_router(pref_comm_v2.router)
 
 
 """

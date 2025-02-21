@@ -2,13 +2,19 @@ from typing import List, Union
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from ..models.schema.studyschema import NewScaleLevelSchema, SurveyConstructSchema,\
-	ConstructTypeSchema, PageContentSchema
+from ..models.schema.studyschema import (
+    NewScaleLevelSchema, SurveyConstructSchema,
+    StudyConditionSchema,
+	ConstructTypeSchema, PageContentSchema, StudySchema, StepPageSchema
+)
+
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
 
 from data.rssadb import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
+from sqlalchemy import (
+    Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -31,7 +37,7 @@ def get_studies(db: Session) -> List[Study]:
 	return studies
 
 
-def get_study_by_id(db: Session, study_id: uuid.UUID) -> Study:
+def get_study_by_id(db: Session, study_id: uuid.UUID) -> StudySchema:
 	study = db.query(Study).where(Study.id == study_id).first()
 	
 	return study
@@ -47,6 +53,7 @@ def duplicate_study(db: Session, study_id: uuid.UUID) -> Study:
 	db.add(new_study)
 	db.commit()
 
+	new_study = StudySchema.model_validate(new_study)
 	# Duplicate conditions
 	conditions = get_study_conditions(db, study_id)
 	for condition in conditions:
@@ -70,7 +77,7 @@ def duplicate_study(db: Session, study_id: uuid.UUID) -> Study:
 	return new_study
 
 
-def get_study_conditions(db: Session, study_id: uuid.UUID) -> List[StudyCondition]:
+def get_study_conditions(db: Session, study_id: uuid.UUID) -> List[StudyConditionSchema]:
 	conditions = db.query(StudyCondition).where(StudyCondition.study_id == study_id).all()
 	
 	return conditions
@@ -118,7 +125,7 @@ def get_next_step(db: Session, study_id: uuid.UUID, current_step_id: uuid.UUID) 
 	return step
 
 
-def create_study_step(db: Session, study_id: UUID, order_position: int,
+def create_study_step(db: Session, study_id: uuid.UUID, order_position: int,
 		name: str, description: str) -> Step:
 	study = db.query(Study).where(Study.id == study_id).first()
 	if not study:
@@ -141,7 +148,7 @@ def get_step_pages(db: Session, step_id: uuid.UUID) -> List[Page]:
 	return pages
 
 
-def create_step_page(db: Session, study_id: UUID, step_id: UUID,\
+def create_step_page(db: Session, study_id: uuid.UUID, step_id: uuid.UUID,\
 	order_position: int, name: str, description: str) -> Page:
 	step = db.query(Step).where(Step.id == step_id).first()
 	if not step:
@@ -161,10 +168,14 @@ def get_page_content(db: Session, page_id: uuid.UUID) -> List[SurveyConstructSch
 		.join(PageContent, SurveyConstruct.id == PageContent.content_id)\
 		.join(ConstructType, SurveyConstruct.type == ConstructType.id)\
 		.where(PageContent.page_id == page_id)
+	# constructs = db.query(SurveyConstruct)\
+	# 	.join(SurveyConstruct, )\
+	# 	.join(ConstructType)\
+	# 	.where(PageContent.page_id == page_id).all()
 	constructs = db.execute(query).all()
 	# query = select(SurveyConstruct, ConstructType)\
 	
-	svyconstructs = []
+	svyconstructs: List[SurveyConstructSchema] = []
 	for construct in constructs:
 		svyconstruct = construct[0]
 		construct_type = construct[1]
@@ -176,18 +187,23 @@ def get_page_content(db: Session, page_id: uuid.UUID) -> List[SurveyConstructSch
 
 
 def create_page_content(db: Session, page_id: uuid.UUID, content_id: uuid.UUID,
-		order_position: int) -> PageContent:
+		order_position: int) -> PageContentSchema:
 	page = db.query(Page).where(Page.id == page_id).first()
 	if not page:
 		raise Exception('Page not found')
+
+	page = StepPageSchema.model_validate(page)
 	
 	content = db.query(SurveyConstruct).where(SurveyConstruct.id == content_id).first()
 	if not content:
 		raise Exception('Content not found')
+
+	content = SurveyConstructSchema.model_validate(content)
 	
 	# Check to see if the content is already in the page
 	existing = db.query(PageContent).where(and_(PageContent.page_id == page_id,
 			PageContent.content_id == content_id)).first()
+
 	if existing:
 		return existing
 	
@@ -199,8 +215,8 @@ def create_page_content(db: Session, page_id: uuid.UUID, content_id: uuid.UUID,
 	return page_content
 
 
-def get_first_survey_page(db: Session, step_id: uuid.UUID) -> Page:
-	page = db.query(Page).where(Page.step_id == step_id).order_by(Page.order_position).first()
+def get_first_survey_page(db: Session, step_id: uuid.UUID) -> StepPageSchema:
+	page = db.query(Page).filter(Page.step_id == step_id).order_by(Page.order_position).first()
 	
 	return page
 

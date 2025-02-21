@@ -46,3 +46,13 @@ tags_metadata = [
 		'description': 'These are the metadata APIs that are used to create and manage the metadata for the study.'
 	}
 ]
+
+class AppMetadata:
+	title = 'RSSA Project API'
+	summary = 'API for all the RSSA projects, experiments, and alternate movie databases.'
+	description = '''
+		This API is a FastAPI based API that is used to manage the RSSA project. 
+		The API is used to manage the study, the participants, the movies, 
+		the preference communities, and the preference visualizations. 
+		The API is also used to manage the metadata for the study.
+	'''

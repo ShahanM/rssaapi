@@ -1,12 +1,10 @@
-from typing import List, Union
-from datetime import datetime, timezone
-
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from typing import Union
 
 from data.rssadb import Base
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 
 class SurveyConstruct(Base):
@@ -22,7 +20,7 @@ class SurveyConstruct(Base):
 	items = relationship('ConstructItem', back_populates='construct', \
 		uselist=True, cascade='all, delete-orphan')
 	
-	def __init__(self, name: str, desc: str, type_id: UUID, scale_id: Union[UUID, None] = None):
+	def __init__(self, name: str, desc: str, type_id: uuid.UUID, scale_id: Union[uuid.UUID, None] = None):
 		self.name = name
 		self.desc = desc
 		self.type = type_id
@@ -51,7 +49,7 @@ class ConstructItem(Base):
 
 	construct = relationship('SurveyConstruct', back_populates='items')
 
-	def __init__(self, construct_id: UUID, text: str, order_position: int, item_type: UUID):
+	def __init__(self, construct_id: uuid.UUID, text: str, order_position: int, item_type: uuid.UUID):
 		self.construct_id = construct_id
 		self.text = text
 		self.order_position = order_position
@@ -95,7 +93,7 @@ class ScaleLevel(Base):
 
 	scale = relationship('ConstructScale', back_populates='scale_levels')
 
-	def __init__(self, level: int, label: str, scale_id: UUID):
+	def __init__(self, level: int, label: str, scale_id: uuid.UUID):
 		self.level = level
 		self.label = label
 		self.scale_id = scale_id

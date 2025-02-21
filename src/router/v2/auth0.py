@@ -5,10 +5,20 @@ from fastapi.security.utils import get_authorization_scheme_param
 from data.models.schema.studyschema import Auth0UserSchema
 import config as cfg
 
-auth0_domain = cfg.get_env_var("AUTH0_DOMAIN")
-auth0_audience = cfg.get_env_var("AUTH0_AUDIENCE")
-auth0_algorithms = [cfg.get_env_var("AUTH0_ALGORITHMS")]
-auth0_client_id = cfg.get_env_var("AUTH0_CLIENT_ID")
+auth0_domain = cfg.get_env_var("AUTH0_DOMAIN", "")
+auth0_audience = cfg.get_env_var("AUTH0_AUDIENCE", "")
+auth0_algorithms = [cfg.get_env_var("AUTH0_ALGORITHMS", "")]
+auth0_client_id = cfg.get_env_var("AUTH0_CLIENT_ID", "")
+
+
+routes_disabled = False
+if any([
+	auth0_domain == "",
+	auth0_audience == "", 
+	auth0_algorithms[0] == "", 
+	auth0_client_id == ""]):
+	routes_disabled = True
+	raise Warning("One or more required Auth0 environment variables are not set.\n Admin routes disabled.")
 
 
 router = APIRouter()
@@ -110,21 +120,3 @@ async def get_current_admin_user(request: Request):
 			detail='You do not have permission to access this route.'
 		)
 	return current_user
-
-
-@router.get('/test/', include_in_schema=False)
-async def test_api(current_user: dict = Depends(get_current_user)):
-	""" Testing Auth0 API to authenticate user
-		This is a protected route, only authenticated users can access this route
-	"""
-	print(current_user['permissions'])
-	return {'user': current_user}
-
-
-@router.get('/test2/', include_in_schema=False)
-async def test_api2(current_user: dict = Depends(get_current_admin_user)):
-	""" Testing user roles and permissions
-		This is a protected route, only authenticated users with read:all and 
-		write:all permissions can access this route
-	"""
-	return {'user': current_user}

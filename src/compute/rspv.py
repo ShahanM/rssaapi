@@ -12,7 +12,7 @@ import numpy as np
 from .common import RSSABase, predict, scale_value
 from pydantic import BaseModel
 import itertools
-from typing import Union
+from typing import Callable, Sequence
 
 import networkx as nx
 
@@ -32,7 +32,11 @@ class RatedItemSchema(BaseModel):
 
 
 class PreferenceVisualization(RSSABase):
-	def __init__(self, model_path:str, item_popularity, ave_item_score):
+	def __init__(self,
+			model_path: str,
+			item_popularity: pd.DataFrame,
+			ave_item_score: pd.DataFrame):
+			
 		super().__init__(model_path, item_popularity, ave_item_score)
 
 	def get_prediction(self, ratings: List[RatedItemSchema], user_id: str) \
@@ -75,7 +79,6 @@ class PreferenceVisualization(RSSABase):
 
 		diverse_items: pd.DataFrame
 		if algo == 'fishnet':
-			# print('Generating recommendations using fishnet')
 			diverse_items, dists = self.__fishingnet(candidates, num_rec)
 			dists = sorted(dists, key=lambda x: x[1])
 			dists_n_idx = [item[0] for item in dists[:num_rec]]
@@ -123,7 +126,6 @@ class PreferenceVisualization(RSSABase):
 		ticks = [1] # we start from 1 because there is no rating 0
 		step = (n - 1) / nb
 		for i in range(nb):
-			# print(ticks)
 			ticks.append(ticks[i] + step)
 			
 		return ticks
@@ -146,8 +148,6 @@ class PreferenceVisualization(RSSABase):
 	def __fishingnet(self, candidates:pd.DataFrame, n:int=80) \
 		-> Tuple[pd.DataFrame, List[tuple]]:
 		candidates_vector = candidates[['score', 'ave_score']].to_numpy()		
-		# ticks = self.seeding(5, 17) 
-			# divide the 5 * 5 (predicted rating 0-5) grid into a 12*12 grid
 		grid = self.scale_grid(minval=1, maxval=5, num_divisions=16)
 		
 		diverse_items = []
@@ -168,14 +168,28 @@ class PreferenceVisualization(RSSABase):
 
 		return candidates[candidates['item'].isin(grid_members.values())], diverse_items
 	
-	def __single_linkage_clustering(self, candidates, n=80):
-		_candidates = candidates.copy()
-		score_ave_score = lambda x: (x['score'], x['ave_score'])
-		_candidates['grid_idx'] = _candidates.apply(score_ave_score, axis=1)
+	def __single_linkage_clustering(self, candidates: pd.DataFrame, n: int=80):
+		'''
+		Perform single linkage clustering on the candidates
+		:param candidates: DataFrame containing the candidates
+			columns: [
+				'item', 
+				'score', 
+				'ave_score', 
+				'ave_discounted_score', 
+				'count', 'rank'
+			]
+		:param n: number of clusters
+		'''
 
-		# Create a graph
+		_candidates = candidates.copy()
+
+		# This is weird, but a DataFrame row essentially behaved like a dict
+		score_avescore: Callable[[dict[str, float]], Tuple[float, float]]
+		score_avescore = lambda x : (x['score'], x['ave_score'])
+		_candidates['grid_idx'] = _candidates.apply(score_avescore, axis=1)
+
 		G = nx.Graph()
-		# Add nodes
 		G.add_nodes_from(_candidates['grid_idx'].values)
 		
 		# Add edges based on the distance between the nodes
@@ -186,22 +200,19 @@ class PreferenceVisualization(RSSABase):
 					dist = np.sum(np.abs(np.array(node1) - np.array(node2)))
 
 					# Euclidean distance
-					# dist = np.sqrt(np.sum(np.square(np.array(node1) - np.array(node2))))
-
 					G.add_edge(node1, node2, weight=dist)
+
+		tree = nx.minimum_spanning_tree(G)
 		
-		# Minimum spanning tree
-		T = nx.minimum_spanning_tree(G)
-		# Delete the costliest edge and make two graphs
-		k = n
-		edges = list(T.edges(data=True))
+		k = n # Delete the costliest edge and make two graphs
+		edges = list(tree.edges(data=True))
 		edges.sort(key=lambda x: x[2]['weight'], reverse=True)
 		while k >= 1:
 			edge = edges[n-k]
-			T.remove_edge(edge[0], edge[1])
+			tree.remove_edge(edge[0], edge[1])
 			k -= 1
 
-		for i, cluster in enumerate(nx.connected_components(T)):
+		for i, cluster in enumerate(nx.connected_components(tree)):
 			if len(cluster) > 1:
 				clusternodes = list(cluster)
 				# take the middle node

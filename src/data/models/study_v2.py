@@ -1,12 +1,11 @@
-from typing import List, Union
-from datetime import datetime, timezone
-
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from datetime import datetime, timezone
+from typing import Union
 
 from data.rssadb import Base
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 
 class Study(Base):
@@ -46,7 +45,7 @@ class StudyCondition(Base):
 
 	study = relationship('Study', back_populates='conditions')
 
-	def __init__(self, study_id: UUID, name: str, study_condition: int = 10, \
+	def __init__(self, study_id: uuid.UUID, name: str, study_condition: int = 10, \
 		description: Union[str, None] = None):
 		self.study_id = study_id
 		self.name = name
@@ -69,7 +68,7 @@ class Step(Base):
 	pages = relationship('Page', back_populates='step', \
 		uselist=True, cascade='all, delete-orphan')
 
-	def __init__(self, study_id: UUID, order_position: int, name: str, description: Union[str, None] = None):
+	def __init__(self, study_id: uuid.UUID, order_position: int, name: str, description: Union[str, None] = None):
 		self.study_id = study_id
 		self.order_position = order_position
 		self.name = name
@@ -91,7 +90,7 @@ class Page(Base):
 
 	step = relationship('Step', back_populates='pages')
 
-	def __init__(self, study_id: UUID, step_id: UUID, order_position: int,
+	def __init__(self, study_id: uuid.UUID, step_id: uuid.UUID, order_position: int,
 			name: str, description: Union[str, None] = None):
 		self.study_id = study_id
 		self.step_id = step_id
@@ -108,7 +107,7 @@ class PageContent(Base):
 	order_position = Column(Integer, nullable=False)
 	enabled = Column(Boolean, nullable=False, default=True)
 
-	def __init__(self, page_id: UUID, content_id: UUID, order_position: int):
+	def __init__(self, page_id: uuid.UUID, content_id: uuid.UUID, order_position: int):
 		self.page_id = page_id
 		self.content_id = content_id
 		self.order_position = order_position
@@ -126,7 +125,7 @@ class Feedback(Base):
 	feedback_type = Column(String, nullable=False)
 	feedback_category = Column(String, nullable=False)
 
-	def __init__(self, participant_id: UUID, study_id: UUID, feedback: str, feedback_type: str, feedback_category: str):
+	def __init__(self, participant_id: uuid.UUID, study_id: uuid.UUID, feedback: str, feedback_type: str, feedback_category: str):
 		self.participant_id = participant_id
 		self.study_id = study_id
 		self.feedback = feedback

@@ -10,6 +10,8 @@ from lenskit.algorithms.mf_common import MFPredictor
 from lenskit.algorithms.als import _train_implicit_row_lu as v_lu
 from lenskit.algorithms.als import ImplicitMF
 import pickle
+import numpy as np
+from scipy.spatial.distance import cosine
 
 
 def predict(model: MFPredictor, items: pd.DataFrame, \
@@ -97,6 +99,37 @@ class RSSABase(object):
 		f_import.close()
 
 		return trained_model
+
+	def __similarity_user_features(self, umat, users, feature_newUser, \
+		method='cosine'):
+		'''
+			ALS has already pre-weighted the user features/item features;
+			Use either the Cosine distance(by default) or the Eculidean distance;
+			umat: np.ndarray
+			users: Int64Index
+			feature_newUser: np.ndarray
+		'''        
+		nrows, ncols = umat.shape
+		distance = []
+		if method == 'cosine':
+			distance = [cosine(umat[i, ], feature_newUser) \
+				for i in range(nrows)]
+		elif method == 'euclidean':
+			distance = [np.linalg.norm(umat[i, ] - feature_newUser) \
+				for i in range(nrows)]
+				
+		distance = pd.DataFrame({'user': users.values, 'distance': distance})
+
+		return distance
+	
+	def __find_neighbors(self, umat, users, feature_newUser, distance_method, \
+		num_neighbors):
+		similarity = self.__similarity_user_features(umat, users, \
+			feature_newUser, distance_method)
+		neighbors_similarity = similarity\
+			.sort_values(by='distance', ascending=True).head(num_neighbors)
+		
+		return neighbors_similarity
 	
 
 def scale_value(value, new_min, new_max, cur_min, cur_max):

@@ -43,9 +43,9 @@ class AdvisorSchemaTemp(BaseModel):
 
 
 class PrefCommRatingSchema(BaseModel):
-	user_id: int
+	user_id: str
 	ratings: List[RatedItemSchema]
-	rec_type: int
+	user_condition: str
 	num_rec: int = 10
 
 	class Config:
