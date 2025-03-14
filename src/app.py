@@ -3,21 +3,21 @@ from typing import List
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+# from sqlalchemy.orm import Session
 
 from compute.utils import *
-from data.moviedatabase import SessionLocal # FIXME: Move to own file
+# from data.moviedatabase import SessionLocal # FIXME: Move to own file
 
-from data.models.schema.movieschema import MovieSchema
-from router.v1 import (
-	movies as movies_v1,
-	users as users_v1, 
-	admin, 
-	study as study_v1,
-	iers,
-	pref_comm
-)
-from router.v1.admin import get_current_active_user, AdminUser
+# from data.models.schema.movieschema import MovieSchema
+# from router.v1 import (
+# 	movies as movies_v1,
+# 	users as users_v1, 
+# 	admin, 
+# 	study as study_v1,
+# 	iers,
+# 	pref_comm
+# )
+# from router.v1.admin import get_current_active_user, AdminUser
 
 from router.v2 import (
 	study as study_v2,
@@ -31,7 +31,7 @@ from router.v2 import (
 )
 
 
-from data.movies import get_movies, get_movies_by_ids
+# from data.movies import get_movies, get_movies_by_ids
 from middleware.error_handlers import ErrorHanlingMiddleware
 from middleware.infostats import RequestHandlingStatsMiddleware
 from middleware.access_logger import LoggingMiddleware
@@ -79,12 +79,12 @@ origins = [
 """
 v1 routers
 """
-app.include_router(study_v1.router)
-app.include_router(users_v1.router)
-app.include_router(movies_v1.router)
-app.include_router(iers.router)
-app.include_router(pref_comm.router) # FIXME: move to v1 module
-app.include_router(admin.router)
+# app.include_router(study_v1.router)
+# app.include_router(users_v1.router)
+# app.include_router(movies_v1.router)
+# app.include_router(iers.router)
+# app.include_router(pref_comm.router) # FIXME: move to v1 module
+# app.include_router(admin.router)
 
 
 """
@@ -116,12 +116,12 @@ app.add_middleware(LoggingMiddleware)
 
 
 # Dependency
-def get_db():
-	db = SessionLocal()
-	try:
-		yield db
-	finally:
-		db.close()
+# def get_db():
+# 	db = SessionLocal()
+# 	try:
+# 		yield db
+# 	finally:
+# 		db.close()
 
 
 @app.get('/')
@@ -132,27 +132,27 @@ async def root():
 	return {'message': 'Hello World'}
 
 
-@app.get('/data/all/', include_in_schema=False)
-async def get_data_zip(
-	current_user: AdminUser = Depends(get_current_active_user)):
-	"""
-	Downloads a zip file containing data files and models to bootstrap the
-	project template for the Advanced Decision Support Systems course taught by
-	Dr. Bart Knijnenburg during the Fall 2022 semester.
+# @app.get('/data/all/', include_in_schema=False)
+# async def get_data_zip(
+# 	current_user: AdminUser = Depends(get_current_active_user)):
+# 	"""
+# 	Downloads a zip file containing data files and models to bootstrap the
+# 	project template for the Advanced Decision Support Systems course taught by
+# 	Dr. Bart Knijnenburg during the Fall 2022 semester.
 	
-	Returns a a zip file containing the data files and models.
-	"""
-	return FileResponse('datafiles/rssa_all.zip',
-						media_type='application/octet-stream',
-						filename='data/rssa_all.zip')
+# 	Returns a a zip file containing the data files and models.
+# 	"""
+# 	return FileResponse('datafiles/rssa_all.zip',
+# 						media_type='application/octet-stream',
+# 						filename='data/rssa_all.zip')
 
 
-@app.get(
-	'/movies/',
-	response_model=List[MovieSchema],
-	tags=[Tags.movie])
-async def read_movies(skip: int=0, limit: int=100, db: Session=Depends(get_db)):
-	movies = get_movies(db, skip=skip, limit=limit) # type: ignore
+# @app.get(
+# 	'/movies/',
+# 	response_model=List[MovieSchema],
+# 	tags=[Tags.movie])
+# async def read_movies(skip: int=0, limit: int=100, db: Session=Depends(get_db)):
+# 	movies = get_movies(db, skip=skip, limit=limit) # type: ignore
 	
-	return movies
+# 	return movies
 

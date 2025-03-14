@@ -10,9 +10,9 @@ from compute.utils import (
 from compute.rssa import AlternateRS
 from compute.rspc import PreferenceCommunity
 from sqlalchemy.orm import Session
-from data.moviedatabase import SessionLocal
+# from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import *
-from data.movies import *
+# from data.movies import *
 from collections import Counter, defaultdict
 
 router = APIRouter(prefix='/v2', deprecated=True)

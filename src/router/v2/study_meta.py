@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from compute.utils import *
-from data.studydatabase import SessionLocal
+# from data.studydatabase import SessionLocal
 from data.models.schema.studyschema import *
 from docs.metadata import TagsMetadataEnum as Tags
 
@@ -22,13 +22,13 @@ import uuid
 
 router = APIRouter(prefix='/v2/meta')
 
-# Dependency
-def get_db():
-	db = SessionLocal()
-	try:
-		yield db
-	finally:
-		db.close()
+# # Dependency
+# def get_db():
+# 	db = SessionLocal()
+# 	try:
+# 		yield db
+# 	finally:
+# 		db.close()
 
 # base_path = lambda x: '/v2/meta' + x
 

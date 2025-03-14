@@ -8,10 +8,11 @@ from compute.utils import *
 from data.models.schema.studyschema import *
 from docs.metadata import TagsMetadataEnum as Tags
 
-from data.moviedatabase import SessionLocal
+# from data.moviedatabase import SessionLocal
 from data.moviedb import get_db as movie_db_v2
 from data.models.schema.movieschema import *
-from data.movies import *
+# from data.movies import *
+from data.accessors.movies import get_all_ers_movies_v2, get_ers_movies_by_movielens_ids, get_ers_movies_by_ids_v2
 
 import uuid
 
@@ -20,12 +21,12 @@ router = APIRouter(prefix='/v2')
 
 
 # Dependency
-def get_db():
-	db = SessionLocal()
-	try:
-		yield db
-	finally:
-		db.close()
+# def get_db():
+# 	db = SessionLocal()
+# 	try:
+# 		yield db
+# 	finally:
+# 		db.close()
 
 
 @router.get(

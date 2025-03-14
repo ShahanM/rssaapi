@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from compute.utils import *
-from data.studydatabase import SessionLocal
+# from data.studydatabase import SessionLocal
 from data.models.schema.studyschema import *
 from data.models.schema.participanschema import *
 from docs.metadata import TagsMetadataEnum as Tags
