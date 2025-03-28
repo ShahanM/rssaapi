@@ -6,14 +6,14 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from compute.utils import *
-from data.studydatabase import SessionLocal
-from data.models.schema.studyschema import *
+# from data.studydatabase import SessionLocal
+from data.models.schemas.studyschema import *
 from docs.metadata import TagsMetadataEnum as Tags
 
 from .auth0 import get_current_user as auth0_user
 from data.rssadb import get_db as rssadb
 
-from data.studies_v2 import *
+from data.logger import *
 from data.accessors.studies import *
 from data.accessors.survey_constructs import *
 
@@ -22,13 +22,13 @@ import uuid
 
 router = APIRouter(prefix='/v2/meta')
 
-# Dependency
-def get_db():
-	db = SessionLocal()
-	try:
-		yield db
-	finally:
-		db.close()
+# # Dependency
+# def get_db():
+# 	db = SessionLocal()
+# 	try:
+# 		yield db
+# 	finally:
+# 		db.close()
 
 # base_path = lambda x: '/v2/meta' + x
 

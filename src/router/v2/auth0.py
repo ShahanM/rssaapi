@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from jose import jwt, JWTError
 import httpx
 from fastapi.security.utils import get_authorization_scheme_param
-from data.models.schema.studyschema import Auth0UserSchema
+from data.models.schemas.studyschema import Auth0UserSchema
 import config as cfg
 
 auth0_domain = cfg.get_env_var("AUTH0_DOMAIN", "")

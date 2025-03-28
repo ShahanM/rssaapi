@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from data.moviedatabase import SessionLocal
-from data.models.schema.movieschema import *
+from data.models.schemas.movieschema import *
 from data.movies import *
 from docs.metadata import TagsMetadataEnum as Tags
 

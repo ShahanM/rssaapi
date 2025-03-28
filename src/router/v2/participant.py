@@ -4,16 +4,16 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from compute.utils import *
-from data.studydatabase import SessionLocal
-from data.models.schema.studyschema import *
-from data.models.schema.participanschema import *
+# from data.studydatabase import SessionLocal
+from data.models.schemas.studyschema import *
+from data.models.schemas.participantschema import *
 from docs.metadata import TagsMetadataEnum as Tags
 
 from .auth0 import get_current_user as auth0_user
 from data.rssadb import get_db as rssadb
 from .study import get_current_registered_study
 
-from data.studies_v2 import *
+from data.logger import *
 from data.accessors.studies import *
 from data.accessors.survey_constructs import *
 from data.accessors.participants import *
@@ -23,6 +23,15 @@ import uuid
 
 
 router = APIRouter(prefix="/v2")
+
+
+def get_participant_repository(
+	db: Session = Depends(rssadb),
+	study_id: uuid.UUID = Depends(get_current_registered_study)) -> ParticipantRepository:
+	"""
+	Dependency to get the participant repository
+	"""
+	return ParticipantRepository(db, study_id)
 
 
 @router.get(
@@ -66,23 +75,42 @@ async def new_participant_type(new_type: NewParticipantTypeSchema,
 	return participant_type
 
 
+# @router.post(
+# 	'/participant/',
+# 	response_model=ParticipantSchema,
+# 	tags=[Tags.participant])
+# async def new_study_participant(new_participant: NewParticipantSchema,
+# 		db: Session = Depends(rssadb), 
+# 		current_study = Depends(get_current_registered_study)):
+
+# 	participant = create_study_participant(db,
+# 		study_id=new_participant.study_id, 
+# 		participant_type=new_participant.participant_type,
+# 		external_id=new_participant.external_id,
+# 		current_step=new_participant.current_step,
+# 		current_page=new_participant.current_page)
+
+# 	log_access(db, f'study: {current_study.name} ({current_study.id})',
+# 		'create', 'participant', participant.id)
+
+# 	return participant
+
+
 @router.post(
 	'/participant/',
 	response_model=ParticipantSchema,
 	tags=[Tags.participant])
 async def new_study_participant(new_participant: NewParticipantSchema,
-		db: Session = Depends(rssadb), 
-		current_study = Depends(get_current_registered_study)):
+		repo: ParticipantRepository = Depends(get_participant_repository)):
 
-	participant = create_study_participant(db,
-		study_id=new_participant.study_id, 
+	participant = repo.create_study_participant(
 		participant_type=new_participant.participant_type,
 		external_id=new_participant.external_id,
 		current_step=new_participant.current_step,
 		current_page=new_participant.current_page)
 
-	log_access(db, f'study: {current_study.name} ({current_study.id})',
-		'create', 'participant', participant.id)
+	# log_access(db, f'study: {current_study.name} ({current_study.id})',
+	# 	'create', 'participant', participant.id)
 
 	return participant
 

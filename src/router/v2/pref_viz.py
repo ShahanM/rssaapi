@@ -7,11 +7,13 @@ from compute.rspv import PreferenceVisualization, PreferenceItem, RatedItemSchem
 from compute.utils import *
 from data.moviedb import get_db as movie_db
 from data.rssadb import get_db as rssa_db
-from data.models.schema.movieschema import BaseModel
-from data.movies import *
-from data.studies_v2 import Study
+from data.models.schemas.movieschema import BaseModel
+# from data.movies import *
+from data.accessors.movies import get_ers_movies_by_movielens_ids
+from data.logger import Study
 from .study import get_current_registered_study
 from data.accessors.studies import get_study_condition
+from data.models.schemas.movieschema import MovieSchemaV2
 
 import uuid
 

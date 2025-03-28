@@ -2,10 +2,10 @@ from typing import List, Union
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone
 
-from data.models.schema.participanschema import *
+from data.models.schemas.participantschema import *
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
-from ..models.participants import *
+from ..models.participant import *
 
 from .studies import get_study_by_id, get_study_conditions
 
@@ -14,11 +14,67 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, a
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
+from data.rssadb import get_db as rssadb
 
 import random
 
 
+class ParticipantRepository:
+	def __init__(self, db: Session, study: Study):
+		self.db = db
+		self.study = study
+
+	def create_study_participant(self,
+		participant_type: uuid.UUID,
+		external_id: str,
+		current_step: uuid.UUID,
+		current_page: Union[uuid.UUID, None] = None) -> ParticipantSchema:
+		
+		# study = get_study_by_id(db, study_id)
+		# FIXME: this should be part of the study_condition repository
+		study_conditions = get_study_conditions(self.db, self.study.id)
+
+		if not study_conditions:
+			raise HTTPException(status_code=404, detail='No study conditions found for study: ' + str(self.study.id))
+		
+		condition = random.choice(study_conditions)
+
+		# FIXME: update all db calls to their respective repositories
+		cstep = self.db.query(Step).where(Step.id == current_step).first()
+		cpage = None
+		if current_page is not None:
+			cpage = self.db.query(Page).where(Page.id == current_page).first()
+		ptype = get_participant_type_by_id(self.db, participant_type)
+		participant = StudyParticipant(participant_type=ptype.id, study_id=self.study.id,
+				condition_id=condition.id, current_step=cstep.id,
+				external_id=external_id,
+				current_page=cpage.id if cpage is not None else None)
+		self.db.add(participant)
+		self.db.commit()
+		self.db.refresh(participant)
+
+		return ParticipantSchema.model_validate(participant)
+
+	def get_study_participants(self, study_id: uuid.UUID) -> List[ParticipantSchema]:
+		participants = self.db.query(StudyParticipant) \
+			.filter(StudyParticipant.study_id == self.study.id).all()
+		
+		if not participants:
+			return []
+		return [ParticipantSchema.model_validate(participant) for participant in participants]
+	
+	def get_study_participant_by_id(self, participant_id: uuid.UUID) -> ParticipantSchema:
+		participant = self.db.query(StudyParticipant).where(StudyParticipant.id == participant_id).first()
+		if not participant:
+			raise HTTPException(status_code=404, detail='Participant not found')
+	
+		return ParticipantSchema.model_validate(participant)
+
+
+"""
+The following functions are going to be refactored into the ParticipantRepository class
+"""
 def get_participant_types(db: Session) -> List[ParticipantType]:
 	types = db.query(ParticipantType).all()
 	
@@ -42,14 +98,16 @@ def create_participant_type(db: Session, type: str) -> ParticipantType:
 	return participant_type
 
 
-def get_study_participants(db: Session, study_id: uuid.UUID) -> List[Participant]:
-	participants = db.query(Participant).where(Participant.study_id == study_id).all()
+# implemented but not tested
+def get_study_participants(db: Session, study_id: uuid.UUID) -> List[StudyParticipant]:
+	participants = db.query(StudyParticipant).where(StudyParticipant.study_id == study_id).all()
 	
 	return participants
 
 
-def get_study_participant_by_id(db: Session, participant_id: uuid.UUID) -> Participant:
-	participant = db.query(Participant).where(Participant.id == participant_id).first()
+# implemented but not tested
+def get_study_participant_by_id(db: Session, participant_id: uuid.UUID) -> StudyParticipant:
+	participant = db.query(StudyParticipant).where(StudyParticipant.id == participant_id).first()
 	if not participant:
 		raise HTTPException(status_code=404, detail='Participant not found')
 	
@@ -60,7 +118,7 @@ def create_study_participant(db: Session, study_id: uuid.UUID,
 		participant_type: uuid.UUID,
 		external_id: str,
 		current_step: uuid.UUID,
-		current_page: Union[uuid.UUID, None] = None) -> Participant:
+		current_page: Union[uuid.UUID, None] = None) -> StudyParticipant:
 	study = get_study_by_id(db, study_id)
 	study_conditions = get_study_conditions(db, study_id)
 
@@ -74,7 +132,7 @@ def create_study_participant(db: Session, study_id: uuid.UUID,
 	if current_page is not None:
 		cpage = db.query(Page).where(Page.id == current_page).first()
 	ptype = get_participant_type_by_id(db, participant_type)
-	participant = Participant(participant_type=ptype.id, study_id=study.id,
+	participant = StudyParticipant(participant_type=ptype.id, study_id=study.id,
 			condition_id=condition.id, current_step=cstep.id,
 			external_id=external_id,
 			current_page=cpage.id if cpage is not None else None)

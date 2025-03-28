@@ -11,7 +11,7 @@ from typing import List, Literal, Union
 
 import numpy as np
 import pandas as pd
-from data.models.schema.movieschema import RatedItemSchema
+from data.models.schemas.movieschema import RatedItemSchema
 from pydantic.dataclasses import dataclass
 from scipy.spatial.distance import cosine
 from .common import predict_discounted, get_user_feature, RSSABase, predict
@@ -154,7 +154,7 @@ class AlternateRS(RSSABase):
 		distance_method = 'cosine'
 		numNeighbors = 20
 
-		neighbors = self.__find_neighbors(umat, users, user_features, \
+		neighbors = self._find_neighbors(umat, users, user_features, \
 			distance_method, numNeighbors)
 		
 		variance = self.__controversial(neighbors.user.unique())

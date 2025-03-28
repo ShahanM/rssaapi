@@ -2,40 +2,44 @@ from typing import List, Dict
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from ..models.schema.participanschema import *
+from ..models.schemas.participantschema import *
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
-from ..models.participants import *
+from ..models.participant import *
 
 from sqlalchemy import and_
 import uuid
 from fastapi import HTTPException
 
 
-def get_responses(db: Session, participant: Participant,\
+class StudyResponseRepository:
+	def __init__(self, db: Session):
+		self.db = db
+
+def get_responses(db: Session, participant: StudyParticipant,\
 	construct_id: uuid.UUID, item_ids: List[uuid.UUID]) -> Dict[uuid.UUID, ParticipantResponse]:
 
 	if not item_ids: return {}
 
-	reponses = db.query(ParticipantResponse).\
-		where(and_(ParticipantResponse.participant_id == participant.id,\
-			ParticipantResponse.construct_id == construct_id,\
-			ParticipantResponse.item_id.in_(item_ids))).all()
+	reponses = db.query(ParticipantSurveyResponse).\
+		where(and_(ParticipantSurveyResponse.participant_id == participant.id,\
+			ParticipantSurveyResponse.construct_id == construct_id,\
+			ParticipantSurveyResponse.item_id.in_(item_ids))).all()
 	
 	if not reponses: return {}
 
 	return {res.item_id: res for res in reponses}
 
 
-def get_response(db: Session, participant: Participant,\
+def get_response(db: Session, participant: StudyParticipant,\
 	construct_id: uuid.UUID, item_id: uuid.UUID) -> ParticipantResponse:
 
 	if not item_id: return None
 
-	response = db.query(ParticipantResponse).\
-		where(and_(ParticipantResponse.participant_id == participant.id,\
-			ParticipantResponse.construct_id == construct_id,\
-			ParticipantResponse.item_id == item_id)).first()
+	response = db.query(ParticipantSurveyResponse).\
+		where(and_(ParticipantSurveyResponse.participant_id == participant.id,\
+			ParticipantSurveyResponse.construct_id == construct_id,\
+			ParticipantSurveyResponse.item_id == item_id)).first()
 	
 	return response
 
@@ -43,7 +47,7 @@ def get_response(db: Session, participant: Participant,\
 def create_survey_response(db: Session, participant_id: uuid.UUID,\
 	response: SurveyResponse) -> bool:
 	
-	participant = db.query(Participant).where(Participant.id == participant_id).first()
+	participant = db.query(StudyParticipant).where(StudyParticipant.id == participant_id).first()
 	if not participant:
 		raise HTTPException(status_code=404, detail='Participant not found')
 	
@@ -64,7 +68,7 @@ def create_survey_response(db: Session, participant_id: uuid.UUID,\
 	presponses = []
 	for res_item in response.responses:
 		
-		presponse = ParticipantResponse(participant_id=participant.id,\
+		presponse = ParticipantSurveyResponse(participant_id=participant.id,\
 				construct_id=pcontent.content_id,\
 				response=res_item.response,\
 				item_id=res_item.item_id)
@@ -83,7 +87,7 @@ def create_survey_response(db: Session, participant_id: uuid.UUID,\
 def create_text_response(db: Session, participant_id: uuid.UUID,\
 	response: TextResponse) -> bool:
 
-	participant = db.query(Participant).where(Participant.id == participant_id).first()
+	participant = db.query(StudyParticipant).where(StudyParticipant.id == participant_id).first()
 	if not participant:
 		raise HTTPException(status_code=404, detail='Participant not found')
 	
@@ -115,7 +119,7 @@ def create_text_response(db: Session, participant_id: uuid.UUID,\
 def batch_create_text_responses(db: Session, participant_id: uuid.UUID,\
 	responses: List[TextResponse]) -> bool:
 
-	participant = db.query(Participant).where(Participant.id == participant_id).first()
+	participant = db.query(StudyParticipant).where(StudyParticipant.id == participant_id).first()
 	if not participant:
 		raise HTTPException(status_code=404, detail='Participant not found')
 	
@@ -123,9 +127,8 @@ def batch_create_text_responses(db: Session, participant_id: uuid.UUID,\
 	for response in responses:
 		# TODO: This can be its own function and reused in create_text_response
 		presponse = ParticipantResponse(participant_id=participant.id,\
-				construct_id=response.construct_id,\
-				response=response.response,\
-				item_id=response.item_id)
+				step_id=participant.current_step,\
+				response=response.response)
 		
 		presponses.append(presponse)
 	

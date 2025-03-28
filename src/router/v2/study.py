@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.orm import Session
 
 from compute.utils import *
-from data.models.schema.studyschema import *
+from data.models.schemas.studyschema import *
 from data.rssadb import get_db as rssadb
 from docs.metadata import TagsMetadataEnum as Tags
 
-from data.studies_v2 import *
+from data.logger import *
 from data.accessors.studies import *
 from data.accessors.survey_constructs import *
 
