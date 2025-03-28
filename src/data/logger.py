@@ -28,19 +28,6 @@ class AccessLog(Base):
 		self.resource_id = resource_id
 
 
-# The following models should be refactored into a separate file
-"""
-The following functions should be refactored into a separate file
-"""
-
-
-
-# def get_participant_types(db: Session) -> List[ParticipantType]:
-# 	types = db.query(ParticipantType).all()
-	
-# 	return types
-
-
 def log_access(db: Session, auth0user: str, action: str, resource: str,
 		resource_id: Union[str, None] = None) -> None:
 	log = AccessLog(auth0_user=auth0user, action=action, resource=resource,

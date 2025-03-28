@@ -7,13 +7,13 @@ from datetime import datetime, timezone
 
 from compute.utils import *
 # from data.studydatabase import SessionLocal
-from data.models.schema.studyschema import *
+from data.models.schemas.studyschema import *
 from docs.metadata import TagsMetadataEnum as Tags
 
 from .auth0 import get_current_user as auth0_user
 from data.rssadb import get_db as rssadb
 
-from data.studies_v2 import *
+from data.logger import *
 from data.accessors.studies import *
 from data.accessors.survey_constructs import *
 

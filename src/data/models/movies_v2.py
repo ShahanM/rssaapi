@@ -140,6 +140,8 @@ class MovieRecommendationText(Base):
 	movie_id = sa.Column(UUID(as_uuid=True), nullable=False, unique=True)
 	formal = sa.Column(sa.String, nullable=False)
 	informal = sa.Column(sa.String, nullable=False)
+	source = sa.Column(sa.String, nullable=False)
+	model = sa.Column(sa.String, nullable=False)
 
 	created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=datetime.now(timezone.utc))
 	updated_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=datetime.now(timezone.utc))

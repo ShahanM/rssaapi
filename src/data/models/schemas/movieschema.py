@@ -1,7 +1,7 @@
 from typing import List, Optional, Literal, Union
 import pydantic
-print(pydantic.__version__)
 from pydantic import BaseModel, Field, AliasChoices
+print(pydantic.__version__)
 import uuid
 
 

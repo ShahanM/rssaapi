@@ -2,7 +2,7 @@ from typing import List, Union
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from ..models.schema.studyschema import NewScaleLevelSchema, SurveyConstructSchema, ConstructTypeSchema
+from ..models.schemas.studyschema import NewScaleLevelSchema, SurveyConstructSchema, ConstructTypeSchema
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
 

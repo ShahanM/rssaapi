@@ -9,19 +9,20 @@ import pandas as pd
 from .common import predict_discounted, get_user_feature, RSSABase, predict
 from typing import List
 import numpy as np
-from data.models.schema.movieschema import RatedItemSchema
+from data.models.schemas.movieschema import RatedItemSchema
 
 
 class PreferenceCommunity(RSSABase):
-	def __init__(self, data_path: str):
+	def __init__(self, model_path:str, item_popularity, ave_item_score,  data_path: str):
+		super().__init__(model_path, item_popularity, ave_item_score)
 		self.data_path = data_path
 	
-# 	schema_dic = {
-# 	'favorite_movie': int,
-# 	'most_rated_genre': str,
-# 	'least_favorite_movie': int,
-# 	'least_rated_genre': str
-# }
+		# 	schema_dic = {
+		# 	'favorite_movie': int,
+		# 	'most_rated_genre': str,
+		# 	'least_favorite_movie': int,
+		# 	'least_rated_genre': str
+		# }
 
 	def get_advisors_with_profile(self, ratings: List[RatedItemSchema], \
 		user_id, num_rec=10) -> dict:
@@ -38,7 +39,7 @@ class PreferenceCommunity(RSSABase):
 		numNeighbors = 200
 
 		# Returns the top 200 neighbors sorted in ascending order of distance
-		neighbors = self.__find_neighbors(umat, users, user_features, \
+		neighbors = RSSABase._find_neighbors(self, umat, users, user_features, \
 			distance_method, numNeighbors)
 		
 		neighbors = neighbors.head(num_rec)

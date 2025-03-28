@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, JSON, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB
 import uuid
 
 from data.rssadb import Base
@@ -19,7 +20,7 @@ class ParticipantType(Base):
 		self.type = type
 
 
-class Participant(Base):
+class StudyParticipant(Base):
 	__tablename__ = "study_participant"
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -34,8 +35,6 @@ class Participant(Base):
 	date_updated = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	discarded = Column(Boolean, nullable=False, default=False)
 
-	# ptype = relationship('ParticipantType', uselist=False)
-
 	def __init__(self, participant_type: UUID, study_id: UUID, condition_id: UUID,
 			external_id: str,
 			current_step: UUID, current_page: Union[UUID, None] = None):
@@ -48,8 +47,8 @@ class Participant(Base):
 		self.current_page = current_page
 
 
-class ParticipantResponse(Base):
-	__tablename__ = "participant_response"
+class ParticipantSurveyResponse(Base):
+	__tablename__ = "participant_survey_response"
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False)
@@ -59,8 +58,6 @@ class ParticipantResponse(Base):
 	date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	date_modified = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	discarded = Column(Boolean, nullable=False, default=False)
-
-	# PrimaryKeyConstraint(participant_id, construct_id, id)
 
 	def __init__(self, participant_id: UUID, construct_id: UUID, response: str, item_id: Union[UUID, None] = None):
 		self.participant_id = participant_id
@@ -89,6 +86,26 @@ class ParticipantContentRating(Base):
 		self.rating = rating
 		self.scale_min = scale_min
 		self.scale_max = scale_max
+
+
+class ParticipantResponse(Base):
+    __tablename__ = "participant_response"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id', ondelete='CASCADE'), nullable=False)
+    step_id = Column(UUID(as_uuid=True), ForeignKey('study_step.id', ondelete='CASCADE'), nullable=False)
+    response = Column(JSONB, nullable=False)
+    date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+    date_modified = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+    discarded = Column(Boolean, nullable=False, default=False)
+
+    participant = relationship('StudyParticipant')
+    step = relationship('Step')
+
+    def __init__(self, participant_id: UUID, step_id: UUID, response: str):
+        self.participant_id = participant_id
+        self.step_id = step_id
+        self.response = response
 
 
 class ParticipantInteractionLog(Base):

@@ -5,19 +5,19 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from compute.utils import *
-from data.models.schema.studyschema import *
+from data.models.schemas.studyschema import *
 from docs.metadata import TagsMetadataEnum as Tags
 
 # from data.moviedatabase import SessionLocal
 from data.moviedb import get_db as movie_db_v2
-from data.models.schema.movieschema import *
+from data.models.schemas.movieschema import *
 # from data.movies import *
-from data.accessors.movies import get_all_ers_movies_v2, get_ers_movies_by_movielens_ids, get_ers_movies_by_ids_v2
+from data.accessors.movies import *
 
 import uuid
 
 
-router = APIRouter(prefix='/v2')
+router = APIRouter(prefix='/v2/movie')
 
 
 # Dependency
@@ -27,10 +27,16 @@ router = APIRouter(prefix='/v2')
 # 		yield db
 # 	finally:
 # 		db.close()
+class MovieSearchRequest(BaseModel):
+	query: str
+
+class MovieSearchResponse(BaseModel):
+	exact_match: List[MovieSchemaV2] = []
+	near_matches: List[MovieSchemaV2] = []
 
 
 @router.get(
-	'/movie/ids/ers',
+	'/ids/ers',
 	response_model=List[uuid.UUID],
 	tags=[Tags.ers])
 async def read_movies_ids(db: Session = Depends(movie_db_v2)):
@@ -55,7 +61,7 @@ async def read_movies_ids(db: Session = Depends(movie_db_v2)):
 
 
 @router.post(
-	'/movie/ers',
+	'/ers',
 	response_model=List[MovieSchemaV2],
 	tags=[Tags.ers])
 async def read_movies_by_ids(movie_ids: List[uuid.UUID], \
@@ -65,3 +71,37 @@ async def read_movies_by_ids(movie_ids: List[uuid.UUID], \
 	return movies
 
 
+@router.post("/search_movie", response_model=List[MovieSchemaV2])
+async def search_movie(request: MovieSearchRequest, db: Session = Depends(movie_db_v2)):
+	query = request.query.strip().lower()
+	exact_match = []
+	# near_matches: List[str] = []
+	near_matches: List[MovieSchemaV2] = []
+	similarity_threshold = 0.6  # Adjust as needed
+	limit = 5
+
+	if not query:
+		return MovieSearchResponse()
+
+	exact_match_result = get_movie_by_exact_title_search(db, query)
+	if exact_match_result:
+		# exact_match = exact_match_result[0]
+		exact_match = [MovieSchemaV2.model_validate(movie) for movie in exact_match_result]
+		return exact_match
+		# return MovieSearchResponse(exact_match=exact_match)
+		# return MovieSearchResponse(exact_match=exact_match_result)
+
+	fuzzy_matches_results = get_movies_by_fuzzy_title_match(db, query, similarity_threshold, limit)
+	# near_matches = [match[0] for match in fuzzy_matches_results]
+	near_matches = [match[0] for match in fuzzy_matches_results]
+
+	prefix_matches_results = get_movies_by_title_prefix_match(db, query, limit)
+	prefix_matches = [match for match in prefix_matches_results]
+
+
+	if prefix_matches:
+		# near_matches = near_matches + prefix_matches
+		near_matches = prefix_matches + near_matches
+
+	# return MovieSearchResponse(exact_match=exact_match, near_matches=near_matches)
+	return near_matches
