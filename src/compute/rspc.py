@@ -5,18 +5,21 @@ This file contains the RSSA Preference Community (RSPC) algorithms.
 @Affiliation: School of Computing, Clemson University
 """
 
-import pandas as pd
-from .common import predict_discounted, get_user_feature, RSSABase, predict
 from typing import List
+
 import numpy as np
+import pandas as pd
+
 from data.models.schemas.movieschema import RatedItemSchema
+
+from .common import RSSABase, get_user_feature
 
 
 class PreferenceCommunity(RSSABase):
 	def __init__(self, model_path:str, item_popularity, ave_item_score,  data_path: str):
 		super().__init__(model_path, item_popularity, ave_item_score)
 		self.data_path = data_path
-	
+
 		# 	schema_dic = {
 		# 	'favorite_movie': int,
 		# 	'most_rated_genre': str,
@@ -41,7 +44,7 @@ class PreferenceCommunity(RSSABase):
 		# Returns the top 200 neighbors sorted in ascending order of distance
 		neighbors = RSSABase._find_neighbors(self, umat, users, user_features, \
 			distance_method, numNeighbors)
-		
+
 		neighbors = neighbors.head(num_rec)
 		neighbors = neighbors['user'].tolist()
 
@@ -60,11 +63,11 @@ class PreferenceCommunity(RSSABase):
 
 
 		for neighbor in neighbors:
-			advisor = { 
+			advisor = {
 				'id': neighbor
 			}
 			preds = self.model.predict_for_user(neighbor, self.items)
-			
+
 			preds = preds.to_frame().reset_index()
 			preds.columns = ['item', 'score']
 
@@ -80,7 +83,7 @@ class PreferenceCommunity(RSSABase):
 			# 		itm_dist_pair.append((max_rated_items[i], preds_without_rated.iloc[j]['item'], dist))
 			advisor['profile_top'] = preds.head(num_rec)['item'].tolist()
 			advisors[neighbor] = advisor
-			
+
 			# closest = sorted(itm_dist_pair, key=lambda x: x[2])
 			# print('Closest: ', closest[:5])
 
@@ -104,7 +107,7 @@ class PreferenceCommunity(RSSABase):
 		ratings_gt5 = rating_data[rating_data['user_id'].isin(users)\
 						& (rating_data['rating'] == 5.0)
 						& (rating_data['movie_id'] != movie_id)]
-		
+
 		top_movies = ratings_gt5.groupby('movie_id').size()\
 						.reset_index(name='counts')\
 						.sort_values('counts', ascending=False)

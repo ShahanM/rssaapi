@@ -1,7 +1,6 @@
-from dataclasses import dataclass
-from sqlalchemy import Column, Integer, Text, String, ForeignKey, Index, \
-	Numeric
+from sqlalchemy import Column, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
+
 from data.moviedatabase import Base
 
 
@@ -83,7 +82,7 @@ class MovieRecommendationText(Base):
 
 	movie_id = Column(Integer, ForeignKey('movie.id'), \
 		nullable=False, unique=True)
-	
+
 	formal = Column(Text, nullable=False)
 	informal = Column(Text, nullable=False)
 

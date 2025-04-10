@@ -1,12 +1,17 @@
-from typing import List, Optional, Literal, Union
+from typing import List, Literal, Optional, Union
+
 import pydantic
-from pydantic import BaseModel, Field, AliasChoices
+from pydantic import AliasChoices, BaseModel, Field
+
 print(pydantic.__version__)
 import uuid
 
 
 class EmotionsSchema(BaseModel):
-	id: int
+	# id: int
+	id: uuid.UUID
+	movie_id: uuid.UUID
+	movielens_id: str
 	anger: float
 	anticipation: float
 	disgust: float
@@ -58,8 +63,24 @@ class MovieSchemaV2(BaseModel):
 
 
 class RatedItemSchema(BaseModel):
-	item_id: int = Field(validation_alias=AliasChoices("movie_id", "item_id"))
+	item_id: int = Field(validation_alias=AliasChoices('movie_id', 'item_id'))
 	rating: int
+
+	class Config:
+		from_attributes = True
+
+
+class NewRatedItemSchema(BaseModel):
+	item_id: uuid.UUID
+	rating: int
+
+
+class NewRatingSchema(BaseModel):
+	user_id: uuid.UUID
+	user_condition: uuid.UUID
+	ratings: List[NewRatedItemSchema]
+	rec_type: int
+	num_rec: int = 10
 
 	class Config:
 		from_attributes = True
@@ -78,7 +99,7 @@ class RatingsSchema(BaseModel):
 
 class RatingSchemaV2(BaseModel):
 	user_id: uuid.UUID
-	user_condition: uuid.UUID;
+	user_condition: uuid.UUID
 	ratings: List[RatedItemSchema]
 	rec_type: int
 	num_rec: int = 10
@@ -86,22 +107,21 @@ class RatingSchemaV2(BaseModel):
 
 class EmotionContinuousInputSchema(BaseModel):
 	emotion: str
-	switch: Literal["ignore", "diverse", "specified"]
+	switch: Literal['ignore', 'diverse', 'specified']
 	weight: float
 
 
 class EmotionDiscreteInputSchema(BaseModel):
 	emotion: str
-	weight: Literal["low", "high", "diverse", "ignore"]
+	weight: Literal['low', 'high', 'diverse', 'ignore']
 
 
 class EmotionInputSchema(BaseModel):
 	user_id: int
 	user_condition: int
-	input_type: Literal["discrete", "continuous"]
-	emotion_input: Union[List[EmotionDiscreteInputSchema], \
-		List[EmotionContinuousInputSchema]]
-	ratings: List[RatedItemSchema]
+	input_type: Literal['discrete', 'continuous']
+	emotion_input: Union[List[EmotionDiscreteInputSchema], List[EmotionContinuousInputSchema]]
+	ratings: List[NewRatedItemSchema]
 	num_rec: int
 
 
@@ -118,9 +138,8 @@ class RatingSchemaExperimental(BaseModel):
 class EmotionInputSchemaExperimental(BaseModel):
 	user_id: int
 	condition_algo: int
-	input_type: Literal["discrete", "continuous"]
-	emotion_input: Union[List[EmotionDiscreteInputSchema], \
-		List[EmotionContinuousInputSchema]]
+	input_type: Literal['discrete', 'continuous']
+	emotion_input: Union[List[EmotionDiscreteInputSchema], List[EmotionContinuousInputSchema]]
 	ratings: List[RatedItemSchema]
 	num_rec: int
 	item_pool_size: int

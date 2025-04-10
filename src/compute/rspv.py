@@ -5,16 +5,15 @@ This file contains the RSSA Preference Visualization (RSPV) algorithms.
 @Affiliation: School of Computing, Clemson University
 """
 
-from typing import List, Tuple
-
-import pandas as pd
-import numpy as np
-from .common import RSSABase, predict, scale_value
-from pydantic import BaseModel
 import itertools
-from typing import Callable, Sequence
+from typing import Callable, List, Tuple
 
 import networkx as nx
+import numpy as np
+import pandas as pd
+from pydantic import BaseModel
+
+from .common import RSSABase, predict
 
 
 class PreferenceItem(BaseModel):
@@ -36,20 +35,20 @@ class PreferenceVisualization(RSSABase):
 			model_path: str,
 			item_popularity: pd.DataFrame,
 			ave_item_score: pd.DataFrame):
-			
+
 		super().__init__(model_path, item_popularity, ave_item_score)
 
 	def get_prediction(self, ratings: List[RatedItemSchema], user_id: str) \
-		-> pd.DataFrame:		
+		-> pd.DataFrame:
 		rated_items = np.array([np.int64(rating.item_id) for rating in ratings])
 		new_ratings = pd.Series(np.array([np.float64(rating.rating) for rating \
-			in ratings]), index = rated_items)  
-		
+			in ratings]), index = rated_items)
+
 		als_preds = predict(self.model, self.item_popularity, \
 			user_id, new_ratings)
 
 		return als_preds
-	
+
 	def predict_diverse_items(self, ratings: List[RatedItemSchema],\
 		num_rec: int, user_id:str, algo:str='fishnet', randomize:bool=False,\
 		init_sample_size:int=500, min_rating_count:int=50) \
@@ -59,13 +58,13 @@ class PreferenceVisualization(RSSABase):
 
 		# Merge predcitions with the average item score
 		preds = pd.merge(preds, self.ave_item_score, how='left', on='item')
-		
+
 		# Merge the predictions with the item popularity
 		preds = pd.merge(preds, self.item_popularity, how ='left', on ='item')
-		
+
 		ratedset = tuple([r.item_id for r in ratings])
 		seed = hash(ratedset)%(2**32)
-		
+
 		candidates = preds[preds['count'] >= min_rating_count]
 
 		candidates.index = pd.Index(candidates['item'].values)
@@ -106,7 +105,7 @@ class PreferenceVisualization(RSSABase):
 			diverse_items = self.__single_linkage_clustering(diverse_items, num_rec)
 		else:
 			diverse_items = candidates
-		
+
 		scaled_items, scaled_avg_comm, scaled_avg_user = \
 			self.scale_and_label(diverse_items)
 
@@ -119,7 +118,7 @@ class PreferenceVisualization(RSSABase):
 				community_label=row['community_label'],
 				user_label=row['user_label'],
 				cluster=int(row['cluster']) if 'cluster' in row else 0))
-		
+
 		return recommended_items
 
 	def seeding(self, n, nb):
@@ -127,9 +126,9 @@ class PreferenceVisualization(RSSABase):
 		step = (n - 1) / nb
 		for i in range(nb):
 			ticks.append(ticks[i] + step)
-			
+
 		return ticks
-	
+
 	def scale_grid(self, minval, maxval, num_divisions):
 		ticks = [minval]
 		step = (maxval - minval) / num_divisions
@@ -140,16 +139,16 @@ class PreferenceVisualization(RSSABase):
 		grid = np.asarray(grid, dtype=np.float64)
 
 		return grid
-	
+
 	def __convexhull(self, candidates):
 		candidates_vector = candidates[['score', 'ave_score']].to_numpy()
 		# TODO implement convex hull
 
 	def __fishingnet(self, candidates:pd.DataFrame, n:int=80) \
 		-> Tuple[pd.DataFrame, List[tuple]]:
-		candidates_vector = candidates[['score', 'ave_score']].to_numpy()		
+		candidates_vector = candidates[['score', 'ave_score']].to_numpy()
 		grid = self.scale_grid(minval=1, maxval=5, num_divisions=16)
-		
+
 		diverse_items = []
 
 		# Greedy algorithm
@@ -167,7 +166,7 @@ class PreferenceVisualization(RSSABase):
 			diverse_items.append(tuple((item_idx, val_shortest_dist)))
 
 		return candidates[candidates['item'].isin(grid_members.values())], diverse_items
-	
+
 	def __single_linkage_clustering(self, candidates: pd.DataFrame, n: int=80):
 		'''
 		Perform single linkage clustering on the candidates
@@ -191,7 +190,7 @@ class PreferenceVisualization(RSSABase):
 
 		G = nx.Graph()
 		G.add_nodes_from(_candidates['grid_idx'].values)
-		
+
 		# Add edges based on the distance between the nodes
 		for node1 in G.nodes:
 			for node2 in G.nodes:
@@ -203,7 +202,7 @@ class PreferenceVisualization(RSSABase):
 					G.add_edge(node1, node2, weight=dist)
 
 		tree = nx.minimum_spanning_tree(G)
-		
+
 		k = n # Delete the costliest edge and make two graphs
 		edges = list(tree.edges(data=True))
 		edges.sort(key=lambda x: x[2]['weight'], reverse=True)
@@ -236,25 +235,25 @@ class PreferenceVisualization(RSSABase):
 				_candidates.loc[row.index, 'cluster'] = i
 
 		return _candidates[_candidates['cluster'].notnull()]
-		
+
 	def scale_and_label(self, items, new_min=1, new_max=5):
 		scaled_items = items.copy()
 		scaled_items.rename(columns={'ave_score': 'community', 'score': 'user'}, inplace=True)
 		# Label the items based on the global average
 		global_avg = np.mean([np.median(scaled_items['community']), \
 			np.median(scaled_items['user'])])
-		
+
 		def label(row):
 			row['community_label'] = 1 if row['community'] >= global_avg else 0
 			row['user_label'] = 1 if row['user'] >= global_avg else 0
 			return row
-		
+
 		labeled_items = scaled_items.apply(label, axis=1)
-			
+
 		labeled_items = labeled_items.astype({'item': 'int64', \
 				'count': 'int64', 'rank': 'int64', 'community_label': 'int64', \
 				'user_label': 'int64'})
 		avg_comm_score = np.mean(labeled_items['community'])
 		avg_user_score = np.mean(labeled_items['user'])
-		
+
 		return labeled_items, avg_comm_score, avg_user_score

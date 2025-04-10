@@ -1,36 +1,51 @@
+import uuid
+from functools import partial
 from typing import List
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from datetime import datetime, timezone
-
 from compute.utils import *
-# from data.studydatabase import SessionLocal
+from data.accessors.studies import (
+	create_page_content,
+	create_step_page,
+	create_study,
+	create_study_condition,
+	create_study_step,
+	duplicate_study,
+	get_page_content,
+	get_step_pages,
+	get_studies,
+	get_study_conditions,
+	get_study_steps,
+)
+from data.accessors.survey_constructs import (
+	create_construct_item,
+	create_construct_scale,
+	create_construct_type,
+	create_survey_construct,
+	get_construct_items,
+	get_construct_scale_by_id,
+	get_construct_scale_levels,
+	get_construct_scales,
+	get_construct_type_by_id,
+	get_construct_types,
+	get_item_types,
+	get_survey_construct_by_id,
+	get_survey_constructs,
+	update_survey_construct,
+)
+from data.logger import log_access
 from data.models.schemas.studyschema import *
+from data.rssadb import get_db as rssadb
 from docs.metadata import TagsMetadataEnum as Tags
 
+from .auth0 import get_current_admin_user as auth0_admin_user
 from .auth0 import get_current_user as auth0_user
-from data.rssadb import get_db as rssadb
-
-from data.logger import *
-from data.accessors.studies import *
-from data.accessors.survey_constructs import *
-
-import uuid
-
 
 router = APIRouter(prefix='/v2/meta')
 
-# # Dependency
-# def get_db():
-# 	db = SessionLocal()
-# 	try:
-# 		yield db
-# 	finally:
-# 		db.close()
-
-# base_path = lambda x: '/v2/meta' + x
+auth0_read_all = partial(auth0_admin_user, required_permissions=['read:all'])
 
 @router.get(
 	'/study/',
@@ -64,7 +79,7 @@ async def new_study(new_study: CreateStudySchema, db: Session = Depends(rssadb),
 	tags=[Tags.meta])
 async def dupe_study(study_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
-	
+
 	study = duplicate_study(db, uuid.UUID(study_id))
 	log_access(db, current_user.sub, 'create', 'study', study.id)
 
@@ -102,9 +117,9 @@ async def new_condition(new_condition: CreateStudyConditionSchema, db: Session =
 async def retrieve_steps(
 	study_id: str, db: Session = Depends(rssadb),
 	current_user = Depends(auth0_user)):
-	
+
 	steps = get_study_steps(db, uuid.UUID(study_id))
-	
+
 	log_access(db, current_user.sub, 'read', 'steps for study', study_id)
 
 	return steps
@@ -129,7 +144,7 @@ async def new_step(new_step: CreateStepSchema, db: Session = Depends(rssadb),
 async def retrieve_pages(step_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
 	pages = get_step_pages(db, uuid.UUID(step_id))
-	
+
 	log_access(db, current_user.sub, 'read', 'page for step', step_id)
 
 	return pages
@@ -144,7 +159,7 @@ async def new_page(
 	current_user = Depends(auth0_user)):
 
 	page = create_step_page(db, **new_page.dict())
-	
+
 	log_access(db, current_user.sub, 'create', 'page', page.id)
 
 	return page
@@ -157,9 +172,9 @@ async def new_page(
 async def retrieve_page_content(
 	page_id: str, db: Session = Depends(rssadb),
 	current_user = Depends(auth0_user)):
-	
+
 	constructs = get_page_content(db, uuid.UUID(page_id))
-	
+
 	log_access(db, current_user.sub, 'read', 'page content', page_id)
 
 	return constructs
@@ -168,11 +183,11 @@ async def retrieve_page_content(
 @router.post('/pagecontent/', response_model=SurveyConstructSchema, tags=[Tags.meta])
 async def attach_content_to_page(page_content: CreatePageContentSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
-	
+
 	pcont = create_page_content(db, page_content.page_id, page_content.construct_id, page_content.order_position)
 	construct = get_survey_construct_by_id(db, pcont.content_id)
 	construct_type = get_construct_type_by_id(db, construct.type)
-	
+
 	construct_schema = SurveyConstructSchema(
 		id=construct.id,
 		name=construct.name,
@@ -224,7 +239,7 @@ async def new_construct(new_construct: NewSurveyConstructSchema, db: Session = D
 	tags=[Tags.meta])
 async def update_construct(construct_id: str, updated_construct: UpdateSurveyConstructSchema, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
-	
+
 	update = update_survey_construct(db, uuid.UUID(construct_id), **updated_construct.dict())
 	log_access(db, current_user.sub, 'update', 'construct', construct_id)
 
@@ -237,7 +252,7 @@ async def update_construct(construct_id: str, updated_construct: UpdateSurveyCon
 	tags=[Tags.meta])
 async def retrieve_construct_details(construct_id: str, db: Session = Depends(rssadb),
 					current_user = Depends(auth0_user)):
-	
+
 	construct = get_survey_construct_by_id(db, uuid.UUID(construct_id))
 	construct_type = None
 	if construct.type:
@@ -261,7 +276,7 @@ async def retrieve_construct_details(construct_id: str, db: Session = Depends(rs
 		scale=construct_scale_deets,
 		items=construct.items
 	)
-	
+
 	log_access(db, current_user.sub, 'read', 'construct details', construct_id)
 
 	return construct_deets

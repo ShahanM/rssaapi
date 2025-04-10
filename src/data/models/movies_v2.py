@@ -1,9 +1,11 @@
-from sqlalchemy.dialects.postgresql import UUID
-import sqlalchemy as sa
 import uuid
 from datetime import datetime, timezone
-from data.moviedb import Base
 from typing import Any
+
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import UUID
+
+from data.moviedb import Base
 
 
 class Movie(Base):
@@ -21,9 +23,9 @@ class Movie(Base):
 
 	imdb_genres = sa.Column(sa.String, nullable=True)
 	tmdb_genres = sa.Column(sa.String, nullable=True)
-	
+
 	ave_rating = sa.Column(sa.Numeric[Any], nullable=False)
-	
+
 	imdb_avg_rating = sa.Column(sa.Numeric[Any], nullable=True)
 	imdb_rate_count = sa.Column(sa.Integer, nullable=True)
 
@@ -34,12 +36,12 @@ class Movie(Base):
 	movielens_rate_count = sa.Column(sa.Integer, nullable=True)
 
 	origin_country = sa.Column(sa.String, nullable=True)
-	
+
 	parental_guide = sa.Column(sa.String, nullable=True)
 
 	movie_lens_dataset = sa.Column(sa.String, nullable=True)
 	last_updated = sa.Column(sa.DateTime, nullable=True)
-	
+
 	director = sa.Column(sa.Text, nullable=False)
 	writer = sa.Column(sa.Text, nullable=False)
 	description = sa.Column(sa.Text, nullable=False)
@@ -47,19 +49,19 @@ class Movie(Base):
 
 	poster = sa.Column(sa.String, nullable=False)
 	tmdb_poster = sa.Column(sa.String, nullable=True)
-	
+
 	count = sa.Column(sa.Integer, nullable=False)
-	
+
 	rank = sa.Column(sa.Integer, nullable=False)
 
 	imdb_popularity = sa.Column(sa.Numeric[Any], nullable=True)
 	tmdb_popularity = sa.Column(sa.Numeric[Any], nullable=True)
-	
+
 	poster_identifier = sa.Column(sa.String, nullable=True)
 
 	# All required fields are part of the Movielens dataset
 	# All other fields need to be updated from TMDB and IMDB
-	def __init__(self, 
+	def __init__(self,
 		movielens_id: str, # required
 		imdb_id: str, # required
 		title: str, # required

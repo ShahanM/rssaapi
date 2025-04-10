@@ -5,12 +5,13 @@ alternate algorithms.
 @Author: Mehtab Iqbal (Shahan) and Lijie Guo
 @Affiliation: School of Computing, Clemson University
 """
-import pandas as pd
-from lenskit.algorithms.mf_common import MFPredictor
-from lenskit.algorithms.als import _train_implicit_row_lu as v_lu
-from lenskit.algorithms.als import ImplicitMF
 import pickle
+
 import numpy as np
+import pandas as pd
+from lenskit.algorithms.als import ImplicitMF
+from lenskit.algorithms.als import _train_implicit_row_lu as v_lu
+from lenskit.algorithms.mf_common import MFPredictor
 from scipy.spatial.distance import cosine
 
 
@@ -31,10 +32,10 @@ def predict(model: MFPredictor, items: pd.DataFrame, \
 
 	return als_preds
 
-	
+
 def predict_discounted(model: ImplicitMF, items: pd.DataFrame, \
 	userid: str, ratings: pd.Series, factor: int, coeff: float=0.5) \
-	-> pd.DataFrame:    
+	-> pd.DataFrame:
 	"""Predict the ratings for the new items for the live user. 
 	Discount the score of the items based on their popularity and
 	compute the RSSA score.
@@ -68,10 +69,10 @@ def predict_discounted(model: ImplicitMF, items: pd.DataFrame, \
 	als_preds = pd.merge(als_preds, items, how='left', on='item')
 	als_preds['discounted_score'] = als_preds['score'] \
 		- coeff * (als_preds['count']/factor)
-	
+
 	# Sort the predictions by the discounted score
 	als_preds.sort_values(by='discounted_score', ascending=False, inplace=True)
-	
+
 	return als_preds
 
 
@@ -84,23 +85,24 @@ def get_user_feature(model: ImplicitMF, ratings):
 	return v_lu(ri_it, ri_val, model.item_features_, model.OtOr_)
 
 
-class RSSABase(object):
+class RSSABase:
 	def __init__(self, model_path:str, item_popularity, ave_item_score):
 		self.item_popularity = item_popularity
 		self.ave_item_score = ave_item_score
 		self.items = item_popularity.item.unique()
 
 		self.model_path = model_path
-		self.model = self.__import_trained_model()
+		self.model = self._import_trained_model()
 
-	def __import_trained_model(self):
+
+	def _import_trained_model(self):
 		f_import = open(self.model_path + 'model.pkl', 'rb')
 		trained_model = pickle.load(f_import)
 		f_import.close()
 
 		return trained_model
 
-	def __similarity_user_features(self, umat, users, feature_newUser, \
+	def _similarity_user_features(self, umat, users, feature_newUser, \
 		method='cosine'):
 		'''
 			ALS has already pre-weighted the user features/item features;
@@ -108,7 +110,7 @@ class RSSABase(object):
 			umat: np.ndarray
 			users: Int64Index
 			feature_newUser: np.ndarray
-		'''        
+		'''
 		nrows, ncols = umat.shape
 		distance = []
 		if method == 'cosine':
@@ -117,20 +119,20 @@ class RSSABase(object):
 		elif method == 'euclidean':
 			distance = [np.linalg.norm(umat[i, ] - feature_newUser) \
 				for i in range(nrows)]
-				
+
 		distance = pd.DataFrame({'user': users.values, 'distance': distance})
 
 		return distance
-	
-	def __find_neighbors(self, umat, users, feature_newUser, distance_method, \
+
+	def _find_neighbors(self, umat, users, feature_newUser, distance_method, \
 		num_neighbors):
-		similarity = self.__similarity_user_features(umat, users, \
+		similarity = self._similarity_user_features(umat, users, \
 			feature_newUser, distance_method)
 		neighbors_similarity = similarity\
 			.sort_values(by='distance', ascending=True).head(num_neighbors)
-		
+
 		return neighbors_similarity
-	
+
 
 def scale_value(value, new_min, new_max, cur_min, cur_max):
 	new_range = new_max - new_min

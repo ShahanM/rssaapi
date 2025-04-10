@@ -1,21 +1,20 @@
-from typing import List
+import uuid
 from random import shuffle
+from typing import List
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from compute.utils import *
+
+# from data.movies import *
+from data.accessors.movies import *
+from data.models.schemas.movieschema import *
 from data.models.schemas.studyschema import *
-from docs.metadata import TagsMetadataEnum as Tags
 
 # from data.moviedatabase import SessionLocal
 from data.moviedb import get_db as movie_db_v2
-from data.models.schemas.movieschema import *
-# from data.movies import *
-from data.accessors.movies import *
-
-import uuid
-
+from docs.metadata import TagsMetadataEnum as Tags
 
 router = APIRouter(prefix='/v2/movie')
 
@@ -56,7 +55,7 @@ async def read_movies_ids(db: Session = Depends(movie_db_v2)):
 # async def read_movies(skip: int = 0, limit: int = 100, \
 # 	db: Session = Depends(get_db)):
 # 	movies = get_ers_movies(db, skip=skip, limit=limit)
-	
+
 # 	return movies
 
 
@@ -67,7 +66,7 @@ async def read_movies_ids(db: Session = Depends(movie_db_v2)):
 async def read_movies_by_ids(movie_ids: List[uuid.UUID], \
 	db: Session = Depends(movie_db_v2)):
 	movies = get_ers_movies_by_ids_v2(db, movie_ids)
-	
+
 	return movies
 
 
