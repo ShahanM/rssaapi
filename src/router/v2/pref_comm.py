@@ -1,20 +1,19 @@
-from fastapi import APIRouter, Depends
-from docs.metadata import TagsMetadataEnum as Tags
 from typing import List
-from data.models.schemas.advisorschema import PrefCommRatingSchema
-from compute.utils import (
-	get_rating_data_path,
-	get_rssa_ers_data, get_rssa_model_path
-)
-from compute.rspc import PreferenceCommunity
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from data.models.schemas.movieschema import *
-from data.moviedb import get_db as movie_db
+
+from compute.rspc import PreferenceCommunity
+from compute.utils import get_rating_data_path, get_rssa_ers_data, get_rssa_model_path
 from data.accessors.movies import (
+	MovieRecommendationSchema,
 	get_ers_movies_by_movielens_ids,
 	get_movie_recommendation_text,
-	MovieRecommendationSchema
 )
+from data.models.schemas.advisorschema import PrefCommRatingSchema
+from data.models.schemas.movieschema import *
+from data.moviedb import get_db as movie_db
+from docs.metadata import TagsMetadataEnum as Tags
 
 router = APIRouter(prefix='/v2', deprecated=True)
 
@@ -42,7 +41,7 @@ async def get_advisor(rated_movies: PrefCommRatingSchema, \
 	rssa_pref_comm = PreferenceCommunity(rssa_model_path, rssa_itm_pop, rssa_ave_scores, get_rating_data_path())
 
 	advisors = []
-	
+
 	recs = rssa_pref_comm.get_advisors_with_profile(rated_movies.ratings, \
 			rated_movies.user_id, num_rec=7)
 
@@ -51,7 +50,7 @@ async def get_advisor(rated_movies: PrefCommRatingSchema, \
 		recommendation = get_ers_movies_by_movielens_ids(db, [str(value['recommendation'])])[0]
 
 		rec_details = get_movie_recommendation_text(db, recommendation.id)
-		
+
 		if rec_details is not None:
 			movie_rec_dict = recommendation.model_dump()
 			movie_rec_dict.update(rec_details.model_dump())

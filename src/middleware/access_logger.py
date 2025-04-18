@@ -1,18 +1,17 @@
 import time
 
 
-
 class LoggingMiddleware:
 	def __init__(self, app):
 		self.app = app
 
 	async def __call__(self, scope, receive, send):
 		request_stats = {}
-		
+
 		start = time.time()
 
 		request_stats = dict(scope)
-		
+
 		if scope["type"] != "http":
 			await self.app(scope, receive, send)
 			return
@@ -31,10 +30,10 @@ class LoggingMiddleware:
 				request_stats["body_size"] = body_size
 
 			return message
-		
+
 		try:
 			await self.app(scope, receive_logging_request_body_size, send)
-		except Exception as exc:
+		except Exception:
 			raise
 		finally:
 			end = time.time()

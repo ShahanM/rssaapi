@@ -1,7 +1,8 @@
-from typing import Optional, Literal, List
+from typing import List, Literal, Optional
+
 from pydantic import BaseModel
-from .movieschema import EmotionsSchema
-from .movieschema import RatedItemSchema
+
+from .movieschema import EmotionsSchema, RatedItemSchema
 
 
 class AdvisorProfileSchema(BaseModel):

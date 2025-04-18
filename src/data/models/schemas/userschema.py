@@ -1,5 +1,7 @@
-from typing import List, Optional, Literal, Union
+from typing import List, Optional, Union
+
 from pydantic import BaseModel
+
 from .movieschema import RatedItemSchema
 
 

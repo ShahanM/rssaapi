@@ -1,24 +1,18 @@
+import uuid
 from typing import List, Union
+
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
 
 from ..models.schemas.studyschema import (
-    NewScaleLevelSchema, SurveyConstructSchema,
-    StudyConditionSchema,
-	ConstructTypeSchema, PageContentSchema, StudySchema, StepPageSchema
+	PageContentSchema,
+	StepPageSchema,
+	StudyConditionSchema,
+	StudySchema,
+	SurveyConstructSchema,
 )
-
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
-
-from data.rssadb import Base
-from sqlalchemy import (
-    Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
-)
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
-from fastapi import HTTPException
 
 
 def create_study(db: Session, name: str, description: str) -> Study:
@@ -33,13 +27,13 @@ def create_study(db: Session, name: str, description: str) -> Study:
 def get_studies(db: Session) -> List[Study]:
 	# FIXME: This should query based on access control
 	studies = db.query(Study).all()
-	
+
 	return studies
 
 
 def get_study_by_id(db: Session, study_id: uuid.UUID) -> StudySchema:
 	study = db.query(Study).where(Study.id == study_id).first()
-	
+
 	return study
 
 
@@ -47,7 +41,7 @@ def duplicate_study(db: Session, study_id: uuid.UUID) -> Study:
 	study = get_study_by_id(db, study_id)
 	if not study:
 		raise Exception('Study not found')
-	
+
 	copy_name = f'{study.name} (copy)'
 	new_study = Study(name=copy_name, description=study.description)
 	db.add(new_study)
@@ -58,7 +52,7 @@ def duplicate_study(db: Session, study_id: uuid.UUID) -> Study:
 	conditions = get_study_conditions(db, study_id)
 	for condition in conditions:
 		_ = create_study_condition(db, new_study.id, condition.name, condition.description)
-	
+
 	# Duplicate steps
 	steps = get_study_steps(db, study_id)
 	for step in steps:
@@ -79,13 +73,13 @@ def duplicate_study(db: Session, study_id: uuid.UUID) -> Study:
 
 def get_study_conditions(db: Session, study_id: uuid.UUID) -> List[StudyConditionSchema]:
 	conditions = db.query(StudyCondition).where(StudyCondition.study_id == study_id).all()
-	
+
 	return conditions
 
 
 def get_study_condition(db: Session, condition_id: uuid.UUID) -> StudyCondition:
 	condition = db.query(StudyCondition).where(StudyCondition.id == condition_id).first()
-	
+
 	return condition
 
 
@@ -93,7 +87,7 @@ def create_study_condition(db: Session, study_id: uuid.UUID, name: str, descript
 	study = db.query(Study).where(Study.id == study_id).first()
 	if not study:
 		raise Exception('Study not found')
-	
+
 	condition = StudyCondition(study_id=study.id, name=name, description=description)
 	db.add(condition)
 	db.commit()
@@ -104,13 +98,13 @@ def create_study_condition(db: Session, study_id: uuid.UUID, name: str, descript
 
 def get_study_steps(db: Session, study_id: uuid.UUID) -> List[Step]:
 	steps = db.query(Step).where(Step.study_id == study_id).all()
-	
+
 	return steps
 
 
 def get_first_step(db: Session, study_id: uuid.UUID) -> Step:
 	step = db.query(Step).where(Step.study_id == study_id).order_by(Step.order_position).first()
-	
+
 	return step
 
 
@@ -121,7 +115,7 @@ def get_next_step(db: Session, study_id: uuid.UUID, current_step_id: uuid.UUID) 
 		# No more steps
 		return None
 	step = steps.first()
-	
+
 	return step
 
 
@@ -130,7 +124,7 @@ def create_study_step(db: Session, study_id: uuid.UUID, order_position: int,
 	study = db.query(Study).where(Study.id == study_id).first()
 	if not study:
 		raise Exception('Study not found')
-	
+
 	step = Step(study_id=study.id, order_position=order_position, name=name,
 			description=description)
 	db.add(step)
@@ -153,7 +147,7 @@ def create_step_page(db: Session, study_id: uuid.UUID, step_id: uuid.UUID,\
 	step = db.query(Step).where(Step.id == step_id).first()
 	if not step:
 		raise Exception('Step not found')
-	
+
 	page = Page(study_id=study_id, step_id=step_id, order_position=order_position,
 			name=name, description=description)
 	db.add(page)
@@ -174,7 +168,7 @@ def get_page_content(db: Session, page_id: uuid.UUID) -> List[SurveyConstructSch
 	# 	.where(PageContent.page_id == page_id).all()
 	constructs = db.execute(query).all()
 	# query = select(SurveyConstruct, ConstructType)\
-	
+
 	svyconstructs: List[SurveyConstructSchema] = []
 	for construct in constructs:
 		svyconstruct = construct[0]
@@ -193,20 +187,20 @@ def create_page_content(db: Session, page_id: uuid.UUID, content_id: uuid.UUID,
 		raise Exception('Page not found')
 
 	page = StepPageSchema.model_validate(page)
-	
+
 	content = db.query(SurveyConstruct).where(SurveyConstruct.id == content_id).first()
 	if not content:
 		raise Exception('Content not found')
 
 	content = SurveyConstructSchema.model_validate(content)
-	
+
 	# Check to see if the content is already in the page
 	existing = db.query(PageContent).where(and_(PageContent.page_id == page_id,
 			PageContent.content_id == content_id)).first()
 
 	if existing:
 		return existing
-	
+
 	page_content = PageContent(page_id=page.id, content_id=content.id, order_position=order_position)
 	db.add(page_content)
 	db.commit()
@@ -217,11 +211,11 @@ def create_page_content(db: Session, page_id: uuid.UUID, content_id: uuid.UUID,
 
 def get_first_survey_page(db: Session, step_id: uuid.UUID) -> StepPageSchema:
 	page = db.query(Page).filter(Page.step_id == step_id).order_by(Page.order_position).first()
-	
+
 	return page
 
 
 def get_survey_page(db: Session, page_id: uuid.UUID) -> Page:
 	page = db.query(Page).where(Page.id == page_id).first()
-	
+
 	return page

@@ -1,11 +1,10 @@
-from typing import List, Union
-from datetime import datetime, timezone
-
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, JSON, PrimaryKeyConstraint
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.dialects.postgresql import JSONB
 import uuid
+from datetime import datetime, timezone
+from typing import Union
+
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, PrimaryKeyConstraint, String
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import relationship
 
 from data.rssadb import Base
 

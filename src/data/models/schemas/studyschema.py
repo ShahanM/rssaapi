@@ -1,8 +1,8 @@
-from datetime import datetime
-from typing import List, Union, Literal
 import uuid
+from datetime import datetime
+from typing import List, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 # New schemas for API v2
@@ -15,8 +15,7 @@ class MetaModel(CreateMetaModel):
 	id: uuid.UUID
 	date_created: datetime
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class OrderedCreateMetaModel(CreateMetaModel):
@@ -25,9 +24,8 @@ class OrderedCreateMetaModel(CreateMetaModel):
 
 class OrderedMetaModel(MetaModel):
 	order_position: int
-
-	class Config:
-		from_attributes = True
+	
+	model_config = ConfigDict(from_attributes=True)
 
 
 class CreateStudySchema(CreateMetaModel):
@@ -41,9 +39,7 @@ class CreateStudyConditionSchema(CreateMetaModel):
 class StudyConditionSchema(MetaModel):
 	study_id: uuid.UUID
 
-	class Config:
-		from_attributes = True
-
+	model_config = ConfigDict(from_attributes=True)
 
 class StudyAuthSchema(MetaModel):
 	pass
@@ -52,8 +48,7 @@ class StudyAuthSchema(MetaModel):
 class StudySchema(MetaModel):
 	conditions: List[StudyConditionSchema]
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class CreateStepSchema(OrderedCreateMetaModel):
@@ -93,8 +88,7 @@ class ConstructItemSchema(BaseModel):
 	order_position: int
 	item_type: uuid.UUID
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class CreateConstructItemSchema(BaseModel):
@@ -108,8 +102,7 @@ class ConstructTypeSchema(BaseModel):
 	id: uuid.UUID
 	type: str
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class ConstructScaleSchema(BaseModel):
@@ -117,8 +110,7 @@ class ConstructScaleSchema(BaseModel):
 	levels: int
 	name: str
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class SurveyConstructSchema(BaseModel):
@@ -127,9 +119,8 @@ class SurveyConstructSchema(BaseModel):
 	desc: str
 	type: ConstructTypeSchema
 	scale: Union[uuid.UUID, None]
-	class Config:
-		from_attributes = True
-
+	
+	model_config = ConfigDict(from_attributes=True)
 
 
 class ScaleLevelSchema(BaseModel):
@@ -137,15 +128,13 @@ class ScaleLevelSchema(BaseModel):
 	label: str
 	scale_id: uuid.UUID
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class ConstructScaleDetailSchema(ConstructScaleSchema):
 	scale_levels: List[ScaleLevelSchema]
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class SurveyConstructDetailSchema(BaseModel):
@@ -156,8 +145,7 @@ class SurveyConstructDetailSchema(BaseModel):
 	scale: Union[ConstructScaleDetailSchema, None]
 	items: List[ConstructItemSchema]
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class NewSurveyConstructSchema(BaseModel):
@@ -171,8 +159,7 @@ class ConstructItemTypeSchema(BaseModel):
 	id: uuid.UUID
 	type: str
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class NewConstructItemTypeSchema(BaseModel):
@@ -243,8 +230,7 @@ class ParticipantTypeSchema(BaseModel):
 	id: uuid.UUID
 	type: str
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class NewParticipantTypeSchema(BaseModel):
@@ -255,11 +241,11 @@ class StepIdRequestSchema(BaseModel):
 	current_step_id: uuid.UUID
 
 # {
-# 	'iss': 'https://dev-ezaapkd1uq45qy8u.us.auth0.com/', 
-# 	'sub': 'auth0|667f78dc16bf3a06dc53f472', 
-# 	'aud': ['https://rssa.recsys.dev/api/', 'https://dev-ezaapkd1uq45qy8u.us.auth0.com/userinfo'], 
-# 	'iat': 1721768272, 'exp': 1721854672, 
-# 	'scope': 'openid profile email', 
-# 	'azp': 'L1eKFXJ57zarQhNkGTEB0YfPHCokSQNI', 
+# 	'iss': 'https://dev-ezaapkd1uq45qy8u.us.auth0.com/',
+# 	'sub': 'auth0|667f78dc16bf3a06dc53f472',
+# 	'aud': ['https://rssa.recsys.dev/api/', 'https://dev-ezaapkd1uq45qy8u.us.auth0.com/userinfo'],
+# 	'iat': 1721768272, 'exp': 1721854672,
+# 	'scope': 'openid profile email',
+# 	'azp': 'L1eKFXJ57zarQhNkGTEB0YfPHCokSQNI',
 # 	'permissions': ['delete:all', 'read:all', 'write:all']
 # 	}

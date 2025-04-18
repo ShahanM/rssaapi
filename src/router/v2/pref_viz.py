@@ -1,22 +1,21 @@
+import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from compute.rspv import PreferenceVisualization, PreferenceItem, RatedItemSchema
+from compute.rspv import PreferenceItem, PreferenceVisualization, RatedItemSchema
 from compute.utils import *
-from data.moviedb import get_db as movie_db
-from data.rssadb import get_db as rssa_db
-from data.models.schemas.movieschema import BaseModel
+
 # from data.movies import *
 from data.accessors.movies import get_ers_movies_by_movielens_ids
-from data.logger import Study
-from .study import get_current_registered_study
 from data.accessors.studies import get_study_condition
-from data.models.schemas.movieschema import MovieSchemaV2
+from data.logger import Study
+from data.models.schemas.movieschema import BaseModel, MovieSchemaV2
+from data.moviedb import get_db as movie_db
+from data.rssadb import get_db as rssa_db
 
-import uuid
-
+from .study import get_current_registered_study
 
 router = APIRouter(prefix='/v2')
 
@@ -36,7 +35,7 @@ class PrefVizRequestSchema(BaseModel):
 
 	def __hash__(self):
 		return self.model_dump_json().__hash__()
-	
+
 
 class PrefVizRequestSchemaV2(BaseModel):
 	user_id: uuid.UUID
@@ -64,7 +63,7 @@ class PrefVizResponseSchema(BaseModel):
 
 	def __hash__(self):
 		return self.model_dump_json().__hash__()
-	
+
 
 class PreferenceItemV2(MovieSchemaV2, PreferenceItem):
 	pass
@@ -105,20 +104,20 @@ async def create_recommendations(request_model: PrefVizRequestSchema):
 				request_model.init_sample_size, request_model.min_rating_count)
 	if len(recs) == 0:
 		raise HTTPException(status_code=406, detail="User condition not found")
-	
+
 	res = PrefVizResponseSchema(\
 		metadata=PrefVizMetadata(algo=request_model.algo,\
 		randomize=request_model.randomize,\
 		init_sample_size=request_model.init_sample_size,\
 		min_rating_count=request_model.min_rating_count,\
 		num_rec=request_model.num_rec), recommendations=recs)
-	
+
 	print('Updating cache')
 	if len(queue) >= CACHE_LIMIT:
 		del CACHE[queue.pop(0)]
 	CACHE[request_model] = res
 	queue.append(request_model)
-	
+
 	return res
 
 
@@ -130,7 +129,7 @@ async def recommend_for_study_condition(
 	db: Session = Depends(rssa_db),
 	study: Study = Depends(get_current_registered_study),
 	movie_db: Session = Depends(movie_db)):
-	
+
 	if request_model in CACHE:
 		print('Found request in cache. Returning cached response.')
 		return CACHE[request_model]
@@ -142,14 +141,14 @@ async def recommend_for_study_condition(
 	study_condition = get_study_condition(db, request_model.user_condition)
 	if not study_condition or study_condition.study_id != study.id: # type: ignore
 		raise HTTPException(status_code=404, detail='Study condition not found')
-	
-	# FIXME: These values are hardcoded for now but should be fetched from the 
+
+	# FIXME: These values are hardcoded for now but should be fetched from the
 	# study condition or a study manifest
 	algo = 'fishnet + single_linkage'
 	randomize = False
 	init_sample_size = 500
 	min_rating_count = 50
-	
+
 	recs = pref_viz.predict_diverse_items(
 				request_model.ratings,
 				study_condition.recommendation_count, # type: ignore
@@ -158,13 +157,13 @@ async def recommend_for_study_condition(
 				randomize,
 				init_sample_size,
 				min_rating_count)
-	
+
 	if len(recs) == 0:
 		raise HTTPException(status_code=500, detail='No recommendations were generated.')
-	
+
 	recmap = {r.item_id: r for r in recs}
 	movies = get_ers_movies_by_movielens_ids(movie_db, list(recmap.keys()))
-	
+
 	res = []
 
 	for m in movies:
@@ -176,5 +175,5 @@ async def recommend_for_study_condition(
 		del CACHE[queue.pop(0)]
 	CACHE[request_model] = res
 	queue.append(request_model)
-	
+
 	return res

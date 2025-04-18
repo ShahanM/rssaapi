@@ -1,26 +1,24 @@
+import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from compute.utils import *
+from data.accessors.participants import *
+from data.accessors.studies import *
+from data.accessors.study_responses import *
+from data.accessors.survey_constructs import *
+from data.logger import *
+from data.models.schemas.participantschema import *
+
 # from data.studydatabase import SessionLocal
 from data.models.schemas.studyschema import *
-from data.models.schemas.participantschema import *
+from data.rssadb import get_db as rssadb
 from docs.metadata import TagsMetadataEnum as Tags
 
 from .auth0 import get_current_user as auth0_user
-from data.rssadb import get_db as rssadb
 from .study import get_current_registered_study
-
-from data.logger import *
-from data.accessors.studies import *
-from data.accessors.survey_constructs import *
-from data.accessors.participants import *
-from data.accessors.study_responses import *
-
-import uuid
-
 
 router = APIRouter(prefix="/v2")
 
@@ -58,16 +56,16 @@ async def retrieve_participant_types(db: Session = Depends(rssadb),
 		tags=[Tags.meta])
 async def new_participant_type(new_type: NewParticipantTypeSchema,
 		db: Session = Depends(rssadb), current_user = Depends(auth0_user)):
-	
+
 	participant_type = create_participant_type(db, new_type.type)
 
 	if not participant_type:
 		return False
-	
+
 	log_access(
 		db,
-		current_user.sub, 
-		'create', 
+		current_user.sub,
+		'create',
 		'participant type',
 		participant_type.id)
 	participant_type = ParticipantTypeSchema.model_validate(participant_type)
@@ -80,11 +78,11 @@ async def new_participant_type(new_type: NewParticipantTypeSchema,
 # 	response_model=ParticipantSchema,
 # 	tags=[Tags.participant])
 # async def new_study_participant(new_participant: NewParticipantSchema,
-# 		db: Session = Depends(rssadb), 
+# 		db: Session = Depends(rssadb),
 # 		current_study = Depends(get_current_registered_study)):
 
 # 	participant = create_study_participant(db,
-# 		study_id=new_participant.study_id, 
+# 		study_id=new_participant.study_id,
 # 		participant_type=new_participant.participant_type,
 # 		external_id=new_participant.external_id,
 # 		current_step=new_participant.current_step,
@@ -116,13 +114,13 @@ async def new_study_participant(new_participant: NewParticipantSchema,
 
 
 @router.put(
-	'/participant/', 
-	response_model=bool, 
+	'/participant/',
+	response_model=bool,
 	tags=[Tags.participant])
 async def update_participant(participant: ParticipantSchema,
 		db: Session = Depends(rssadb),
 		current_study = Depends(get_current_registered_study)):
-	
+
 	current = get_study_participant_by_id(db, participant.id)
 	current = ParticipantSchema.model_validate(current)
 	diff = current.diff(participant)
@@ -131,7 +129,7 @@ async def update_participant(participant: ParticipantSchema,
 		'update', 'participant', ';'.join(diff))
 
 	return True
-	
+
 
 @router.post(
 	'/participant/{participant_id}/surveyresponse/',
@@ -183,7 +181,7 @@ async def new_demographics(participant_id: uuid.UUID,
 
 	print('demographics: ', participant_id, demographics)
 	success = create_participant_demographic(db, participant_id, demographics)
-	
+
 	log_access(db, f'study: {current_study.name} ({current_study.id})',
 		'create', 'demographics', str(participant_id))
 

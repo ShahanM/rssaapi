@@ -1,6 +1,6 @@
-from datetime import datetime
-from typing import List, Union, Literal, Dict
 import uuid
+from datetime import datetime
+from typing import List, Union
 
 from pydantic import BaseModel
 
@@ -22,17 +22,17 @@ class ParticipantSchema(BaseModel):
 	def __eq__(self, other) -> bool:
 		if not isinstance(other, ParticipantSchema):
 			return False
-		
+
 		equalities = [self.id == other.id, self.study_id == other.study_id,\
 				self.participant_type == other.participant_type,\
 					self.date_created == other.date_created]
 
 		return all(equalities)
-	
+
 	def diff(self, other):
 		if self != other:
 			raise Exception('Not the same participant')
-		
+
 		mismatch = []
 		if self.external_id != other.external_id:
 			# Technically, this should never differ if the participant is the same
@@ -47,7 +47,7 @@ class ParticipantSchema(BaseModel):
 			mismatch.append('current_page')
 
 		return mismatch
-	
+
 
 class NewParticipantSchema(BaseModel):
 	study_id: uuid.UUID

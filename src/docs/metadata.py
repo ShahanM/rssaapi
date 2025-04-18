@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class TagsMetadataEnum(Enum):
 	movie = 'Movie'
 	ers = 'Movie (ERS)'

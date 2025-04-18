@@ -1,4 +1,4 @@
-from starlette.types import ASGIApp, Scope, Receive, Send
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 
 class ErrorHanlingMiddleware:
@@ -10,7 +10,7 @@ class ErrorHanlingMiddleware:
 
 		try:
 			await self.app(scope, receive, send)
-		except Exception as exc:
+		except Exception:
 			raise
 		finally:
 			pass

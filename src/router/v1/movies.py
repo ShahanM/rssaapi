@@ -1,13 +1,12 @@
+from typing import List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from typing import List
-
-from data.moviedatabase import SessionLocal
 from data.models.schemas.movieschema import *
+from data.moviedatabase import SessionLocal
 from data.movies import *
 from docs.metadata import TagsMetadataEnum as Tags
-
 
 router = APIRouter(prefix='/v1', deprecated=True)
 
@@ -39,7 +38,7 @@ async def read_movies_ids_dep(db: Session = Depends(get_db)):
 async def read_movies_dep(skip: int = 0, limit: int = 100, \
 	db: Session = Depends(get_db)):
 	movies = get_ers_movies(db, skip=skip, limit=limit)
-	
+
 	return movies
 
 
@@ -51,5 +50,5 @@ async def read_movies_dep(skip: int = 0, limit: int = 100, \
 async def read_movies_by_ids_dep(movie_ids: List[int], \
 	db: Session = Depends(get_db)):
 	movies = get_ers_movies_by_ids(db, movie_ids)
-	
+
 	return movies

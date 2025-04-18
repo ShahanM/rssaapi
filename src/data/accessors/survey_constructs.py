@@ -1,17 +1,12 @@
-from typing import List, Union
-from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+import uuid
+from typing import List
 
-from ..models.schemas.studyschema import NewScaleLevelSchema, SurveyConstructSchema, ConstructTypeSchema
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from ..models.schemas.studyschema import NewScaleLevelSchema, SurveyConstructSchema
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
-
-from data.rssadb import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
-from fastapi import HTTPException
 
 
 def get_survey_constructs(db: Session) -> List[SurveyConstructSchema]:
@@ -25,7 +20,7 @@ def get_survey_constructs(db: Session) -> List[SurveyConstructSchema]:
 		construct_type = construct.ConstructType
 		svyconstructs.append(SurveyConstructSchema(id=svyconstruct.id, name=svyconstruct.name,
 				desc=svyconstruct.desc, type=construct_type, scale=svyconstruct.scale))
-	
+
 	return svyconstructs
 
 
@@ -35,7 +30,7 @@ def get_survey_construct_by_id(db: Session, construct_id: uuid.UUID) -> SurveyCo
 		.where(SurveyConstruct.id == construct_id).first()
 	if not construct:
 		raise HTTPException(status_code=404, detail="Construct not found")
-	
+
 	# if not construct.items:
 		# construct.items = []
 
@@ -44,11 +39,11 @@ def get_survey_construct_by_id(db: Session, construct_id: uuid.UUID) -> SurveyCo
 
 	# return SurveyConstructSchema(id=svyconstruct.id, name=svyconstruct.name,
 				# desc=svyconstruct.desc, type=construct_type)
-	
+
 	return construct
 
 
-def create_survey_construct(db: Session, name: str, desc: str, 
+def create_survey_construct(db: Session, name: str, desc: str,
 		type_id: uuid.UUID, scale_id: uuid.UUID) -> SurveyConstruct:
 	ctype = get_construct_type_by_id(db, type_id)
 	cscale = get_construct_scale_by_id(db, scale_id)
@@ -80,14 +75,14 @@ def create_text_construct(db: Session, name: str, desc: str,\
 def update_survey_construct(db: Session, construct_id: uuid.UUID, \
 	name: str, desc: str, construct_type: uuid.UUID, construct_scale: uuid.UUID)\
 		-> bool:
-	
+
 	updated = False
 	construct = get_survey_construct_by_id(db, construct_id)
-	
+
 	if name:
 		construct.name = name
 		updated = True
-	
+
 	if desc:
 		construct.desc = desc
 		updated = True
@@ -111,7 +106,7 @@ def update_survey_construct(db: Session, construct_id: uuid.UUID, \
 
 def get_construct_types(db: Session) -> List[ConstructType]:
 	item_types = db.query(ConstructType).all()
-	
+
 	return item_types
 
 
@@ -119,7 +114,7 @@ def get_construct_type_by_id(db: Session, type_id: uuid.UUID) -> ConstructType:
 	item_type = db.query(ConstructType).where(ConstructType.id == type_id).first()
 	if not item_type:
 		raise HTTPException(status_code=404, detail="Type not found")
-	
+
 	return item_type
 
 
@@ -134,7 +129,7 @@ def create_construct_type(db: Session, type: str) -> ConstructType:
 
 def get_construct_scales(db: Session) -> List[ConstructScale]:
 	scales = db.query(ConstructScale).all()
-	
+
 	return scales
 
 
@@ -142,7 +137,7 @@ def get_construct_scale_by_id(db: Session, scale_id: uuid.UUID) -> ConstructScal
 	scale = db.query(ConstructScale).where(ConstructScale.id == scale_id).first()
 	if not scale:
 		raise HTTPException(status_code=404, detail="Scale not found")
-	
+
 	return scale
 
 
@@ -166,7 +161,7 @@ def create_construct_scale(db: Session, levels: int, name: str, scale_levels: Li
 
 def get_construct_scale_levels(db: Session, scale_id: uuid.UUID) -> List[ScaleLevel]:
 	levels = db.query(ScaleLevel).where(ScaleLevel.scale_id == scale_id).all()
-	
+
 	return levels
 
 
@@ -184,13 +179,13 @@ def get_item_type_by_id(db: Session, type_id: uuid.UUID) -> ConstructItemType:
 	item_type = db.query(ConstructItemType).where(ConstructItemType.id == type_id).first()
 	if not item_type:
 		raise HTTPException(status_code=404, detail="Type not found")
-	
+
 	return item_type
 
 
 def get_item_types(db: Session) -> List[ConstructItemType]:
 	types = db.query(ConstructItemType).all()
-	
+
 	return types
 
 
@@ -218,5 +213,5 @@ def create_construct_item(db: Session, construct_id: uuid.UUID, item_type: uuid.
 
 def get_construct_items(db: Session, construct_id: uuid.UUID) -> List[ConstructItem]:
 	items = db.query(ConstructItem).where(ConstructItem.construct_id == construct_id).all()
-	
+
 	return items

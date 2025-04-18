@@ -1,15 +1,35 @@
-from typing import Union
 from datetime import datetime, timedelta
+from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-
-from compute.utils import *
-from pydantic import BaseModel
-
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from pydantic import BaseModel
 
+from compute.utils import *
+
+# generated with openssl rand -hex 32
+SECRET_KEY = 'aea198f49eaa87c3b3082fe9dbbdca9e50c336c3ec79c3e7616ee4e305606e45'
+ALGORITHM = 'HS256'
+ACCESS_TOKEN_EXPIRE_MINUTES = 300
+
+fake_users_db = {
+	'johndoe': {
+		'username': 'johndoe',
+		'full_name': 'John Doe',
+		'email': 'johndoe@example.com',
+		'hashed_password': '$2b$12$DfV.lMTPVnkEf5oJST2FC.oQJop4BAUrh1dlyiTL1sEAk1Wxz/scG',
+		'disabled': False,
+	},
+	'alice': {
+		'username': 'alice',
+		'full_name': 'Alice Wonderson',
+		'email': 'alice@example.com',
+		'hashed_password': 'fakehashedsecret2',
+		'disabled': True,
+	},
+}
 
 
 router = APIRouter()
@@ -82,7 +102,7 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
 		expire = datetime.utcnow() + timedelta(minutes=15)
 	to_encode.update({'exp': expire})
 	encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-	return encoded_jwt	
+	return encoded_jwt
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -100,7 +120,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 	except JWTError:
 		raise credentials_exception
 
-	assert token_data.username is not None	
+	assert token_data.username is not None
 	user = get_user(fake_users_db, username=token_data.username)
 	if user is None:
 		raise credentials_exception
@@ -115,11 +135,11 @@ async def get_current_active_user(current_user: AdminUser = Depends(get_current_
 
 @router.post('/token', tags=['admin'])
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-	user = authenticate_user(fake_users_db, form_data.username, form_data.password)	
+	user = authenticate_user(fake_users_db, form_data.username, form_data.password)
 	if not user:
 		raise HTTPException(
-			status_code=400, 
-			detail='Incorrect username or password', 
+			status_code=400,
+			detail='Incorrect username or password',
 			headers={'WWW-Authenticate': 'Bearer'}
 		)
 		print("tello")

@@ -1,10 +1,9 @@
 from datetime import datetime
-from enum import unique
-from dataclasses import dataclass
-from typing import List
-from data.userdatabase import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
+from data.userdatabase import Base
 
 
 class Study(Base):
@@ -38,7 +37,7 @@ class Step(Base):
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
 	study_id = Column(Integer, ForeignKey('study.id'), nullable=False)
-	
+
 	step_order = Column(Integer, nullable=False)
 	step_name = Column(String, nullable=False)
 	step_description = Column(String, nullable=True)
@@ -76,4 +75,3 @@ class PageQuestion(Base):
 	question = Column(String, nullable=False)
 
 	page = relationship('Page', back_populates='questions')
-	

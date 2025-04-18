@@ -1,10 +1,11 @@
 import uuid
 from typing import Union
 
-from data.rssadb import Base
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+
+from data.rssadb import Base
 
 
 class SurveyConstruct(Base):
@@ -19,7 +20,7 @@ class SurveyConstruct(Base):
 
 	items = relationship('ConstructItem', back_populates='construct', \
 		uselist=True, cascade='all, delete-orphan')
-	
+
 	def __init__(self, name: str, desc: str, type_id: uuid.UUID, scale_id: Union[uuid.UUID, None] = None):
 		self.name = name
 		self.desc = desc

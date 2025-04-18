@@ -1,21 +1,21 @@
-from typing import List, Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from compute.utils import *
+from data.models.schema.movieschema import EmotionDiscreteInputSchema, RatedItemSchema
+
 # from data.userdatabase import SessionLocal
 from data.models.schema.studyschema import StudySchema
-from data.userdatabase import get_user_db, create_database_meta
 from data.models.schema.userschema import *
+from data.studies import get_count_of_questions_by_study_id, get_study_by_id
+from data.userdatabase import create_database_meta, get_user_db
 from data.users import *
-from data.models.schema.movieschema import RatedItemSchema, EmotionDiscreteInputSchema
-
 from docs.metadata import TagsMetadataEnum as Tags
-from .admin import get_current_active_user, AdminUser
+
+from .admin import get_current_active_user
 from .study import get_db as study_db
-from data.studies import get_count_of_questions_by_study_id
-from data.studies import get_study_by_id
 
 router = APIRouter(prefix='/v1', deprecated=True)
 
@@ -32,7 +32,7 @@ async def get_current_study(study_id: Annotated[int, Header()], \
 
 	if study is None:
 		raise HTTPException(status_code=400, detail="Study ID not found")
-	
+
 	return study
 
 async def get_db(study: StudySchema = Depends(get_current_study)):
@@ -91,7 +91,7 @@ async def create_new_test_user(condition_id: int, newuser: NewUserSchema, \
 	Returns the user object if the user was successfully created, None 
 	otherwise.
 	"""
-	
+
 	user = create_user(db, newuser, condition_id)
 	return user
 

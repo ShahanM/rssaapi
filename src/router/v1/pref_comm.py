@@ -1,19 +1,16 @@
-from fastapi import APIRouter, Depends
-from docs.metadata import TagsMetadataEnum as Tags
-from typing import List
-from data.models.schema.advisorschema import *
-from compute.iers import EmotionsRS
-from compute.utils import (
-	get_rating_data_path, get_iers_data, get_iers_model_path,
-	get_rssa_ers_data, get_rssa_model_path
-)
-from compute.rssa import AlternateRS
-from compute.rspc import PreferenceCommunity
-from sqlalchemy.orm import Session
-from data.moviedatabase import SessionLocal
-from data.models.schema.movieschema import *
-from data.movies import *
 from collections import Counter, defaultdict
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from compute.rspc import PreferenceCommunity
+from compute.rssa import AlternateRS
+from compute.utils import get_rating_data_path, get_rssa_ers_data, get_rssa_model_path
+from data.models.schema.advisorschema import *
+from data.models.schema.movieschema import *
+from data.moviedatabase import SessionLocal
+from data.movies import *
+from docs.metadata import TagsMetadataEnum as Tags
 
 router = APIRouter(prefix='/v1', deprecated=True)
 
@@ -52,7 +49,7 @@ async def get_advisor_profile(advisor_id: AdvisorIDSchema, \
 
 	most_common_genre = max(genredict, key=lambda key: genredict[key])
 	toprated = Counter(top_ten_genre).most_common(1)
-	
+
 	bottommovies = get_ers_movies_by_ids(db, least_rated)
 	genredict2 = defaultdict(int)
 	for movie in bottommovies:
@@ -95,15 +92,15 @@ async def get_advisor(rated_movies: PrefCommRatingSchema, \
 	rssalgs = AlternateRS(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
 
 	advisors = {}
-	
+
 	# recs = iersalgs.predict_topN(rated_movies.ratings, \
 			# rated_movies.user_id, rated_movies.num_rec)
 	# recs = rssalgs.predict_user_controversial_items(\
 		# rated_movies.ratings, rated_movies.user_id, rated_movies.num_rec)
-	
+
 	recs = rssalgs.get_advisors_with_profile(rated_movies.ratings, \
-			rated_movies.user_id)	
-	
+			rated_movies.user_id)
+
 	print(recs)
 
 	# recmovies = get_movies_by_ids(db, recs)

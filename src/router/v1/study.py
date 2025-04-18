@@ -1,15 +1,15 @@
+from datetime import datetime
+from typing import Union
+
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from typing import Union
-from pydantic import BaseModel
-from datetime import datetime
-
-from data.studydatabase import SessionLocal
 from data.studies import *
-from .admin import get_current_active_user, AdminUser
+from data.studydatabase import SessionLocal
 from docs.metadata import TagsMetadataEnum as Tags
 
+from .admin import AdminUser, get_current_active_user
 
 router = APIRouter(prefix='/v1')
 
@@ -19,7 +19,7 @@ def get_db():
 		yield db
 	finally:
 		db.close()
-        
+
 class QuestionSchema(BaseModel):
 	id: Union[int, None]
 	page_id: Union[int, None]
@@ -241,7 +241,7 @@ async def update_step(study_id: int, step_id: int, step: NewStepSchema, db: Sess
     step = update_study_step(db=db, study_id=study_id, step_id=step_id, **step.dict())
 
     return step
-    
+
 
 @router.delete('/study/{study_id}/step/{step_id}', response_model=StepSchema, tags=[Tags.meta])
 async def delete_step(study_id: int, step_id: int, db: Session = Depends(get_db),

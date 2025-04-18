@@ -1,21 +1,12 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from compute.rspv import PreferenceVisualization, PreferenceItem, RatedItemSchema
-from compute.utils import *
-from data.moviedb import get_db as movie_db
-from data.rssadb import get_db as rssa_db
-from data.models.schemas.movieschema import BaseModel
-from data.logger import Study
-from .study import get_current_registered_study
-from data.accessors.studies import get_study_condition
 from compute.rssa import AlternateRS
-from data.models.schemas.movieschema import MovieSchema, RatingSchemaV2, MovieSchemaV2
-
-import uuid
-
+from compute.utils import *
+from data.models.schemas.movieschema import MovieSchemaV2, RatingSchemaV2
+from data.moviedb import get_db as movie_db
 
 router = APIRouter(prefix='/v2')
 
@@ -30,7 +21,7 @@ async def create_recommendations(rated_movies: RatingSchemaV2, db: Session=Depen
 			user_id=str(rated_movies.user_id), \
 			condition=rated_movies.rec_type, \
 			num_rec=rated_movies.num_rec)
-	
+
 	movies = get_ers_movies_by_movielens_ids(db, recs)
 
 	return movies

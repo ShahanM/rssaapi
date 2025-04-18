@@ -1,6 +1,7 @@
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric
 from sqlalchemy.orm import relationship
 
 Base = declarative_base()
@@ -14,15 +15,15 @@ class User(Base):
 
 	study_id = Column(Integer, nullable=False)
 	condition = Column(Integer, nullable=False)
-	
-	completed = Column(Integer, nullable=False, default=0)			
+
+	completed = Column(Integer, nullable=False, default=0)
 
 	user_type_id = Column(Integer, ForeignKey('user_type.id'), nullable=False)
 	user_type = relationship('UserType', back_populates='users')
-	
+
 	seen_items = relationship('SeenItem', back_populates='user', \
 		uselist=True, cascade='all, delete-orphan')
-	
+
 	responses = relationship('SurveyResponse', back_populates='user', \
 		uselist=True, cascade='all, delete-orphan')
 	text_responses = relationship('SurveyTextResponse', back_populates='user', \
@@ -33,10 +34,10 @@ class User(Base):
 
 	emotion_preference = relationship('EmotionPreference', \
 		back_populates='user', uselist=False, cascade='all, delete-orphan')
-	
+
 	interaction_log = relationship('InteractionLog', back_populates='user', \
 		uselist=False, cascade='all, delete-orphan')
-	
+
 	demographic_info = relationship('DemographicInfo', back_populates='user', \
 		uselist=False, cascade='all, delete-orphan')
 
@@ -52,7 +53,7 @@ class UserType(Base):
 
 	users = relationship('User', back_populates='user_type', \
 		uselist=True, cascade='all, delete-orphan')
-		
+
 
 class SeenItem(Base):
 	__tablename__ = 'seen_item'
@@ -134,11 +135,11 @@ class InteractionLog(Base):
 	__tablename__ = 'interaction_log'
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
-	
+
 	user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
 	study_id = Column(Integer, nullable=False)
 	step_id = Column(Integer, nullable=False)
-	
+
 	# steps with one page only has no page_id
 	page_id = Column(Integer, nullable=True)
 

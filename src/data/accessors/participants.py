@@ -1,23 +1,16 @@
+import random
+import uuid
 from typing import List, Union
-from sqlalchemy.orm import Session, joinedload
-from datetime import datetime, timezone
+
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from data.models.schemas.participantschema import *
+
+from ..models.participant import *
 from ..models.study_v2 import *
 from ..models.survey_constructs import *
-from ..models.participant import *
-
 from .studies import get_study_by_id, get_study_conditions
-
-from data.rssadb import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, and_, or_, select
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
-from fastapi import HTTPException, Depends
-from data.rssadb import get_db as rssadb
-
-import random
 
 
 class ParticipantRepository:
@@ -30,14 +23,14 @@ class ParticipantRepository:
 		external_id: str,
 		current_step: uuid.UUID,
 		current_page: Union[uuid.UUID, None] = None) -> ParticipantSchema:
-		
+
 		# study = get_study_by_id(db, study_id)
 		# FIXME: this should be part of the study_condition repository
 		study_conditions = get_study_conditions(self.db, self.study.id)
 
 		if not study_conditions:
 			raise HTTPException(status_code=404, detail='No study conditions found for study: ' + str(self.study.id))
-		
+
 		condition = random.choice(study_conditions)
 
 		# FIXME: update all db calls to their respective repositories
@@ -59,16 +52,16 @@ class ParticipantRepository:
 	def get_study_participants(self, study_id: uuid.UUID) -> List[ParticipantSchema]:
 		participants = self.db.query(StudyParticipant) \
 			.filter(StudyParticipant.study_id == self.study.id).all()
-		
+
 		if not participants:
 			return []
 		return [ParticipantSchema.model_validate(participant) for participant in participants]
-	
+
 	def get_study_participant_by_id(self, participant_id: uuid.UUID) -> ParticipantSchema:
 		participant = self.db.query(StudyParticipant).where(StudyParticipant.id == participant_id).first()
 		if not participant:
 			raise HTTPException(status_code=404, detail='Participant not found')
-	
+
 		return ParticipantSchema.model_validate(participant)
 
 
@@ -77,7 +70,7 @@ The following functions are going to be refactored into the ParticipantRepositor
 """
 def get_participant_types(db: Session) -> List[ParticipantType]:
 	types = db.query(ParticipantType).all()
-	
+
 	return types
 
 
@@ -85,7 +78,7 @@ def get_participant_type_by_id(db: Session, type_id: uuid.UUID) -> ParticipantTy
 	ptype = db.query(ParticipantType).where(ParticipantType.id == type_id).first()
 	if not ptype:
 		raise HTTPException(status_code=404, detail='Participant type not found')
-	
+
 	return ptype
 
 
@@ -101,7 +94,7 @@ def create_participant_type(db: Session, type: str) -> ParticipantType:
 # implemented but not tested
 def get_study_participants(db: Session, study_id: uuid.UUID) -> List[StudyParticipant]:
 	participants = db.query(StudyParticipant).where(StudyParticipant.study_id == study_id).all()
-	
+
 	return participants
 
 
@@ -110,11 +103,11 @@ def get_study_participant_by_id(db: Session, participant_id: uuid.UUID) -> Study
 	participant = db.query(StudyParticipant).where(StudyParticipant.id == participant_id).first()
 	if not participant:
 		raise HTTPException(status_code=404, detail='Participant not found')
-	
+
 	return participant
 
 
-def create_study_participant(db: Session, study_id: uuid.UUID, 
+def create_study_participant(db: Session, study_id: uuid.UUID,
 		participant_type: uuid.UUID,
 		external_id: str,
 		current_step: uuid.UUID,
@@ -124,7 +117,7 @@ def create_study_participant(db: Session, study_id: uuid.UUID,
 
 	if not study_conditions:
 		raise HTTPException(status_code=404, detail='No study conditions found for study: ' + str(study.id))
-	
+
 	condition = random.choice(study_conditions)
 
 	cstep = db.query(Step).where(Step.id == current_step).first()
@@ -158,10 +151,10 @@ def create_participant_demographic(db: Session, participant_id: uuid.UUID,
 	participant = get_study_participant_by_id(db, participant_id)
 	if not participant:
 		raise HTTPException(status_code=404, detail='Participant not found')
-	
+
 	def none_if_empty(value: str) -> Union[str, None]:
 		return value if len(value) > 0 else None
-	
+
 	demog = Demographic(participant_id=participant.id,
 				age_range=demographic.age_range, gender=demographic.gender,
 				gender_other=none_if_empty(demographic.gender_other),
@@ -169,7 +162,7 @@ def create_participant_demographic(db: Session, participant_id: uuid.UUID,
 				race_other=none_if_empty(demographic.race_other),
 				education=demographic.education, country=demographic.country,
 				state_region=none_if_empty(demographic.state_region))
-	
+
 	db.add(demog)
 	db.commit()
 	db.refresh(demog)
@@ -179,15 +172,15 @@ def create_participant_demographic(db: Session, participant_id: uuid.UUID,
 
 def create_feedback(db: Session, participant_id: uuid.UUID,
 		feedback: str, feedback_type: str, feedback_category: str) -> bool:
-	
+
 	participant = get_study_participant_by_id(db, participant_id)
 	if not participant:
 		raise HTTPException(status_code=404, detail='Participant not found')
-	
+
 	feedbackobj = Feedback(participant_id=participant.id, study_id=participant.study_id,
 			feedback=feedback, feedback_type=feedback_type,
 			feedback_category=feedback_category)
-	
+
 	db.add(feedbackobj)
 	db.commit()
 	db.refresh(feedbackobj)

@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Union
 
-from data.rssadb import Base
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+
+from data.rssadb import Base
 
 
 class Study(Base):
@@ -23,7 +24,7 @@ class Study(Base):
 		uselist=True, cascade='all, delete-orphan')
 	conditions = relationship('StudyCondition', back_populates='study', \
 		uselist=True, cascade='all, delete-orphan')
-	
+
 	def __init__(self, name: str, description: Union[str, None] = None):
 		self.name = name
 		self.description = description
@@ -57,7 +58,7 @@ class Step(Base):
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	study_id = Column(UUID(as_uuid=True), ForeignKey('study.id'), nullable=False)
-	
+
 	order_position = Column(Integer, nullable=False)
 	name = Column(String, nullable=False)
 	description = Column(String, nullable=True)

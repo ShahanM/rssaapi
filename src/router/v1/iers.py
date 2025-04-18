@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from compute.iers import EmotionsRS
 from compute.utils import *
-from data.moviedatabase import SessionLocal
 from data.models.schema.movieschema import *
+from data.moviedatabase import SessionLocal
 from data.movies import *
 
 router = APIRouter(prefix='/v1')
@@ -20,7 +20,7 @@ TOP_N_TUNING_PARAMS = {
 	'ranking_strategy': 'weighted',
 	'distance_method': 'sqrtcityblock' # only applicable for distance strategy
 }
-	
+
 # TODO: Move to config file
 DIVERSE_N_TUNING_PARAMS = {
 	'item_pool_size': 200,
@@ -56,17 +56,17 @@ async def create_recommendations(rated_movies: RatingsSchema, \
 	elif (rated_movies.user_condition in [5, 6, 7, 8]):
 		recs = iersalgs.predict_diverseN(
 			ratings=rated_movies.ratings, \
-			user_id=rated_movies.user_id, 
+			user_id=rated_movies.user_id,
 			num_rec=rated_movies.num_rec, \
 			dist_method=DIVERSE_N_TUNING_PARAMS['distance_method'], \
 			weight_sigma=0.0,
 			item_pool_size=DIVERSE_N_TUNING_PARAMS['item_pool_size'],
 			sampling_size=DIVERSE_N_TUNING_PARAMS['diversity_sample_size'])
-	
+
 	if len(recs) == 0:
 		raise HTTPException(status_code=406, detail="User condition not found")
 	movies = get_ers_movies_by_ids(db, recs)
-	
+
 	return movies
 
 
@@ -108,7 +108,7 @@ async def update_recommendations(rated_movies: EmotionInputSchema, \
 				ranking_strategy=DIVERSE_N_TUNING_PARAMS['ranking_strategy'],
 				div_crit=DIVERSE_N_TUNING_PARAMS['diversity_criteria'],
 				dist_method=DIVERSE_N_TUNING_PARAMS['distance_method'])
-			
+
 	elif rated_movies.input_type == 'continuous':
 		emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin \
 			in rated_movies.emotion_input]
@@ -122,12 +122,12 @@ async def update_recommendations(rated_movies: EmotionInputSchema, \
 				scale_vector=TOP_N_TUNING_PARAMS['scale_vector'], \
 				algo=TOP_N_TUNING_PARAMS['ranking_strategy'], \
 				dist_method=TOP_N_TUNING_PARAMS['distance_method'])
-	
+
 	if len(recs) == 0:
 		raise HTTPException(status_code=406, detail="User condition not found")
-	
+
 	movies = get_ers_movies_by_ids(db, recs)
-	
+
 	return movies
 
 
@@ -170,7 +170,7 @@ async def update_recommendations_experimental(\
 				ranking_strategy=rated_movies.algo,
 				div_crit=rated_movies.diversity_criterion,
 				dist_method=rated_movies.dist_method)
-			
+
 	elif rated_movies.input_type == 'continuous':
 		# Not implemented yet
 		emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin \
@@ -185,10 +185,10 @@ async def update_recommendations_experimental(\
 			algo=rated_movies.algo, \
 			dist_method=rated_movies.dist_method, \
 			item_pool_size=rated_movies.item_pool_size)
-	
+
 	if len(recs) == 0:
 		raise HTTPException(status_code=406, detail="User condition not found")
-	
+
 	movies = get_ers_movies_by_ids(db, recs)
-	
+
 	return movies

@@ -1,19 +1,20 @@
-from typing import List, Union
-from sqlalchemy.orm import Session
+import uuid
 from datetime import datetime, timezone
+from typing import Union
+
+from sqlalchemy import Column, DateTime, String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Session
+
+from data.rssadb import Base
 
 from .models.study_v2 import *
 from .models.survey_constructs import *
 
-from data.rssadb import Base
-from sqlalchemy import Column, String, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
-
 
 class AccessLog(Base):
 	__tablename__ = 'access_log'
-	
+
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	auth0_user = Column(String, nullable=False)
 	action = Column(String, nullable=False)
