@@ -29,6 +29,9 @@ class RatedItemSchema(BaseModel):
 	item_id: int
 	rating: int
 
+	def __hash__(self):
+		return self.model_dump_json().__hash__()
+
 
 class PreferenceVisualization(RSSABase):
 	def __init__(self, model_path: str, item_popularity: pd.DataFrame, ave_item_score: pd.DataFrame):

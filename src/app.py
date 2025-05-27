@@ -1,23 +1,27 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import logging
 
-from compute.utils import *
+from fastapi import Depends, FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+
+from data.moviedb import movie_db
 from docs.metadata import AppMetadata as App_Meta
 from docs.metadata import tags_metadata
-from middleware.access_logger import LoggingMiddleware
-from middleware.error_handlers import ErrorHanlingMiddleware
-from middleware.infostats import RequestHandlingStatsMiddleware
-from router.v2 import (
-	alt_algo,
-	auth0,
-	movies,
-	participant,
-	pref_viz,
-	study_meta,
-	iers,
-	pref_comm as pref_comm_v2,
-	study as study_v2,
+from logging_config import configure_logging
+from middlewares.access_logger import (
+	APIAccessLogMiddleware,
+	DashboardAccessLogMiddleware,
 )
+from middlewares.bad_request_logging import BadRequestLoggingMiddleware
+from middlewares.infostats import RequestHandlingStatsMiddleware
+from middlewares.logging import LoggingMiddleware
+from routers.v2.recommendations import alt_algo, iers, pref_comm, pref_viz
+from routers.v2.resources import auth0, movies, participant, study, study_meta
+
+# Configure logging
+configure_logging()
+logger = logging.getLogger(__name__)
 
 """
 FastAPI App
@@ -32,7 +36,24 @@ app = FastAPI(
 	description=App_Meta.description,
 	version='0.1.0',
 	terms_of_service='https://rssa.recsys.dev/terms',
+	state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
+	dependencies=[Depends(movie_db.get_db)],
 )
+
+
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request: Request, exc: ValidationError):
+	logger.error(f'Validation Error for URL: {request.url}')
+	try:
+		body = await request.body()
+		logger.error(f'Request Body: {body.decode()}')
+	except Exception:
+		logger.error('Could not parse request body.')
+	logger.error(f'Validation Errors: {exc.errors()}')
+	return JSONResponse(
+		status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+		content={'detail': exc.errors()},
+	)
 
 
 """
@@ -48,22 +69,32 @@ origins = [
 	'http://localhost:3339/*',
 	'http://localhost:3331',
 	'http://localhost:3340',
+	'https://localhost:3350',
 	'http://localhost:3000',
 ]
 
 
 """
-v2 routers
+v2 routers # we will remove v1 once we are done migrating the emotions study code
 """
-app.include_router(study_v2.router)
+
+"""
+Resources API Routers
+"""
+app.include_router(study.router)
+app.include_router(movies.router)
+app.include_router(participant.router)
+app.include_router(study_meta.router)
+
+
+"""
+Recommender API Routers
+"""
 app.include_router(alt_algo.router)
 app.include_router(pref_viz.router)
-app.include_router(study_meta.router)
-app.include_router(participant.router)
-app.include_router(movies.router)
-app.include_router(auth0.router)
-app.include_router(pref_comm_v2.router)
 app.include_router(iers.router)
+app.include_router(auth0.router)
+app.include_router(pref_comm.router)
 
 
 """
@@ -76,18 +107,11 @@ app.add_middleware(
 	allow_methods=['*'],
 	allow_headers=['*'],
 )
-app.add_middleware(ErrorHanlingMiddleware)
 app.add_middleware(RequestHandlingStatsMiddleware)
+app.add_middleware(BadRequestLoggingMiddleware)
 app.add_middleware(LoggingMiddleware)
-
-
-# Dependency
-# def get_db():
-# 	db = SessionLocal()
-# 	try:
-# 		yield db
-# 	finally:
-# 		db.close()
+app.add_middleware(APIAccessLogMiddleware)
+app.add_middleware(DashboardAccessLogMiddleware)
 
 
 @app.get('/')

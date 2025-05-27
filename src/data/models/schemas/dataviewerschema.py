@@ -1,6 +1,7 @@
+from typing import Union
+
 from pydantic import BaseModel
-from typing import List, Union
-from data.models.schema.userschema import UserTypeSchema, DemographicInfoSchema
+
 
 class UserDetailSchema(BaseModel):
 	id: int

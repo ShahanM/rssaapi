@@ -3,13 +3,34 @@ from typing import Union
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from data.rssadb import Base
+from data.base import RSSADBBase as Base
+
+
+class ConstructItemType(Base):
+	__tablename__ = 'construct_item_type'
+
+	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+	type: Mapped[str] = mapped_column(String, nullable=False)
+
+	def __init__(self, type: str):
+		self.type = type
+
+
+class ConstructType(Base):
+	__tablename__ = 'construct_type'
+
+	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+	type: Mapped[str] = mapped_column()
+	enabled: Mapped[bool] = mapped_column(default=True)
+
+	def __init__(self, type: str):
+		self.type = type
 
 
 class SurveyConstruct(Base):
-	__tablename__ = "survey_construct"
+	__tablename__ = 'survey_construct'
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	name = Column(String, nullable=False)
@@ -18,8 +39,7 @@ class SurveyConstruct(Base):
 	type = Column(UUID(as_uuid=True), ForeignKey('construct_type.id'), nullable=True)
 	scale = Column(UUID(as_uuid=True), ForeignKey('construct_scale.id'), nullable=True)
 
-	items = relationship('ConstructItem', back_populates='construct', \
-		uselist=True, cascade='all, delete-orphan')
+	items = relationship('ConstructItem', back_populates='construct', uselist=True, cascade='all, delete-orphan')
 
 	def __init__(self, name: str, desc: str, type_id: uuid.UUID, scale_id: Union[uuid.UUID, None] = None):
 		self.name = name
@@ -28,18 +48,8 @@ class SurveyConstruct(Base):
 		self.scale = scale_id
 
 
-class ConstructItemType(Base):
-	__tablename__ = "construct_item_type"
-
-	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-	type = Column(String, nullable=False)
-
-	def __init__(self, type: str):
-		self.type = type
-
-
 class ConstructItem(Base):
-	__tablename__ = "construct_item"
+	__tablename__ = 'construct_item'
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	construct_id = Column(UUID(as_uuid=True), ForeignKey('survey_construct.id'), nullable=False)
@@ -57,27 +67,15 @@ class ConstructItem(Base):
 		self.item_type = item_type
 
 
-class ConstructType(Base):
-	__tablename__ = "construct_type"
-
-	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-	type = Column(String, nullable=False)
-	enabled = Column(Boolean, nullable=False, default=True)
-
-	def __init__(self, type: str):
-		self.type = type
-
-
 class ConstructScale(Base):
-	__tablename__ = "construct_scale"
+	__tablename__ = 'construct_scale'
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	levels = Column(Integer, nullable=False)
 	name = Column(String, nullable=False)
 	enabled = Column(Boolean, nullable=False, default=True)
 
-	scale_levels = relationship('ScaleLevel', back_populates='scale', \
-		uselist=True, cascade='all, delete-orphan')
+	scale_levels = relationship('ScaleLevel', back_populates='scale', uselist=True, cascade='all, delete-orphan')
 
 	def __init__(self, levels: int, name: str):
 		self.levels = levels
@@ -85,7 +83,7 @@ class ConstructScale(Base):
 
 
 class ScaleLevel(Base):
-	__tablename__ = "scale_level"
+	__tablename__ = 'scale_level'
 
 	level = Column(Integer, primary_key=True)
 	label = Column(String, nullable=False)

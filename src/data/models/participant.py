@@ -6,11 +6,11 @@ from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, Pri
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
-from data.rssadb import Base
+from data.base import RSSADBBase as Base
 
 
 class ParticipantType(Base):
-	__tablename__ = "participant_type"
+	__tablename__ = 'participant_type'
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	type = Column(String, nullable=False)
@@ -20,7 +20,7 @@ class ParticipantType(Base):
 
 
 class StudyParticipant(Base):
-	__tablename__ = "study_participant"
+	__tablename__ = 'study_participant'
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	participant_type = Column(UUID(as_uuid=True), ForeignKey('participant_type.id'), nullable=False)
@@ -30,13 +30,19 @@ class StudyParticipant(Base):
 	current_status = Column(String, nullable=False)
 	current_step = Column(UUID(as_uuid=True), ForeignKey('study_step.id'), nullable=False)
 	current_page = Column(UUID(as_uuid=True), ForeignKey('step_page.id'), nullable=True)
-	date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
-	date_updated = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	date_created = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+	date_updated = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 	discarded = Column(Boolean, nullable=False, default=False)
 
-	def __init__(self, participant_type: UUID, study_id: UUID, condition_id: UUID,
-			external_id: str,
-			current_step: UUID, current_page: Union[UUID, None] = None):
+	def __init__(
+		self,
+		participant_type: uuid.UUID,
+		study_id: uuid.UUID,
+		condition_id: uuid.UUID,
+		external_id: str,
+		current_step: uuid.UUID,
+		current_page: Union[uuid.UUID, None] = None,
+	):
 		self.participant_type = participant_type
 		self.study_id = study_id
 		self.condition_id = condition_id
@@ -47,7 +53,7 @@ class StudyParticipant(Base):
 
 
 class ParticipantSurveyResponse(Base):
-	__tablename__ = "participant_survey_response"
+	__tablename__ = 'participant_survey_response'
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False)
@@ -66,7 +72,7 @@ class ParticipantSurveyResponse(Base):
 
 
 class ParticipantContentRating(Base):
-	__tablename__ = "participant_content_rating"
+	__tablename__ = 'participant_content_rating'
 
 	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False)
 	content_id = Column(UUID(as_uuid=True), nullable=False)
@@ -78,7 +84,9 @@ class ParticipantContentRating(Base):
 
 	PrimaryKeyConstraint(participant_id, content_type, content_id)
 
-	def __init__(self, participant_id: UUID, content_type: str, content_id: UUID, rating: int, scale_min: int, scale_max: int):
+	def __init__(
+		self, participant_id: UUID, content_type: str, content_id: UUID, rating: int, scale_min: int, scale_max: int
+	):
 		self.participant_id = participant_id
 		self.content_type = content_type
 		self.content_id = content_id
@@ -88,27 +96,27 @@ class ParticipantContentRating(Base):
 
 
 class ParticipantResponse(Base):
-    __tablename__ = "participant_response"
+	__tablename__ = 'participant_response'
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id', ondelete='CASCADE'), nullable=False)
-    step_id = Column(UUID(as_uuid=True), ForeignKey('study_step.id', ondelete='CASCADE'), nullable=False)
-    response = Column(JSONB, nullable=False)
-    date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
-    date_modified = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
-    discarded = Column(Boolean, nullable=False, default=False)
+	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id', ondelete='CASCADE'), nullable=False)
+	step_id = Column(UUID(as_uuid=True), ForeignKey('study_step.id', ondelete='CASCADE'), nullable=False)
+	response = Column(JSONB, nullable=False)
+	date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	date_modified = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	discarded = Column(Boolean, nullable=False, default=False)
 
-    participant = relationship('StudyParticipant')
-    step = relationship('Step')
+	participant = relationship('StudyParticipant')
+	step = relationship('Step')
 
-    def __init__(self, participant_id: UUID, step_id: UUID, response: str):
-        self.participant_id = participant_id
-        self.step_id = step_id
-        self.response = response
+	def __init__(self, participant_id: UUID, step_id: UUID, response: str):
+		self.participant_id = participant_id
+		self.step_id = step_id
+		self.response = response
 
 
 class ParticipantInteractionLog(Base):
-	__tablename__ = "participant_interaction_log"
+	__tablename__ = 'participant_interaction_log'
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False)
@@ -123,7 +131,7 @@ class ParticipantInteractionLog(Base):
 
 
 class Demographic(Base):
-	__tablename__ = "demographics"
+	__tablename__ = 'demographics'
 
 	participant_id = Column(UUID(as_uuid=True), ForeignKey('study_participant.id'), primary_key=True)
 	age_range = Column(String, nullable=False)
@@ -138,9 +146,18 @@ class Demographic(Base):
 	date_updated = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 	discarded = Column(Boolean, nullable=False, default=False)
 
-	def __init__(self, participant_id: UUID, age_range: str, gender: str, race: str,\
-		education: str, country: str, state_region: Union[str, None] = None,\
-		gender_other: Union[str, None] = None, race_other: Union[str, None] = None):
+	def __init__(
+		self,
+		participant_id: UUID,
+		age_range: str,
+		gender: str,
+		race: str,
+		education: str,
+		country: str,
+		state_region: Union[str, None] = None,
+		gender_other: Union[str, None] = None,
+		race_other: Union[str, None] = None,
+	):
 		self.participant_id = participant_id
 		self.age_range = age_range
 		self.gender = gender

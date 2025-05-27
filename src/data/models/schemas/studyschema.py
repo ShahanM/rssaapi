@@ -24,7 +24,7 @@ class OrderedCreateMetaModel(CreateMetaModel):
 
 class OrderedMetaModel(MetaModel):
 	order_position: int
-	
+
 	model_config = ConfigDict(from_attributes=True)
 
 
@@ -40,6 +40,7 @@ class StudyConditionSchema(MetaModel):
 	study_id: uuid.UUID
 
 	model_config = ConfigDict(from_attributes=True)
+
 
 class StudyAuthSchema(MetaModel):
 	pass
@@ -119,7 +120,7 @@ class SurveyConstructSchema(BaseModel):
 	desc: str
 	type: ConstructTypeSchema
 	scale: Union[uuid.UUID, None]
-	
+
 	model_config = ConfigDict(from_attributes=True)
 
 
@@ -239,6 +240,7 @@ class NewParticipantTypeSchema(BaseModel):
 
 class StepIdRequestSchema(BaseModel):
 	current_step_id: uuid.UUID
+
 
 # {
 # 	'iss': 'https://dev-ezaapkd1uq45qy8u.us.auth0.com/',
