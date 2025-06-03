@@ -1,10 +1,6 @@
-import uuid
-
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.models.study import Study
 from data.rssadb import get_db as rssa_db
 from data.schemas.study_schemas import StudyAuthSchema, StudySchema
 from data.schemas.study_step_schemas import NextStepRequest, StudyStepSchema
@@ -16,27 +12,6 @@ router = APIRouter(
 	prefix='/v2',
 	tags=[Tags.study.value],
 )
-
-
-# def study_authorized_token(request: Request) -> str:
-# 	study_id = request.headers.get('X-Study-Id')
-# 	if not study_id:
-# 		raise HTTPException(
-# 			status_code=status.HTTP_400_BAD_REQUEST, detail='Application request not registered for a study'
-# 		)
-# 	return study_id
-
-
-# async def get_current_registered_study(request: Request) -> StudySchema:
-# 	study_id = study_authorized_token(request)
-# 	study = None
-# 	async with RSSADatabase() as db:
-# 		study_service = StudyService(db)
-# 		study = await study_service.get_study_by_id(uuid.UUID(study_id))
-# 	if not study:
-# 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found')
-
-# 	return study
 
 
 @router.get('/study/', response_model=StudyAuthSchema)

@@ -1,8 +1,14 @@
 [tool.ruff]
 line-length = 120
-exclude = ["__init__.py"]
 target-version = "py38"
+exclude = ["__init__.py"]
 fix = true
+
+[tool.ruff.lint]
+ignore = [
+	"W191",  # indentation contains tabs
+	"B008", # function call in default argument
+]
 select = [
 	"E",  # Pyflakes errors
 	"W",  # Pyflakes warnings
@@ -11,11 +17,6 @@ select = [
 	"C",  # flake8-comprehensions
 	"B",  # flake8-bugbear
 	"UP", # pyupgrade
-]
-
-ignore = [
-	"W191",  # indentation contains tabs
-	"B008", # function call in default argument
 ]
 
 [tool.ruff.format]

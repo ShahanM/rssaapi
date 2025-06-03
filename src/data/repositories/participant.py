@@ -6,14 +6,14 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from data.models.participant import (
-	ParticipantType,
-	StudyParticipant,
-)
 from data.models.schemas.participantschema import DemographicSchema
-from data.models.study import (
+from data.models.study_components import (
 	Page,
 	Step,
+)
+from data.models.study_participants import (
+	ParticipantType,
+	StudyParticipant,
 )
 from data.repositories.base_repo import BaseRepository
 

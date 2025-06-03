@@ -6,14 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from compute.rspc import PreferenceCommunity
 from compute.utils import get_rating_data_path, get_rssa_ers_data, get_rssa_model_path
+from data.models.schemas.advisorschema import PrefCommRatingSchema
+from data.models.schemas.movieschema import MovieSchemaV2
+from data.moviedb import get_db as movie_db
 from data.repositories.movies import (
 	MovieRecommendationSchema,
 	get_ers_movies_by_movielens_ids,
 	get_movie_recommendation_text,
 )
-from data.models.schemas.advisorschema import PrefCommRatingSchema
-from data.models.schemas.movieschema import MovieSchemaV2
-from data.moviedb import movie_db
 from docs.metadata import TagsMetadataEnum as Tags
 
 router = APIRouter(prefix='/v2', deprecated=True)
@@ -34,7 +34,7 @@ class AdvisorProfileSchema(BaseModel):
 
 
 @router.post('/prefComm/advisors/', response_model=List[AdvisorProfileSchema], tags=[Tags.pref_comm])
-async def get_advisor(rated_movies: PrefCommRatingSchema, db: AsyncSession = Depends(movie_db.get_db)):
+async def get_advisor(rated_movies: PrefCommRatingSchema, db: AsyncSession = Depends(movie_db)):
 	rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
 	rssa_model_path = get_rssa_model_path()
 	rssa_pref_comm = PreferenceCommunity(rssa_model_path, rssa_itm_pop, rssa_ave_scores, get_rating_data_path())

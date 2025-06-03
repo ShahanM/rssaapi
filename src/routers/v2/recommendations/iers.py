@@ -5,12 +5,10 @@ from sqlalchemy.orm import Session
 
 from compute.iers import EmotionsRS
 from compute.utils import *
-from data.repositories.movies import *
 from data.models.schemas.movieschema import *
 from data.models.schemas.studyschema import *
-
-# from data.moviedb import get_db as movie_db_v2
-from data.moviedb import movie_db
+from data.moviedb import get_db as movie_db
+from data.repositories.movies import *
 
 router = APIRouter(prefix='/v2/ers')
 
@@ -38,7 +36,7 @@ DIVERSE_N_TUNING_PARAMS = {
 
 
 @router.post('/recommendation', response_model=List[MovieSchemaV2])
-async def create_recommendations(rated_movies: NewRatingSchema, db: Session = Depends(movie_db.get_db)):
+async def create_recommendations(rated_movies: NewRatingSchema, db: Session = Depends(movie_db)):
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
 	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
@@ -68,7 +66,7 @@ async def create_recommendations(rated_movies: NewRatingSchema, db: Session = De
 
 
 @router.post('/updaterecommendations/', response_model=List[MovieSchemaV2])
-async def update_recommendations(rated_movies: EmotionInputSchema, db: Session = Depends(movie_db.get_db)):
+async def update_recommendations(rated_movies: EmotionInputSchema, db: Session = Depends(movie_db)):
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
 	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
@@ -135,7 +133,7 @@ async def update_recommendations(rated_movies: EmotionInputSchema, db: Session =
 
 @router.post('/experimental/updaterecommendations/', response_model=List[MovieSchemaV2])
 async def update_recommendations_experimental(
-	rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(movie_db.get_db)
+	rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(movie_db)
 ):
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()

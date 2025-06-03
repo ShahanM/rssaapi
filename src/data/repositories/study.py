@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.models.study import Study
+from data.models.study_components import Study
 from data.repositories.base_repo import BaseRepository
 
 

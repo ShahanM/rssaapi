@@ -1,5 +1,5 @@
 import uuid
-from typing import Generic, Type, TypeVar, Union
+from typing import Generic, List, Type, TypeVar, Union
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +24,10 @@ class BaseRepository(Generic[ModelType]):
 		await self.db.flush()
 		return instance
 
+	async def create_all(self, instances: List[ModelType]) -> List[ModelType]:
+		self.db.add_all(instances)
+		return instances
+
 	async def get(self, instance_id: uuid.UUID) -> Union[ModelType, None]:
 		query = select(self.model).where(self.model.id == instance_id)
 		result = await self.db.execute(query)
@@ -31,6 +35,11 @@ class BaseRepository(Generic[ModelType]):
 
 	async def get_all(self) -> list[ModelType]:
 		query = select(self.model)
+		result = await self.db.execute(query)
+		return list(result.scalars().all())
+
+	async def get_all_from_ids(self, instance_ids: List[uuid.UUID]) -> Union[List[ModelType], None]:
+		query = select(self.model).where(self.model.id.in_(instance_ids))
 		result = await self.db.execute(query)
 		return list(result.scalars().all())
 

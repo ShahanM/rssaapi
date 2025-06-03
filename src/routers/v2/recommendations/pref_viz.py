@@ -10,7 +10,7 @@ from compute.utils import (
 	get_pref_viz_model_path,
 )
 from data.models.schemas.movieschema import BaseModel, MovieSchemaV2
-from data.moviedb import movie_db
+from data.moviedb import get_db as movie_db
 from data.repositories.movies import get_ers_movies_by_movielens_ids
 from data.rssadb import get_db as rssa_db
 from data.schemas.study_schemas import StudySchema
@@ -133,7 +133,7 @@ async def recommend_for_study_condition(
 	request_model: PrefVizRequestSchemaV2,
 	db: AsyncSession = Depends(rssa_db),
 	study: StudySchema = Depends(get_current_registered_study),
-	movie_db: AsyncSession = Depends(movie_db.get_db),
+	movie_db: AsyncSession = Depends(movie_db),
 ):
 	cache_key = (
 		request_model.user_id,

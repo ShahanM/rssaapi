@@ -1,6 +1,4 @@
-# from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.ext.declarative import declarative_base
 
 import config as cfg
 
@@ -15,9 +13,6 @@ async_engine = create_async_engine(ASYNC_MOVIE_DB)
 AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=async_engine)
 
 
-Base = declarative_base()
-
-
 class MovieDatabase:
 	async def __aenter__(self):
 		self.session = AsyncSessionLocal()
@@ -27,9 +22,14 @@ class MovieDatabase:
 		await self.session.commit()
 		await self.session.close()
 
-	async def get_db(self):
-		async with self:
-			yield self.session
 
-
-movie_db = MovieDatabase()
+async def get_db():
+	session = AsyncSessionLocal()
+	try:
+		yield session
+		await session.commit()
+	except Exception as e:
+		await session.rollback()
+		raise e
+	finally:
+		await session.close()

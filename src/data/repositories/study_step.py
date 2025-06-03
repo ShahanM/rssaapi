@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from data.models.study import Step
+from data.models.study_components import Step
 
 from .base_repo import BaseRepository
 

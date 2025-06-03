@@ -2,20 +2,16 @@ import uuid
 from random import shuffle
 from typing import List
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from compute.utils import *
-
-# from data.movies import *
-from data.repositories.movies import *
-from data.models.schemas.movieschema import *
-from data.models.schemas.studyschema import *
-
-# from data.moviedatabase import SessionLocal
-# from data.moviedb import get_db as movie_db_v2
-from data.moviedb import movie_db
+from data.moviedb import get_db as movie_db
+from data.rssadb import get_db as rssa_db
+from data.schemas.movie_schemas import MovieSchema, MovieSearchRequest, MovieSearchResponse
+from data.services.movie_service import MovieService
+from data.services.participant_session_service import ParticipantSessionService
 from docs.metadata import TagsMetadataEnum as Tags
+from routers.v2.resources.authorization import get_current_participant_id
 
 router = APIRouter(prefix='/v2/movie')
 
@@ -27,17 +23,28 @@ router = APIRouter(prefix='/v2/movie')
 # 		yield db
 # 	finally:
 # 		db.close()
-class MovieSearchRequest(BaseModel):
-	query: str
 
 
-class MovieSearchResponse(BaseModel):
-	exact_match: List[MovieSchemaV2] = []
-	near_matches: List[MovieSchemaV2] = []
+@router.get('/ers', response_model=List[MovieSchema], tags=[Tags.ers])
+async def get_movies_with_emotions(
+	offset: int = Query(0, get=0, description='The starting index of the movies to return'),
+	limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
+	moviedb: AsyncSession = Depends(movie_db),
+	rssadb: AsyncSession = Depends(rssa_db),
+	current_participant_id: uuid.UUID = Depends(get_current_participant_id),
+):
+	movie_service = MovieService(moviedb)
+	session_service = ParticipantSessionService(rssadb)
+	movies_to_fetch = await session_service.get_next_session_movie_ids_batch(current_participant_id, offset, limit)
+	if movies_to_fetch:
+		movies = await movie_service.get_movies_with_emotions_from_ids(list(movies_to_fetch))
+		if movies:
+			movies_to_send = [MovieSchema.model_validate(m) for m in movies]
+			return movies_to_send
 
 
 @router.get('/ids/ers', response_model=List[uuid.UUID], tags=[Tags.ers])
-async def read_movies_ids(db: Session = Depends(movie_db.get_db)):
+async def read_movies_ids(db: AsyncSession = Depends(movie_db)):
 	"""Get all movie ids from the ERS database
 	in v2, this endpoint returns the ids of all movies in the ERS database
 	but they are randomly shuffled.
@@ -58,19 +65,19 @@ async def read_movies_ids(db: Session = Depends(movie_db.get_db)):
 # 	return movies
 
 
-@router.post('/ers', response_model=List[MovieSchemaV2], tags=[Tags.ers])
-async def read_movies_by_ids(movie_ids: List[uuid.UUID], db: Session = Depends(movie_db.get_db)):
+@router.post('/ers', response_model=List[MovieSchema], tags=[Tags.ers])
+async def read_movies_by_ids(movie_ids: List[uuid.UUID], db: AsyncSession = Depends(movie_db)):
 	movies = get_ers_movies_by_ids_v2(db, movie_ids)
 
 	return movies
 
 
-@router.post('/search_movie', response_model=List[MovieSchemaV2])
-async def search_movie(request: MovieSearchRequest, db: Session = Depends(movie_db.get_db)):
+@router.post('/search_movie', response_model=List[MovieSchema])
+async def search_movie(request: MovieSearchRequest, db: AsyncSession = Depends(movie_db)):
 	query = request.query.strip().lower()
 	exact_match = []
 	# near_matches: List[str] = []
-	near_matches: List[MovieSchemaV2] = []
+	near_matches: List[MovieSchema] = []
 	similarity_threshold = 0.6  # Adjust as needed
 	limit = 5
 
@@ -80,7 +87,7 @@ async def search_movie(request: MovieSearchRequest, db: Session = Depends(movie_
 	exact_match_result = get_movie_by_exact_title_search(db, query)
 	if exact_match_result:
 		# exact_match = exact_match_result[0]
-		exact_match = [MovieSchemaV2.model_validate(movie) for movie in exact_match_result]
+		exact_match = [MovieSchema.model_validate(movie) for movie in exact_match_result]
 		return exact_match
 		# return MovieSearchResponse(exact_match=exact_match)
 		# return MovieSearchResponse(exact_match=exact_match_result)

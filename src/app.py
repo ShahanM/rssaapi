@@ -1,11 +1,10 @@
 import logging
 
-from fastapi import Depends, FastAPI, Request, status
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from data.moviedb import movie_db
 from docs.metadata import AppMetadata as App_Meta
 from docs.metadata import tags_metadata
 from logging_config import configure_logging
@@ -17,7 +16,7 @@ from middlewares.bad_request_logging import BadRequestLoggingMiddleware
 from middlewares.infostats import RequestHandlingStatsMiddleware
 from middlewares.logging import LoggingMiddleware
 from routers.v2.recommendations import alt_algo, iers, pref_comm, pref_viz
-from routers.v2.resources import auth0, movies, participant, study, study_meta
+from routers.v2.resources import admin, auth0, movies, participant, participant_response, study, study_meta, survey
 
 # Configure logging
 configure_logging()
@@ -37,7 +36,6 @@ app = FastAPI(
 	version='0.1.0',
 	terms_of_service='https://rssa.recsys.dev/terms',
 	state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
-	dependencies=[Depends(movie_db.get_db)],
 )
 
 
@@ -77,7 +75,7 @@ origins = [
 """
 v2 routers # we will remove v1 once we are done migrating the emotions study code
 """
-
+app.include_router(admin.router)
 """
 Resources API Routers
 """
@@ -85,6 +83,7 @@ app.include_router(study.router)
 app.include_router(movies.router)
 app.include_router(participant.router)
 app.include_router(study_meta.router)
+app.include_router(survey.router)
 
 
 """
@@ -95,6 +94,7 @@ app.include_router(pref_viz.router)
 app.include_router(iers.router)
 app.include_router(auth0.router)
 app.include_router(pref_comm.router)
+app.include_router(participant_response.router)
 
 
 """

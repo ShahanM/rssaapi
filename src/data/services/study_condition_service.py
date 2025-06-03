@@ -3,7 +3,7 @@ from typing import List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.models.study import StudyCondition
+from data.models.study_components import StudyCondition
 from data.repositories.study import StudyRepository
 from data.repositories.study_condition import StudyConditionRepository
 from data.schemas.study_condition_schemas import StudyConditionCreateSchema, StudyConditionSchema

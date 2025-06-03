@@ -2,7 +2,7 @@ import random
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.models.participant import StudyParticipant
+from data.models.study_participants import StudyParticipant
 from data.repositories.participant import ParticipantRepository
 from data.repositories.study_condition import StudyConditionRepository
 from data.schemas.participant_schemas import ParticipantCreateSchema, ParticipantSchema, ParticipantUpdateSchema
@@ -14,7 +14,7 @@ class ParticipantService:
 		self.participant_repo = ParticipantRepository(db)
 		self.study_condition_repo = StudyConditionRepository(db)
 
-	async def create_study_participant(self, new_participant: ParticipantCreateSchema) -> ParticipantSchema:
+	async def create_study_participant(self, new_participant: ParticipantCreateSchema) -> StudyParticipant:
 		study_conditions = await self.study_condition_repo.get_conditions_by_study_id(new_participant.study_id)
 
 		# FIXME: make this dynamic weighted choice so that we always have n particpants for each of the k conditions
@@ -34,10 +34,10 @@ class ParticipantService:
 
 		await self.participant_repo.create(study_participant)
 
-		await self.db.commit()
+		# await self.db.commit()
 		await self.db.refresh(study_participant)
 
-		return ParticipantSchema.model_validate(study_participant)
+		return study_participant
 
 	async def update_study_participant(self, new_participant_data: ParticipantUpdateSchema) -> ParticipantSchema:
 		update_dict = new_participant_data.model_dump()

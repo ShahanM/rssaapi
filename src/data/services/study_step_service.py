@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.models.study_v2 import Step
+from data.models.study_components import Step
 from data.repositories.study_step import StudyStepRepository
 from data.schemas.study_step_schemas import StudyStepCreateSchema, StudyStepSchema
 
