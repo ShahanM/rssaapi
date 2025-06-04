@@ -65,7 +65,9 @@ class Movie(Base):
 	emotions: Mapped[Optional['MovieEmotions']] = relationship(
 		'MovieEmotions', back_populates='movie', cascade='all, delete-orphan', uselist=False
 	)
-	recommendations_text = relationship('MovieRecommendationText', back_populates='movie', cascade='all, delete-orphan')
+	recommendations_text: Mapped[Optional['MovieRecommendationText']] = relationship(
+		'MovieRecommendationText', back_populates='movie', cascade='all, delete-orphan', uselist=False
+	)
 
 	# All required fields are part of the Movielens dataset
 	# All other fields need to be updated from TMDB and IMDB

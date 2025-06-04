@@ -26,3 +26,8 @@ class MovieService:
 		movies_to_send = await self.movie_repo.get_movies_with_emotions_from_ids(movie_ids)
 
 		return movies_to_send
+
+	async def get_movies_by_movielens_ids(self, movielens_ids: List[str]) -> List[Movie]:
+		movies_to_send = await self.movie_repo.get_all_by_field_in_values('movielens_id', movielens_ids)
+
+		return movies_to_send

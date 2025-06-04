@@ -1,5 +1,5 @@
 import uuid
-from typing import Generic, List, Type, TypeVar, Union
+from typing import Any, Generic, List, Type, TypeVar, Union
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,3 +58,34 @@ class BaseRepository(Generic[ModelType]):
 		await self.db.flush()
 
 		return result.rowcount > 0
+
+	async def get_by_field(self, field_name: str, value: Any) -> Union[ModelType, None]:
+		column_attribute = getattr(self.model, field_name, None)
+		if column_attribute is None:
+			raise AttributeError(f'Model "{self.model.__name__}" has no attribute "{field_name}" to query by.')
+
+		query = select(self.model).where(column_attribute == value)
+		result = await self.db.execute(query)
+		return result.scalars().first()
+
+	async def get_all_by_field(self, field_name: str, value: Any) -> List[ModelType]:
+		column_attribute = getattr(self.model, field_name, None)
+		if column_attribute is None:
+			raise AttributeError(f'Model "{self.model.__name__}" has no attribute "{field_name}" to query by.')
+
+		query = select(self.model).where(column_attribute == value)
+		result = await self.db.execute(query)
+		return list(result.scalars().all())
+
+	async def get_all_by_field_in_values(self, field_name: str, values: List[Any]) -> List[ModelType]:
+		column_attribute = getattr(self.model, field_name, None)
+
+		if column_attribute is None:
+			raise AttributeError(f'Model "{self.model.__name__}" has no attribute "{field_name}"" to query by.')
+
+		if not values:
+			return []
+
+		query = select(self.model).where(column_attribute.in_(values))
+		result = await self.db.execute(query)
+		return list(result.scalars().all())

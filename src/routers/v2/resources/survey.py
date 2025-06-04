@@ -52,5 +52,4 @@ async def get_next_page_endpoint(
 	page_to_return = SurveyPageSchema.model_validate(next_page)
 	page_to_return.last_page = is_last_page
 
-	print(page_to_return)
 	return page_to_return

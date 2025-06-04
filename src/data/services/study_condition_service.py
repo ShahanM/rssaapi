@@ -44,7 +44,7 @@ class StudyConditionService:
 
 		return list(study_conditions)
 
-	async def get_study_condition(self, condition_id: uuid.UUID) -> StudyConditionSchema:
+	async def get_study_condition(self, condition_id: uuid.UUID) -> StudyCondition:
 		condition = await self.condition_repo.get(condition_id)
 
-		return StudyConditionSchema.model_validate(condition)
+		return condition

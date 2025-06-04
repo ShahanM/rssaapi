@@ -2,6 +2,7 @@ import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from compute.rspv import PreferenceItem, PreferenceVisualization, RatedItemSchema
@@ -9,11 +10,11 @@ from compute.utils import (
 	get_pref_viz_data,
 	get_pref_viz_model_path,
 )
-from data.models.schemas.movieschema import BaseModel, MovieSchemaV2
 from data.moviedb import get_db as movie_db
-from data.repositories.movies import get_ers_movies_by_movielens_ids
 from data.rssadb import get_db as rssa_db
+from data.schemas.movie_schemas import MovieSchema
 from data.schemas.study_schemas import StudySchema
+from data.services.movie_service import MovieService
 from data.services.study_condition_service import StudyConditionService
 from routers.v2.resources.study import get_current_registered_study
 
@@ -66,7 +67,7 @@ class PrefVizResponseSchema(BaseModel):
 		return self.model_dump_json().__hash__()
 
 
-class PreferenceItemV2(MovieSchemaV2, PreferenceItem):
+class PreferenceItemV2(MovieSchema, PreferenceItem):
 	pass
 
 
@@ -131,13 +132,15 @@ async def create_recommendations(request_model: PrefVizRequestSchema):
 @router.post('/prefviz/recommendation/', response_model=List[PreferenceItemV2])
 async def recommend_for_study_condition(
 	request_model: PrefVizRequestSchemaV2,
-	db: AsyncSession = Depends(rssa_db),
+	rssadb: AsyncSession = Depends(rssa_db),
 	study: StudySchema = Depends(get_current_registered_study),
-	movie_db: AsyncSession = Depends(movie_db),
+	moviedb: AsyncSession = Depends(movie_db),
 ):
+	rateditms = request_model.ratings
+	sorted_ratings = sorted(rateditms, key=lambda x: x.item_id)
 	cache_key = (
 		request_model.user_id,
-		set(request_model.ratings),
+		tuple(sorted_ratings),
 		request_model.user_condition,
 		request_model.is_baseline,
 		study.id,
@@ -150,7 +153,7 @@ async def recommend_for_study_condition(
 	model_path = get_pref_viz_model_path()
 	pref_viz = PreferenceVisualization(model_path, item_pop, avg_score)
 
-	study_condition_service = StudyConditionService(db)
+	study_condition_service = StudyConditionService(rssadb)
 	study_condition = await study_condition_service.get_study_condition(request_model.user_condition)
 
 	if not study_condition or study_condition.study_id != study.id:
@@ -184,13 +187,15 @@ async def recommend_for_study_condition(
 	if len(recs) == 0:
 		raise HTTPException(status_code=500, detail='No recommendations were generated.')
 
+	movie_service = MovieService(moviedb)
 	recmap = {r.item_id: r for r in recs}
-	movies = await get_ers_movies_by_movielens_ids(movie_db, list(recmap.keys()))
+	movies = await movie_service.get_movies_by_movielens_ids(list(recmap.keys()))
+	# movies = await get_ers_movies_by_movielens_ids(movie_db, list(recmap.keys()))
 
 	res = []
 
 	for m in movies:
-		movie = MovieSchemaV2.model_validate(m)
+		movie = MovieSchema.model_validate(m)
 		pref_item = PreferenceItemV2(**movie.model_dump(), **recmap[m.movielens_id].model_dump())  # type: ignore
 		res.append(pref_item)
 

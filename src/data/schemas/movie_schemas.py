@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -21,6 +22,20 @@ class EmotionsSchema(BaseModel):
 		from_attributes = True
 
 
+class RecommendationTextSchema(BaseModel):
+	id: uuid.UUID
+	movie_id: uuid.UUID
+	formal: str
+	informal: str
+	source: str
+	model: str
+	created_at: datetime
+	updated_at: datetime
+
+	class Config:
+		from_attributes = True
+
+
 class MovieSchema(BaseModel):
 	id: uuid.UUID
 	tmdb_id: str
@@ -33,8 +48,9 @@ class MovieSchema(BaseModel):
 	cast: str
 	description: str
 	poster: str
-	emotions: Optional[EmotionsSchema] = None
-	poster_identifier: Optional[str]
+	# emotions: Optional[EmotionsSchema] = None
+	# recommendations_text: Optional[RecommendationTextSchema] = None
+	poster_identifier: Optional[str] = ''
 
 	class Config:
 		from_attributes = True

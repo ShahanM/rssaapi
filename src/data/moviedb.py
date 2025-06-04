@@ -10,7 +10,7 @@ dbname = cfg.get_env_var('MOVIE_DB_NAME')
 
 ASYNC_MOVIE_DB = f'postgresql+asyncpg://{dbuser}:{dbpass}@{dbhost}:{dbport}/{dbname}'
 async_engine = create_async_engine(ASYNC_MOVIE_DB)
-AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=async_engine)
+AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=async_engine, expire_on_commit=False)
 
 
 class MovieDatabase:
