@@ -1,14 +1,17 @@
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.models.participant_responses import SurveyItemResponse
-from data.repositories.participant_response import SurveyItemResponseRepository
-from data.schemas.survey_response_schemas import SurveyReponseCreateSchema
+from data.models.participant_responses import SurveyFreeformResponse, SurveyItemResponse
+from data.repositories.participant_response import SurveyFreeformResponseRepository, SurveyItemResponseRepository
+from data.schemas.survey_response_schemas import FreeformTextResponseCreateSchema, SurveyReponseCreateSchema
 
 
 class ParticipantResponseService:
 	def __init__(self, db: AsyncSession):
 		self.db = db
 		self.survey_item_response_repo = SurveyItemResponseRepository(db)
+		self.freeform_response_repo = SurveyFreeformResponseRepository(db)
 
 	async def insert_survey_item_response(self, survey_response_data: SurveyReponseCreateSchema):
 		svy_responses = []
@@ -22,4 +25,21 @@ class ParticipantResponseService:
 				)
 				svy_responses.append(svy_item_response)
 		_ = await self.survey_item_response_repo.create_all(svy_responses)
-		await self.survey_item_response_repo.db.commit()
+		await self.db.commit()
+
+	async def insert_freeform_text_response(
+		self, survey_id: uuid.UUID, text_response_data: FreeformTextResponseCreateSchema
+	):
+		text_responses = []
+		for text_response in text_response_data.responses:
+			txt_response_obj = SurveyFreeformResponse(
+				text_response_data.participant_id,
+				survey_id,
+				text_response.response,
+				text_response_data.step_id,
+				None,
+				context_tag=text_response.context_tag,
+			)
+			text_responses.append(txt_response_obj)
+		_ = await self.freeform_response_repo.create_all(text_responses)
+		await self.db.commit()

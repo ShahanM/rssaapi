@@ -83,7 +83,7 @@ class SurveyFreeformResponse(Base):
 	This handles cases where construct_id/item_id might be null.
 	"""
 
-	__tablename__ = 'survey_freeform_response'
+	__tablename__ = 'freeform_response'
 
 	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	participant_id: Mapped[uuid.UUID] = mapped_column(
