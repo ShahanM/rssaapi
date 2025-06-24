@@ -1,29 +1,65 @@
 import logging
-import uuid
-from functools import partial
-from typing import List
+from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
-from data.repositories.study import StudyRepository
 from data.rssadb import get_db as rssa_db
+from data.schemas.study_schemas import StudyAuthSchema, StudySchema
+from data.schemas.study_step_schemas import NextStepRequest, StudyStepSchema
+from data.services.study_service import StudyService
 from docs.metadata import TagsMetadataEnum as Tags
-
-from .auth0 import get_current_admin_user as auth0_admin_user
-from .auth0 import get_current_user as auth0_user
+from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-router = APIRouter(prefix='/v2/meta')
 
-auth0_read_all = partial(auth0_admin_user, required_permissions=['read:all'])
+router = APIRouter(
+	prefix='/v2',
+	tags=[Tags.study],
+	dependencies=[Depends(get_auth0_authenticated_user)],
+)
+
+# auth0_read_all = partial(auth0_admin_user, required_permissions=['read:all'])
 
 
-# @router.get('/study/', response_model=List[StudySchema], tags=[Tags.meta])
-# async def retrieve_studies(db: AsyncSession = Depends(rssa_db), current_user=Depends(auth0_user)):
+@router.get('/admin/study/', response_model=List[StudySchema])
+async def retrieve_studies(
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	is_super_admin = 'admin:all' in user.permissions
+	study_service = StudyService(db)
+
+	studies_from_db = []
+	if is_super_admin:
+		studies_from_db = await study_service.get_all_studies()
+
+	if studies_from_db:
+		first_study = studies_from_db[0]
+		from sqlalchemy import inspect
+
+		insp = inspect(first_study)
+
+		print(f'DEBUG: Study is persistent: {insp.persistent}')  # Should be True
+		print(f'DEBUG: Study is transient: {insp.transient}')  # Should be False
+		print(f'DEBUG: Study is pending: {insp.pending}')  # Should be False
+		print(f'DEBUG: Study is detached: {insp.detached}')  # Should be False
+		print(f'DEBUG: Study is expired: {insp.expired}')  # Should be False
+		print(f'DEBUG: Study has a session: {insp.session is not None}')  # Should be True
+
+		# Try accessing an attribute to force loading if not already loaded
+		try:
+			print(f'DEBUG: Study name: {first_study.name}')
+		except Exception as e:
+			print(f'DEBUG: Error accessing attribute: {e}')
+
+	converted_studies = [StudySchema.model_validate(study) for study in studies_from_db]
+
+	return converted_studies
+
+
 # 	study_repo = StudyRepository(db)
 # 	studies = study_repo.get_studies()
 

@@ -13,7 +13,10 @@ from data.services.participant_session_service import ParticipantSessionService
 from docs.metadata import TagsMetadataEnum as Tags
 from routers.v2.resources.authorization import get_current_participant_id
 
-router = APIRouter(prefix='/v2/movie')
+router = APIRouter(
+	prefix='/v2/movie',
+	tags=[Tags.movie],
+)
 
 
 # Dependency
@@ -25,7 +28,7 @@ router = APIRouter(prefix='/v2/movie')
 # 		db.close()
 
 
-@router.get('/ers', response_model=List[MovieSchema], tags=[Tags.ers])
+@router.get('/ers', response_model=List[MovieSchema])
 async def get_movies_with_emotions(
 	offset: int = Query(0, get=0, description='The starting index of the movies to return'),
 	limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
@@ -43,17 +46,17 @@ async def get_movies_with_emotions(
 			return movies_to_send
 
 
-@router.get('/ids/ers', response_model=List[uuid.UUID], tags=[Tags.ers])
-async def read_movies_ids(db: AsyncSession = Depends(movie_db)):
-	"""Get all movie ids from the ERS database
-	in v2, this endpoint returns the ids of all movies in the ERS database
-	but they are randomly shuffled.
-	So, each subsequent call will return a different order of ids.
-	"""
-	movies = get_all_ers_movies_v2(db)
-	ids = [movie.id for movie in movies]
-	shuffle(ids)
-	return ids
+# @router.get('/ids/ers', response_model=List[uuid.UUID], tags=[Tags.ers])
+# async def read_movies_ids(db: AsyncSession = Depends(movie_db)):
+# 	"""Get all movie ids from the ERS database
+# 	in v2, this endpoint returns the ids of all movies in the ERS database
+# 	but they are randomly shuffled.
+# 	So, each subsequent call will return a different order of ids.
+# 	"""
+# 	movies = get_all_ers_movies_v2(db)
+# 	ids = [movie.id for movie in movies]
+# 	shuffle(ids)
+# 	return ids
 
 
 # @router.get('/movies/ers', response_model=List[MovieSchema], \
@@ -65,14 +68,14 @@ async def read_movies_ids(db: AsyncSession = Depends(movie_db)):
 # 	return movies
 
 
-@router.post('/ers', response_model=List[MovieSchema], tags=[Tags.ers])
+@router.post('/ers', response_model=List[MovieSchema])
 async def read_movies_by_ids(movie_ids: List[uuid.UUID], db: AsyncSession = Depends(movie_db)):
 	movies = get_ers_movies_by_ids_v2(db, movie_ids)
 
 	return movies
 
 
-@router.post('/search_movie', response_model=List[MovieSchema])
+@router.post('/search', response_model=List[MovieSchema])
 async def search_movie(request: MovieSearchRequest, db: AsyncSession = Depends(movie_db)):
 	query = request.query.strip().lower()
 	exact_match = []

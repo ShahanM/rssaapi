@@ -9,8 +9,12 @@ from data.models.schemas.movieschema import *
 from data.models.schemas.studyschema import *
 from data.moviedb import get_db as movie_db
 from data.repositories.movies import *
+from docs.metadata import TagsMetadataEnum as Tags
 
-router = APIRouter(prefix='/v2/ers')
+router = APIRouter(
+	prefix='/v2',
+	tags=[Tags.rssa],
+)
 
 # TODO: Move to config file
 TOP_N_TUNING_PARAMS = {
@@ -35,8 +39,20 @@ DIVERSE_N_TUNING_PARAMS = {
 }
 
 
-@router.post('/recommendation', response_model=List[MovieSchemaV2])
-async def create_recommendations(rated_movies: NewRatingSchema, db: Session = Depends(movie_db)):
+@router.post('/recommendation/ers/', response_model=List[MovieSchemaV2])
+async def generation_emotions_recommendation(rated_movies: NewRatingSchema, db: Session = Depends(movie_db)):
+	"""_summary_
+
+	Args:
+		rated_movies (NewRatingSchema): _description_
+		db (Session, optional): _description_. Defaults to Depends(movie_db).
+
+	Raises:
+		HTTPException: _description_
+
+	Returns:
+		_type_: _description_
+	"""
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
 	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
@@ -65,7 +81,7 @@ async def create_recommendations(rated_movies: NewRatingSchema, db: Session = De
 	return movies
 
 
-@router.post('/updaterecommendations/', response_model=List[MovieSchemaV2])
+@router.put('/recommendations/ers/', response_model=List[MovieSchemaV2])
 async def update_recommendations(rated_movies: EmotionInputSchema, db: Session = Depends(movie_db)):
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
@@ -131,7 +147,7 @@ async def update_recommendations(rated_movies: EmotionInputSchema, db: Session =
 	return movies
 
 
-@router.post('/experimental/updaterecommendations/', response_model=List[MovieSchemaV2])
+@router.put('/experimental/recommendations/', response_model=List[MovieSchemaV2])
 async def update_recommendations_experimental(
 	rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(movie_db)
 ):

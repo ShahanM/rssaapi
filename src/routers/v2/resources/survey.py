@@ -12,7 +12,7 @@ from routers.v2.resources.authorization import get_current_registered_study
 
 router = APIRouter(
 	prefix='/v2',
-	tags=[Tags.study],
+	tags=[Tags.survey],
 )
 
 

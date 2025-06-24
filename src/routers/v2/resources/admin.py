@@ -7,10 +7,13 @@ from data.services.admin_service import AdminService
 from data.services.movie_service import MovieService
 from docs.metadata import TagsMetadataEnum as Tags
 
-router = APIRouter(prefix='/v2')
+router = APIRouter(
+	prefix='/v2',
+	tags=[Tags.admin],
+)
 
 
-@router.post('/admin/create_pre_shuffled', response_model=bool, tags=[Tags.participant])
+@router.post('/admin/create_pre_shuffled', response_model=bool)
 async def new_preshuffled_movie_list(
 	seed: int = Query(),
 	rssadb: AsyncSession = Depends(rssa_db),

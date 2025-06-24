@@ -13,7 +13,7 @@ class ParticipantResponseService:
 		self.survey_item_response_repo = SurveyItemResponseRepository(db)
 		self.freeform_response_repo = SurveyFreeformResponseRepository(db)
 
-	async def insert_survey_item_response(self, survey_response_data: SurveyReponseCreateSchema):
+	async def create_survey_item_response(self, survey_response_data: SurveyReponseCreateSchema):
 		svy_responses = []
 		for svy_content in survey_response_data.responses:
 			for item_response in svy_content.items:
@@ -27,7 +27,7 @@ class ParticipantResponseService:
 		_ = await self.survey_item_response_repo.create_all(svy_responses)
 		await self.db.commit()
 
-	async def insert_freeform_text_response(
+	async def create_freeform_text_response(
 		self, survey_id: uuid.UUID, text_response_data: FreeformTextResponseCreateSchema
 	):
 		text_responses = []

@@ -16,7 +16,15 @@ from middlewares.bad_request_logging import BadRequestLoggingMiddleware
 from middlewares.infostats import RequestHandlingStatsMiddleware
 from middlewares.logging import LoggingMiddleware
 from routers.v2.recommendations import alt_algo, iers, pref_comm, pref_viz
-from routers.v2.resources import admin, auth0, movies, participant, participant_response, study, study_meta, survey
+from routers.v2.resources import (
+	feedback,
+	movies,
+	participant,
+	participant_response,
+	study,
+	survey,
+)
+from routers.v2.resources.admin import auth0, study as study_admin
 
 # Configure logging
 configure_logging()
@@ -33,9 +41,10 @@ app = FastAPI(
 	title=App_Meta.title,
 	summary=App_Meta.summary,
 	description=App_Meta.description,
-	version='0.1.0',
+	version='0.2.0',
 	terms_of_service='https://rssa.recsys.dev/terms',
 	state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
+	security=[{'Study ID': []}],
 )
 
 
@@ -75,16 +84,17 @@ origins = [
 """
 v2 routers # we will remove v1 once we are done migrating the emotions study code
 """
-app.include_router(admin.router)
+# app.include_router(admin.router)
+app.include_router(auth0.router)
+app.include_router(study_admin.router)
 """
 Resources API Routers
 """
 app.include_router(study.router)
 app.include_router(movies.router)
 app.include_router(participant.router)
-app.include_router(study_meta.router)
 app.include_router(survey.router)
-
+app.include_router(feedback.router)
 
 """
 Recommender API Routers
@@ -92,7 +102,6 @@ Recommender API Routers
 app.include_router(alt_algo.router)
 app.include_router(pref_viz.router)
 app.include_router(iers.router)
-app.include_router(auth0.router)
 app.include_router(pref_comm.router)
 app.include_router(participant_response.router)
 

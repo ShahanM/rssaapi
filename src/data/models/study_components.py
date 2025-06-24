@@ -13,19 +13,21 @@ from data.models.survey_constructs import SurveyConstruct
 class Study(Base):
 	__tablename__ = 'study'
 
-	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-	date_created = Column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+	date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 
-	created_by = Column(String, nullable=True)
-	owner = Column(String, nullable=True)
+	created_by: Mapped[str] = mapped_column()
+	owner: Mapped[Optional[str]] = mapped_column()
 
-	name = Column(String, nullable=False)
-	description = Column(String, nullable=True)
+	name: Mapped[str] = mapped_column()
+	description: Mapped[Optional[str]] = mapped_column()
 
-	enabled = Column(Boolean, nullable=False, default=True)
+	enabled: Mapped[bool] = mapped_column(default=True)
 
-	steps = relationship('Step', back_populates='study', uselist=True, cascade='all, delete-orphan')
-	conditions = relationship('StudyCondition', back_populates='study', uselist=True, cascade='all, delete-orphan')
+	steps: Mapped['Step'] = relationship('Step', back_populates='study', uselist=True, cascade='all, delete-orphan')
+	conditions: Mapped['StudyCondition'] = relationship(
+		'StudyCondition', back_populates='study', uselist=True, cascade='all, delete-orphan'
+	)
 
 	def __init__(self, name: str, created_by: str, description: Union[str, None] = None):
 		self.name = name
@@ -46,7 +48,7 @@ class StudyCondition(Base):
 	recommendation_count: Mapped[int] = mapped_column(default=10)
 
 	date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
-	enabled: Mapped[datetime] = mapped_column(Boolean, nullable=False, default=True)
+	enabled: Mapped[bool] = mapped_column(default=True)
 
 	study = relationship('Study', back_populates='conditions')
 

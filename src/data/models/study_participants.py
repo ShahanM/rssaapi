@@ -65,9 +65,8 @@ class StudyParticipant(Base):
 class Demographic(Base):
 	__tablename__ = 'demographics'
 
-	participant_id: Mapped[uuid.UUID] = mapped_column(
-		UUID(as_uuid=True), ForeignKey('study_participant.id'), primary_key=True
-	)
+	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+	participant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('study_participant.id'))
 	age_range: Mapped[str] = mapped_column()
 	gender: Mapped[str] = mapped_column()
 	gender_other: Mapped[Optional[str]] = mapped_column()
@@ -76,8 +75,12 @@ class Demographic(Base):
 	education: Mapped[str] = mapped_column()
 	country: Mapped[str] = mapped_column()
 	state_region: Mapped[Optional[str]] = mapped_column()
-	date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-	date_updated: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+	date_created: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+	)
+	date_updated: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+	)
 	discarded: Mapped[bool] = mapped_column(default=False)
 
 	def __init__(

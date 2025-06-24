@@ -8,12 +8,25 @@ from compute.utils import get_rssa_ers_data, get_rssa_model_path
 from data.models.schemas.movieschema import MovieSchemaV2, RatingSchemaV2
 from data.moviedb import get_db as movie_db
 from data.services.movie_service import MovieService
+from docs.metadata import TagsMetadataEnum as Tags
 
-router = APIRouter(prefix='/v2')
+router = APIRouter(
+	prefix='/v2',
+	tags=[Tags.rssa],
+)
 
 
 @router.post('/recommendation/', response_model=List[MovieSchemaV2])
-async def create_recommendations(rated_movies: RatingSchemaV2, db: Session = Depends(movie_db)):
+async def generate_alt_recommendations(rated_movies: RatingSchemaV2, db: Session = Depends(movie_db)):
+	"""_summary_
+
+	Args:
+		rated_movies (RatingSchemaV2): _description_
+		db (Session, optional): _description_. Defaults to Depends(movie_db).
+
+	Returns:
+		_type_: _description_
+	"""
 	rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
 	rssa_model_path = get_rssa_model_path()
 	rssalgs = AlternateRS(rssa_model_path, rssa_itm_pop, rssa_ave_scores)

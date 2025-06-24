@@ -12,7 +12,10 @@ from data.schemas.movie_schemas import MovieSchema
 from data.services.movie_service import MovieService
 from docs.metadata import TagsMetadataEnum as Tags
 
-router = APIRouter(prefix='/v2', deprecated=True)
+router = APIRouter(
+	prefix='/v2',
+	tags=[Tags.rssa],
+)
 
 
 class AdvisorIDSchema(BaseModel):
@@ -29,7 +32,7 @@ class AdvisorProfileSchema(BaseModel):
 	recommendation: MovieSchema
 
 
-@router.post('/prefComm/advisors/', response_model=List[AdvisorProfileSchema], tags=[Tags.pref_comm])
+@router.post('/recommendation/advisors/', response_model=List[AdvisorProfileSchema])
 async def get_advisor(rated_movies: PrefCommRatingSchema, db: AsyncSession = Depends(movie_db)):
 	rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
 	rssa_model_path = get_rssa_model_path()

@@ -22,14 +22,19 @@ class Feedback(Base):
 	study_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('study.id'), nullable=False)
 	feedback_text: Mapped[str] = mapped_column()
 	feedback_type: Mapped[str] = mapped_column()
-	feedback_category: Mapped[str] = mapped_column(String, nullable=False)
+	feedback_category: Mapped[str] = mapped_column()
 
 	def __init__(
-		self, participant_id: uuid.UUID, study_id: uuid.UUID, feedback: str, feedback_type: str, feedback_category: str
+		self,
+		participant_id: uuid.UUID,
+		study_id: uuid.UUID,
+		feedback_text: str,
+		feedback_type: str,
+		feedback_category: str,
 	):
 		self.participant_id = participant_id
 		self.study_id = study_id
-		self.feedback = feedback
+		self.feedback_text = feedback_text
 		self.feedback_type = feedback_type
 		self.feedback_category = feedback_category
 

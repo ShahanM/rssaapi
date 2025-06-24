@@ -1,23 +1,38 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.rssadb import get_db as rssa_db
-from data.schemas.participant_schemas import ParticipantCreateSchema, ParticipantSchema, ParticipantUpdateSchema
+from data.schemas.participant_schemas import (
+	DemographicsCreateSchema,
+	ParticipantCreateSchema,
+	ParticipantSchema,
+	ParticipantUpdateSchema,
+)
+from data.schemas.study_schemas import StudySchema
 from data.services.participant_service import ParticipantService
 from data.services.participant_session_service import ParticipantSessionService
 from docs.metadata import TagsMetadataEnum as Tags
+from routers.v2.resources.authorization import get_current_registered_study
 
-from .study import get_current_registered_study
-
-router = APIRouter(prefix='/v2')
+router = APIRouter(prefix='/v2', tags=[Tags.participant], dependencies=[Depends(get_current_registered_study)])
 
 
-@router.post('/participant/', response_model=ParticipantSchema, tags=[Tags.participant])
-async def new_study_participant(
+@router.post('/participant/', response_model=ParticipantSchema)
+async def create_study_participant(
 	new_participant: ParticipantCreateSchema,
-	db: AsyncSession = Depends(rssa_db),
-	current_study=Depends(get_current_registered_study),
+	db: Annotated[AsyncSession, Depends(rssa_db)],
 ):
+	"""_summary_
+
+	Args:
+		new_participant (ParticipantCreateSchema): _description_
+		db (Annotated[AsyncSession, Depends): _description_
+
+	Returns:
+		_type_: _description_
+	"""
 	participant_service = ParticipantService(db)
 	session_service = ParticipantSessionService(db)
 
@@ -33,12 +48,25 @@ async def new_study_participant(
 	return ParticipantSchema.model_validate(new_participant)
 
 
-@router.put('/participant/', response_model=ParticipantSchema, tags=[Tags.participant])
+@router.put('/participant/', response_model=ParticipantSchema)
 async def update_participant(
 	participant_data: ParticipantUpdateSchema,
-	db: AsyncSession = Depends(rssa_db),
-	current_study=Depends(get_current_registered_study),
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	current_study: Annotated[StudySchema, Depends(get_current_registered_study)],
 ):
+	"""_summary_
+
+	Args:
+		participant_data (ParticipantUpdateSchema): _description_
+		db (Annotated[AsyncSession, Depends): _description_
+		current_study (Annotated[StudySchema, Depends): _description_
+
+	Raises:
+		HTTPException: _description_
+
+	Returns:
+		_type_: _description_
+	"""
 	if current_study.id != participant_data.study_id:
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED, detail='There are no records of the participant in the study.'
@@ -49,13 +77,19 @@ async def update_participant(
 	return updated
 
 
-# def get_participant_repository(
-# 	db: AsyncSession = Depends(rssa_db), study: Study = Depends(get_current_registered_study)
-# ) -> ParticipantRepository:
-# 	"""
-# 	Dependency to get the participant repository
-# 	"""
-# 	return ParticipantRepository(db, study)
+@router.post('/participant/demographics', response_model=None)
+async def create_particpant_demographic_info(
+	demographic_data: DemographicsCreateSchema,
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+):
+	"""_summary_
+
+	Args:
+		demographic_data (DemographicsCreateSchema): _description_
+		db (Annotated[AsyncSession, Depends): _description_
+	"""
+	participant_service = ParticipantService(db)
+	await participant_service.create_or_update_demographic_info(demographic_data)
 
 
 # @router.get(
@@ -82,72 +116,3 @@ async def update_participant(
 # 	participant_type = ParticipantTypeSchema.model_validate(participant_type)
 
 # 	return participant_type
-
-
-# @router.post('/participant/{participant_id}/surveyresponse/', response_model=bool, tags=[Tags.participant])
-# async def new_survey_response(
-# 	participant_id: uuid.UUID,
-# 	response: SurveyResponse,
-# 	db: Session = Depends(rssa_db),
-# 	current_study=Depends(get_current_registered_study),
-# ):
-# 	success = create_survey_response(db, participant_id, response)
-# 	log_access(db, f'study: {current_study.name} ({current_study.id})', 'create', 'response', str(participant_id))
-
-# 	return success
-
-
-# @router.post('/participant/{participant_id}/textresponse/', response_model=bool, tags=[Tags.participant])
-# async def new_text_response(
-# 	participant_id: uuid.UUID,
-# 	response: GroupedTextResponse,
-# 	db: Session = Depends(rssa_db),
-# 	current_study=Depends(get_current_registered_study),
-# ):
-# 	page_id = response.page_id
-
-# 	success = False
-# 	if len(response.responses) > 1:
-# 		success = batch_create_text_responses(db, participant_id, response.responses)
-# 	else:
-# 		success = create_text_response(db, participant_id, response.responses[0])
-
-# 	# FIXME: The log order calls are wrong for all expect this one
-# 	# Fix the others: participant_id, action, resource, resource_id
-# 	log_access(
-# 		db,
-# 		str(participant_id),
-# 		'create',
-# 		'response',
-# 		f'study: {current_study.name} ({current_study.id}): page {page_id}',
-# 	)
-
-# 	return success
-
-
-# @router.post('/participant/{participant_id}/demographics/', response_model=bool, tags=[Tags.participant])
-# async def new_demographics(
-# 	participant_id: uuid.UUID,
-# 	demographics: DemographicSchema,
-# 	db: Session = Depends(rssa_db),
-# 	current_study=Depends(get_current_registered_study),
-# ):
-# 	print('demographics: ', participant_id, demographics)
-# 	success = create_participant_demographic(db, participant_id, demographics)
-
-# 	log_access(db, f'study: {current_study.name} ({current_study.id})', 'create', 'demographics', str(participant_id))
-
-# 	return success
-
-
-# @router.post('/participant/{participant_id}/feedback/', response_model=bool, tags=[Tags.participant])
-# async def new_feedback(
-# 	participant_id: uuid.UUID,
-# 	feedback: FeedbackSchema,
-# 	db: Session = Depends(rssa_db),
-# 	current_study=Depends(get_current_registered_study),
-# ):
-# 	success = create_feedback(db, participant_id, feedback.feedback, feedback.feedback_type, feedback.feedback_category)
-# 	log_access(db, f'study: {current_study.name} ({current_study.id})', 'create', 'feedback', str(participant_id))
-
-# 	return success

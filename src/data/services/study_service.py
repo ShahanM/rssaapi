@@ -1,5 +1,5 @@
 import uuid
-from typing import Union
+from typing import List, Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,10 @@ class StudyService:
 		study = Study(name=study_in.name, description=study_in.description, created_by=created_by)
 
 		return await self.study_repo.create(study)
+
+	async def get_all_studies(self) -> List[Study]:
+		# FIME: use start index and limit to page responses
+		return await self.study_repo.get_all()
 
 	async def get_study_by_id(self, study_id: uuid.UUID) -> Union[StudySchema, None]:
 		return await self.study_repo.get(study_id)

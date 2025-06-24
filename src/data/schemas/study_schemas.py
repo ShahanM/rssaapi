@@ -23,7 +23,7 @@ class StudySchema(BaseModel):
 
 	id: uuid.UUID
 	name: str
-	description: str
+	description: Optional[str]
 
 	date_created: Optional[datetime.datetime]
 	created_by: Optional[str]

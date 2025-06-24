@@ -16,9 +16,13 @@ from data.schemas.movie_schemas import MovieSchema
 from data.schemas.study_schemas import StudySchema
 from data.services.movie_service import MovieService
 from data.services.study_condition_service import StudyConditionService
+from docs.metadata import TagsMetadataEnum as Tags
 from routers.v2.resources.study import get_current_registered_study
 
-router = APIRouter(prefix='/v2')
+router = APIRouter(
+	prefix='/v2',
+	tags=[Tags.rssa],
+)
 
 
 class PrefVizRequestSchema(BaseModel):
@@ -129,7 +133,7 @@ async def create_recommendations(request_model: PrefVizRequestSchema):
 	return res
 
 
-@router.post('/prefviz/recommendation/', response_model=List[PreferenceItemV2])
+@router.post('/recommendation/prefviz/', response_model=List[PreferenceItemV2])
 async def recommend_for_study_condition(
 	request_model: PrefVizRequestSchemaV2,
 	rssadb: AsyncSession = Depends(rssa_db),

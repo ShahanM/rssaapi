@@ -11,19 +11,34 @@ from routers.v2.resources.authorization import get_current_registered_study
 
 router = APIRouter(
 	prefix='/v2',
-	tags=[Tags.study],
+	tags=[Tags.response],
 )
 
 
 @router.post('/response/survey', response_model=None)
-async def create_survey_item_response_endpoint(
+async def create_survey_item_response(
 	survey_response: SurveyReponseCreateSchema,
 	db: AsyncSession = Depends(rssa_db),
 	current_study: StudySchema = Depends(get_current_registered_study),
 ):
+	"""_summary_
+
+	Args:
+		survey_response (SurveyReponseCreateSchema): _description_
+		db (AsyncSession, optional): _description_. Defaults to Depends(rssa_db).
+		current_study (StudySchema, optional): _description_. Defaults to Depends(get_current_registered_study).
+
+	Raises:
+		HTTPException: _description_
+		HTTPException: _description_
+		HTTPException: _description_
+
+	Returns:
+		_type_: _description_
+	"""
 	response_service = ParticipantResponseService(db)
 	try:
-		await response_service.insert_survey_item_response(survey_response_data=survey_response)
+		await response_service.create_survey_item_response(survey_response_data=survey_response)
 		return {'message': 'Survey response successfully recorded.'}
 	except IntegrityError as e:
 		raise HTTPException(
@@ -41,14 +56,14 @@ async def create_survey_item_response_endpoint(
 
 
 @router.post('/response/text', response_model=None)
-async def create_freeform_text_response_endpoint(
+async def create_freeform_text_response(
 	text_response: FreeformTextResponseCreateSchema,
 	db: AsyncSession = Depends(rssa_db),
 	current_study: StudySchema = Depends(get_current_registered_study),
 ):
 	response_service = ParticipantResponseService(db)
 	try:
-		await response_service.insert_freeform_text_response(current_study.id, text_response)
+		await response_service.create_freeform_text_response(current_study.id, text_response)
 	except IntegrityError as e:
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
