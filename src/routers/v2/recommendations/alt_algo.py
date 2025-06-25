@@ -5,10 +5,11 @@ from sqlalchemy.orm import Session
 
 from compute.rssa import AlternateRS
 from compute.utils import get_rssa_ers_data, get_rssa_model_path
-from data.models.schemas.movieschema import MovieSchemaV2, RatingSchemaV2
+from data.schemas.movie_schemas import MovieSchema
+from data.schemas.preferences_schemas import PreferenceRequestSchema
 from data.moviedb import get_db as movie_db
 from data.services.movie_service import MovieService
-from docs.metadata import TagsMetadataEnum as Tags
+from docs.metadata import RSTagsEnum as Tags
 
 router = APIRouter(
 	prefix='/v2',
@@ -16,8 +17,8 @@ router = APIRouter(
 )
 
 
-@router.post('/recommendation/', response_model=List[MovieSchemaV2])
-async def generate_alt_recommendations(rated_movies: RatingSchemaV2, db: Session = Depends(movie_db)):
+@router.post('/recommendation/', response_model=List[MovieSchema])
+async def generate_alt_recommendations(user_ratings: PreferenceRequestSchema, db: Session = Depends(movie_db)):
 	"""_summary_
 
 	Args:
@@ -31,10 +32,10 @@ async def generate_alt_recommendations(rated_movies: RatingSchemaV2, db: Session
 	rssa_model_path = get_rssa_model_path()
 	rssalgs = AlternateRS(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
 	recs = rssalgs.get_condition_prediction(
-		ratings=rated_movies.ratings,
-		user_id=str(rated_movies.user_id),
-		condition=rated_movies.rec_type,
-		num_rec=rated_movies.num_rec,
+		ratings=user_ratings.ratings,
+		user_id=str(user_ratings.user_id),
+		condition=user_ratings.user_condition,
+		num_rec=user_ratings.num_rec,
 	)
 
 	movies = get_ers_movies_by_movielens_ids(db, recs)

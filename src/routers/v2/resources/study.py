@@ -8,7 +8,7 @@ from data.rssadb import get_db as rssa_db
 from data.schemas.study_schemas import StudyAuthSchema, StudySchema
 from data.schemas.study_step_schemas import NextStepRequest, StudyStepSchema
 from data.services.study_service import StudyService
-from docs.metadata import TagsMetadataEnum as Tags
+from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_registered_study
 
 logger = logging.getLogger(__name__)
@@ -22,8 +22,8 @@ router = APIRouter(
 )
 
 
-@router.get('/study/', response_model=StudyAuthSchema)
-async def retrieve_study(current_study: Annotated[StudySchema, Depends(get_current_registered_study)]):
+@router.get('/studies/', response_model=StudyAuthSchema)
+async def get_study(current_study: Annotated[StudySchema, Depends(get_current_registered_study)]):
 	"""_summary_
 
 	Args:
@@ -37,8 +37,8 @@ async def retrieve_study(current_study: Annotated[StudySchema, Depends(get_curre
 	return current_study
 
 
-@router.get('/study/step/first', response_model=StudyStepSchema)
-async def retrieve_first_step(
+@router.get('/studies/steps/first', response_model=StudyStepSchema)
+async def get_first_step(
 	db: Annotated[AsyncSession, Depends(rssa_db)],
 	current_study: Annotated[StudySchema, Depends(get_current_registered_study)],
 ):
@@ -57,8 +57,8 @@ async def retrieve_first_step(
 	return study_step
 
 
-@router.post('/study/step/next', response_model=StudyStepSchema)
-async def retrieve_next_step(
+@router.post('/studies/steps/next', response_model=StudyStepSchema)
+async def get_next_step(
 	step_request: NextStepRequest,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
 	current_study: Annotated[StudySchema, Depends(get_current_registered_study)],

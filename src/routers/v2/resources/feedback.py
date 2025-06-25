@@ -6,7 +6,7 @@ from data.rssadb import get_db as rssa_db
 from data.schemas.feedback_schemas import FeedbackCreateSchema
 from data.schemas.study_schemas import StudySchema
 from data.services.feedback_service import FeedbackService
-from docs.metadata import TagsMetadataEnum as Tags
+from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_registered_study
 
 router = APIRouter(

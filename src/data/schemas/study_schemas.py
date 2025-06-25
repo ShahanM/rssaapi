@@ -29,9 +29,14 @@ class StudySchema(BaseModel):
 	created_by: Optional[str]
 	owner: Optional[str]
 
+	enabled: bool
+
 	class Config:
-		orm_mode = True
-		model_config = ConfigDict(from_attributes=True)
+		from_attributes = True
+		json_encoders = {
+			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
+		}
 
 
 class StudyDetailSchema(BaseModel):

@@ -7,7 +7,7 @@ from data.rssadb import get_db as rssa_db
 from data.schemas.study_schemas import StudySchema
 from data.schemas.survey_schemas import SurveyPageSchema
 from data.services.survey_service import SurveyService
-from docs.metadata import TagsMetadataEnum as Tags
+from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_registered_study
 
 router = APIRouter(

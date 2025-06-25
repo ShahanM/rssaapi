@@ -4,12 +4,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from compute.iers import EmotionsRS
-from compute.utils import *
-from data.models.schemas.movieschema import *
-from data.models.schemas.studyschema import *
 from data.moviedb import get_db as movie_db
-from data.repositories.movies import *
-from docs.metadata import TagsMetadataEnum as Tags
+from data.schemas.movie_schemas import MovieSchema
+from data.schemas.preferences_schemas import (
+	EmotionContinuousInputSchema,
+	EmotionDiscreteInputSchema,
+	EmotionInputSchema,
+	EmotionInputSchemaExperimental,
+	PreferenceRequestSchema,
+	RatedItemSchema,
+)
+from docs.metadata import RSTagsEnum as Tags
 
 router = APIRouter(
 	prefix='/v2',
@@ -39,8 +44,8 @@ DIVERSE_N_TUNING_PARAMS = {
 }
 
 
-@router.post('/recommendation/ers/', response_model=List[MovieSchemaV2])
-async def generation_emotions_recommendation(rated_movies: NewRatingSchema, db: Session = Depends(movie_db)):
+@router.post('/recommendation/ers/', response_model=List[MovieSchema])
+async def generation_emotions_recommendation(user_ratings: PreferenceRequestSchema, db: Session = Depends(movie_db)):
 	"""_summary_
 
 	Args:
@@ -58,16 +63,16 @@ async def generation_emotions_recommendation(rated_movies: NewRatingSchema, db: 
 	iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
 	# recs: List[int] = []
 	user_condition = 5
-	ratins = {rat.item_id: rat.rating for rat in rated_movies.ratings}
+	ratins = {rat.item_id: rat.rating for rat in user_ratings.ratings}
 	movies = get_ers_movies_by_ids_v2(db, list(ratins.keys()))
 	newratins = [RatedItemSchema(item_id=int(m.movielens_id), rating=ratins[m.id]) for m in movies]
 	if user_condition in [1, 2, 3, 4]:
-		recs = iersalgs.predict_topN(newratins, rated_movies.user_id, rated_movies.num_rec)
+		recs = iersalgs.predict_topN(newratins, user_ratings.user_id, user_ratings.num_rec)
 	elif user_condition in [5, 6, 7, 8]:
 		recs = iersalgs.predict_diverseN(
 			ratings=newratins,
 			user_id=1,
-			num_rec=rated_movies.num_rec,
+			num_rec=user_ratings.num_rec,
 			dist_method=DIVERSE_N_TUNING_PARAMS['distance_method'],
 			weight_sigma=0.0,
 			item_pool_size=DIVERSE_N_TUNING_PARAMS['item_pool_size'],
@@ -81,7 +86,7 @@ async def generation_emotions_recommendation(rated_movies: NewRatingSchema, db: 
 	return movies
 
 
-@router.put('/recommendations/ers/', response_model=List[MovieSchemaV2])
+@router.put('/recommendations/ers/', response_model=List[MovieSchema])
 async def update_recommendations(rated_movies: EmotionInputSchema, db: Session = Depends(movie_db)):
 	iers_item_pop, iersg20 = get_iers_data()
 	iers_model_path = get_iers_model_path()
@@ -147,7 +152,7 @@ async def update_recommendations(rated_movies: EmotionInputSchema, db: Session =
 	return movies
 
 
-@router.put('/experimental/recommendations/', response_model=List[MovieSchemaV2])
+@router.put('/experimental/recommendations/', response_model=List[MovieSchema])
 async def update_recommendations_experimental(
 	rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(movie_db)
 ):

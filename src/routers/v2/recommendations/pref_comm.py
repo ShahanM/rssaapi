@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from compute.rspc import PreferenceCommunity
 from compute.utils import get_rating_data_path, get_rssa_ers_data, get_rssa_model_path
-from data.models.schemas.advisorschema import PrefCommRatingSchema
 from data.moviedb import get_db as movie_db
 from data.schemas.movie_schemas import MovieSchema
+from data.schemas.preferences_schemas import PrefCommRatingSchema
 from data.services.movie_service import MovieService
-from docs.metadata import TagsMetadataEnum as Tags
+from docs.metadata import RSTagsEnum as Tags
 
 router = APIRouter(
 	prefix='/v2',

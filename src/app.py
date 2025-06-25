@@ -24,7 +24,8 @@ from routers.v2.resources import (
 	study,
 	survey,
 )
-from routers.v2.resources.admin import auth0, study as study_admin
+from routers.v2.resources.admin import auth0
+from routers.v2.resources.admin import study as study_admin
 
 # Configure logging
 configure_logging()

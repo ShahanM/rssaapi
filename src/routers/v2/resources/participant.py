@@ -13,7 +13,7 @@ from data.schemas.participant_schemas import (
 from data.schemas.study_schemas import StudySchema
 from data.services.participant_service import ParticipantService
 from data.services.participant_session_service import ParticipantSessionService
-from docs.metadata import TagsMetadataEnum as Tags
+from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_registered_study
 
 router = APIRouter(prefix='/v2', tags=[Tags.participant], dependencies=[Depends(get_current_registered_study)])

@@ -11,26 +11,10 @@ from typing import Callable, List, Tuple
 import networkx as nx
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel
+
+from data.schemas.preferences_schemas import PrefVizItem, RatedItemSchema
 
 from .common import RSSABase, predict
-
-
-class PreferenceItem(BaseModel):
-	item_id: str
-	community_score: float
-	user_score: float
-	community_label: int
-	user_label: int
-	cluster: int = 0
-
-
-class RatedItemSchema(BaseModel):
-	item_id: int
-	rating: int
-
-	def __hash__(self):
-		return self.model_dump_json().__hash__()
 
 
 class PreferenceVisualization(RSSABase):
@@ -45,9 +29,7 @@ class PreferenceVisualization(RSSABase):
 
 		return als_preds
 
-	def get_baseline_prediction(
-		self, ratings: List[RatedItemSchema], user_id: str, num_rec: int
-	) -> List[PreferenceItem]:
+	def get_baseline_prediction(self, ratings: List[RatedItemSchema], user_id: str, num_rec: int) -> List[PrefVizItem]:
 		preds = self.get_prediction(ratings, user_id).sort_values(by='score', ascending=False)
 		preds = preds.head(num_rec)
 
@@ -55,7 +37,7 @@ class PreferenceVisualization(RSSABase):
 		recommended_items = []
 		for _, row in preds.iterrows():
 			recommended_items.append(
-				PreferenceItem(
+				PrefVizItem(
 					item_id=str(int(row['item'])),  # truncate the trailing .0
 					community_score=0,
 					user_score=row['score'],
@@ -76,7 +58,7 @@ class PreferenceVisualization(RSSABase):
 		randomize: bool = False,
 		init_sample_size: int = 500,
 		min_rating_count: int = 50,
-	) -> List[PreferenceItem]:
+	) -> List[PrefVizItem]:
 		# Get user predictions
 		preds = self.get_prediction(ratings, user_id)
 
@@ -131,7 +113,7 @@ class PreferenceVisualization(RSSABase):
 		recommended_items = []
 		for _, row in scaled_items.iterrows():
 			recommended_items.append(
-				PreferenceItem(
+				PrefVizItem(
 					item_id=str(int(row['item'])),  # truncate the trailing .0
 					community_score=row['community'],
 					user_score=row['user'],
@@ -183,7 +165,7 @@ class PreferenceVisualization(RSSABase):
 			val_shortest_dist = dist[idx_shortest_dist]
 
 			grid_members[tuple(point)] = item_idx
-			diverse_items.append(tuple((item_idx, val_shortest_dist)))
+			diverse_items.append((item_idx, val_shortest_dist))
 
 		return candidates[candidates['item'].isin(grid_members.values())], diverse_items
 

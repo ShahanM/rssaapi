@@ -10,7 +10,7 @@ from data.rssadb import get_db as rssa_db
 from data.schemas.movie_schemas import MovieSchema, MovieSearchRequest, MovieSearchResponse
 from data.services.movie_service import MovieService
 from data.services.participant_session_service import ParticipantSessionService
-from docs.metadata import TagsMetadataEnum as Tags
+from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_participant_id
 
 router = APIRouter(

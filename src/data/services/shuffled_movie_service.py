@@ -1,9 +1,11 @@
 import random
-from sqlalchemy.ext.asyncio import AsyncSession
-from data.repositories.pre_shuffled_movie_list import PreShuffledMovieRepository
-from typing import List
-from data.models.participant_movie_sequence import PreShuffledMovieList
 import uuid
+from typing import List
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from data.models.participant_movie_sequence import PreShuffledMovieList
+from data.repositories.pre_shuffled_movie_list import PreShuffledMovieRepository
 
 
 class ParticipantSessionService:

@@ -2,10 +2,9 @@ import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from compute.rspv import PreferenceItem, PreferenceVisualization, RatedItemSchema
+from compute.rspv import PreferenceVisualization
 from compute.utils import (
 	get_pref_viz_data,
 	get_pref_viz_model_path,
@@ -13,10 +12,17 @@ from compute.utils import (
 from data.moviedb import get_db as movie_db
 from data.rssadb import get_db as rssa_db
 from data.schemas.movie_schemas import MovieSchema
+from data.schemas.preferences_schemas import (
+	PrefVizDemoRequestSchema,
+	PrefVizDemoResponseSchema,
+	PrefVizItem,
+	PrefVizMetadata,
+	PreferenceRequestSchema,
+)
 from data.schemas.study_schemas import StudySchema
 from data.services.movie_service import MovieService
 from data.services.study_condition_service import StudyConditionService
-from docs.metadata import TagsMetadataEnum as Tags
+from docs.metadata import RSTagsEnum as Tags
 from routers.v2.resources.study import get_current_registered_study
 
 router = APIRouter(
@@ -25,62 +31,8 @@ router = APIRouter(
 )
 
 
-class PrefVizRequestSchema(BaseModel):
-	user_id: int
-	user_condition: int
-	ratings: List[RatedItemSchema]
-	num_rec: int = 10
-	algo: str
-	randomize: bool
-	init_sample_size: int
-	min_rating_count: int
-
-	class Config:
-		from_attributes = True
-
-	def __hash__(self):
-		return self.model_dump_json().__hash__()
-
-
-class PrefVizRequestSchemaV2(BaseModel):
-	user_id: uuid.UUID
-	user_condition: uuid.UUID
-	is_baseline: bool = False
-	ratings: List[RatedItemSchema]
-
-	def __hash__(self):
-		return self.model_dump_json().__hash__()
-
-
-class PrefVizMetadata(BaseModel, frozen=True):
-	algo: str
-	randomize: bool
-	init_sample_size: int
-	min_rating_count: int
-	num_rec: int
-
-
-class PrefVizResponseSchema(BaseModel):
-	metadata: PrefVizMetadata
-	recommendations: List[PreferenceItem]
-
-	class Config:
-		from_attributes = True
-
-	def __hash__(self):
-		return self.model_dump_json().__hash__()
-
-
-class PreferenceItemV2(MovieSchema, PreferenceItem):
+class PrefVizMovieItemSchema(MovieSchema, PrefVizItem):
 	pass
-
-
-class PrefVizResponseSchemaV2(BaseModel):
-	metadata: PrefVizMetadata
-	recommendations: List[PreferenceItem]
-
-	def __hash__(self):
-		return self.model_dump_json().__hash__()
 
 
 CACHE_LIMIT = 100
@@ -88,8 +40,8 @@ queue = []
 CACHE = {}
 
 
-@router.post('/demo/prefviz/recommendation/', response_model=PrefVizResponseSchema)
-async def create_recommendations(request_model: PrefVizRequestSchema):
+@router.post('/demo/prefviz/recommendation/', response_model=PrefVizDemoResponseSchema)
+async def create_recommendations(request_model: PrefVizDemoRequestSchema):
 	if request_model in CACHE:
 		print('Found request in cache. Returning cached response.')
 		return CACHE[request_model]
@@ -113,7 +65,7 @@ async def create_recommendations(request_model: PrefVizRequestSchema):
 	if len(recs) == 0:
 		raise HTTPException(status_code=406, detail='User condition not found')
 
-	res = PrefVizResponseSchema(
+	res = PrefVizDemoResponseSchema(
 		metadata=PrefVizMetadata(
 			algo=request_model.algo,
 			randomize=request_model.randomize,
@@ -133,9 +85,9 @@ async def create_recommendations(request_model: PrefVizRequestSchema):
 	return res
 
 
-@router.post('/recommendation/prefviz/', response_model=List[PreferenceItemV2])
+@router.post('/recommendation/prefviz/', response_model=List[PrefVizMovieItemSchema])
 async def recommend_for_study_condition(
-	request_model: PrefVizRequestSchemaV2,
+	request_model: PreferenceRequestSchema,
 	rssadb: AsyncSession = Depends(rssa_db),
 	study: StudySchema = Depends(get_current_registered_study),
 	moviedb: AsyncSession = Depends(movie_db),
@@ -200,7 +152,7 @@ async def recommend_for_study_condition(
 
 	for m in movies:
 		movie = MovieSchema.model_validate(m)
-		pref_item = PreferenceItemV2(**movie.model_dump(), **recmap[m.movielens_id].model_dump())  # type: ignore
+		pref_item = PrefVizMovieItemSchema(**movie.model_dump(), **recmap[m.movielens_id].model_dump())  # type: ignore
 		res.append(pref_item)
 
 	if len(queue) >= CACHE_LIMIT:
