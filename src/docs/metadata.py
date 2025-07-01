@@ -14,7 +14,9 @@ class ResourceTagsEnum(Enum):
 class AdminTagsEnum(Enum):
 	movie = 'Admin: Movie'
 	study = 'Admin: Study'
+	study_step = 'Admin: Study Step'
 	survey = 'Survey'
+	construct = 'Survey Construct'
 	response = 'Response'
 	participant = 'Participant'
 	feedback = 'feedback'

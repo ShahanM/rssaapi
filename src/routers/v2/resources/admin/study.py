@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.rssadb import get_db as rssa_db
 from data.schemas.study_condition_schemas import StudyConditionSchema
-from data.schemas.study_schemas import StudyCreateSchema, StudySchema
+from data.schemas.study_schemas import StudyCreateSchema, StudyDetailSchema, StudySchema, StudySummarySchema
 from data.schemas.study_step_schemas import StudyStepSchema
 from data.services.study_service import StudyService
 from docs.metadata import AdminTagsEnum as Tags
@@ -50,6 +50,31 @@ async def get_studies(
 	converted_studies = [StudySchema.model_validate(study) for study in studies_from_db]
 
 	return converted_studies
+
+
+@router.get('/studies/{study_id}/summary', response_model=StudySummarySchema)
+async def get_study_summary(
+	study_id: uuid.UUID,
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	study_service = StudyService(db)
+
+	study_summary = await study_service.get_study_summary(study_id)
+	return study_summary
+
+
+@router.get('/studies/{study_id}', response_model=StudyDetailSchema)
+async def get_study_detail(
+	study_id: uuid.UUID,
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	study_service = StudyService(db)
+
+	study_from_db = await study_service.get_study_details(study_id)
+
+	return StudyDetailSchema.model_validate(study_from_db)
 
 
 @router.post('/studies/', response_model=StudySchema)

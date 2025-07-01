@@ -1,8 +1,11 @@
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
+
+from data.schemas.base_schemas import BaseDBSchema
+from data.schemas.step_page_schemas import StepPagePreviewSchema
 
 
 class StudyStepCreateSchema(BaseModel):
@@ -12,20 +15,19 @@ class StudyStepCreateSchema(BaseModel):
 	study_id: uuid.UUID
 
 
-class StudyStepSchema(BaseModel):
-	id: uuid.UUID
+class StudyStepSchema(BaseDBSchema):
 	name: str
 	description: str
 	order_position: int
 	date_created: Optional[datetime]
 	study_id: uuid.UUID
 
-	class Config:
-		from_attributes = True
-		json_encoders = {uuid.UUID: lambda v: str(v), datetime: lambda v: v.isoformat()}
-
 	def __hash__(self):
 		return self.model_dump_json().__hash__()
+
+
+class StudyStepDetailSchema(StudyStepSchema):
+	pages: List[StepPagePreviewSchema]
 
 
 class NextStepRequest(BaseModel):

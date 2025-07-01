@@ -1,4 +1,6 @@
 import logging
+import uuid
+from datetime import datetime
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,7 +27,10 @@ from routers.v2.resources import (
 	survey,
 )
 from routers.v2.resources.admin import auth0
+from routers.v2.resources.admin import step_page as page_admin
 from routers.v2.resources.admin import study as study_admin
+from routers.v2.resources.admin import study_step as step_admin
+from routers.v2.resources.admin import survey_constructs as construct_admin
 
 # Configure logging
 configure_logging()
@@ -46,6 +51,10 @@ app = FastAPI(
 	terms_of_service='https://rssa.recsys.dev/terms',
 	state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
 	security=[{'Study ID': []}],
+	json_encoders={
+		uuid.UUID: lambda obj: str(obj),
+		datetime: lambda dt: dt.isoformat(),
+	},
 )
 
 
@@ -88,6 +97,9 @@ v2 routers # we will remove v1 once we are done migrating the emotions study cod
 # app.include_router(admin.router)
 app.include_router(auth0.router)
 app.include_router(study_admin.router)
+app.include_router(step_admin.router)
+app.include_router(page_admin.router)
+app.include_router(construct_admin.router)
 """
 Resources API Routers
 """

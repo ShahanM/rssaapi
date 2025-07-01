@@ -1,41 +1,45 @@
 import logging
 import uuid
+from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.rssadb import get_db as rssa_db
-from data.schemas.study_schemas import StudyAuthSchema, StudySchema
-from data.schemas.study_step_schemas import NextStepRequest, StudyStepSchema
-from data.services.study_service import StudyService
-from docs.metadata import TagsMetadataEnum as Tags
+from data.schemas.step_page_schemas import StepPageSchema
+from data.schemas.study_step_schemas import StudyStepDetailSchema
+from data.services.study_step_service import StudyStepService
+from docs.metadata import AdminTagsEnum as Tags
+from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 router = APIRouter(
-	prefix='/v2',
-	tags=[Tags.study],
+	prefix='/v2/admin',
+	tags=[Tags.study_step],
 )
 
 
-@router.get('/step/', response_model=StudyStepSchema)
-async def retrieve_steps_for_study(
-	study_id: str,
-	db: Session = Depends(rssa_db),
-	current_user=Depends(auth0_user),
+@router.get('/steps/{study_step_id}', response_model=StudyStepDetailSchema)
+async def get_study_step(
+	study_step_id: uuid.UUID,
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	steps = get_study_steps(db, uuid.UUID(study_id))
+	step_service = StudyStepService(db)
+	step_in_db = await step_service.get_study_step_with_pages(study_step_id)
 
-	log_access(db, current_user.sub, 'read', 'steps for study', study_id)
-
-	return steps
+	return StudyStepDetailSchema.model_validate(step_in_db)
 
 
-@router.post('/step/', response_model=StudyStepSchema, tags=[Tags.meta])
-async def new_step(new_step: CreateStepSchema, db: Session = Depends(rssa_db), current_user=Depends(auth0_user)):
-	step = create_study_step(db, **new_step.dict())
-	log_access(db, current_user.sub, 'create', 'step', step.id)
+@router.get('/steps/{study_step_id}/pages', response_model=List[StepPageSchema])
+async def get_pages_for_study_step(
+	study_step_id: uuid.UUID,
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	step_service = StudyStepService(db)
+	pages_from_db = await step_service.get_pages_for_step(study_step_id)
 
-	return step
+	return [StepPageSchema.model_validate(p) for p in pages_from_db]

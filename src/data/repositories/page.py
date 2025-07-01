@@ -88,6 +88,24 @@ class PageRepository(BaseRepository[Page]):
 		result = await self.db.execute(query)
 		return result.scalar_one_or_none()
 
+	async def get_page_with_content_detail(self, page_id: uuid.UUID) -> Page:
+		query = (
+			select(Page)
+			.where(Page.id == page_id)
+			.order_by(Page.order_position.asc())
+			.options(
+				selectinload(Page.page_contents)
+				.selectinload(PageContent.survey_construct)
+				.selectinload(SurveyConstruct.items),
+				selectinload(Page.page_contents)
+				.selectinload(PageContent.survey_construct)
+				.selectinload(SurveyConstruct.construct_scale)
+				.selectinload(ConstructScale.scale_levels),
+			)
+		)
+		result = await self.db.execute(query)
+		return result.scalar_one_or_none()
+
 	async def has_subsequent_page(self, step_id: uuid.UUID, current_order_position: int) -> bool:
 		"""
 		Checks if there is any page with a higher order_position in the given step.

@@ -1,15 +1,26 @@
 import uuid
 from typing import List, Union
 
+from fastapi import HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from data.models.study_components import Step, Study, StudyCondition
+from data.models.study_participants import StudyParticipant
 from data.repositories.study import StudyRepository
 from data.repositories.study_condition import StudyConditionRepository
 from data.repositories.study_step import StudyStepRepository
 from data.schemas.study_condition_schemas import StudyConditionSchema
-from data.schemas.study_schemas import StudyCreateSchema, StudyDetailSchema, StudySchema
+from data.schemas.study_schemas import (
+	ConditionCountSchema,
+	StudyCreateSchema,
+	StudyDetailSchema,
+	StudySchema,
+	StudySummarySchema,
+)
 from data.schemas.study_step_schemas import StudyStepSchema
+from data.utility import sa_obj_to_dict
 
 
 class StudyService:
@@ -42,14 +53,14 @@ class StudyService:
 		# FIME: use start index and limit to page responses
 		return await self.study_repo.get_all()
 
-	async def get_study_by_id(self, study_id: uuid.UUID) -> Union[StudySchema, None]:
+	async def get_study_by_id(self, study_id: uuid.UUID) -> Study:
 		"""_summary_
 
 		Args:
 			study_id (uuid.UUID): _description_
 
 		Returns:
-			Union[StudySchema, None]: _description_
+			Study: _description_
 		"""
 		return await self.study_repo.get(study_id)
 
@@ -64,24 +75,73 @@ class StudyService:
 		"""
 		return await self.study_repo.get_all_by_field('owner', owner)
 
-	async def get_study_details(self, study_id: uuid.UUID) -> Union[StudyDetailSchema, None]:
+	async def get_study_details(self, study_id: uuid.UUID) -> Study:
+		"""_summary_
+
+		Args:
+			study_id (uuid.UUID): _description_
+
+		Returns:
+			Study: _description_
 		"""
-		Get study details by ID
-		"""
-		study = await self.study_repo.get(study_id)
-		if not study:
-			return None
 
-		conditions = await self.condition_repo.get_conditions_by_study_id(study_id)
+		study_obj = await self.study_repo.get_detailed_study_object(study_id)
+		# study_obj = await self.study_repo.get(study_id)
+		# if study_obj:
+		# 	steps = await self.study_step_repo.get_all_by_field('study_id', study_id)
+		# 	conditions = self.condition_repo.get_all_by_field('study_id', study_id)
+		# 	if steps:
+		# 		study_obj.steps = steps
 
-		validated_conditions = []
-		if conditions:
-			validated_conditions = [StudyConditionSchema.model_validate(condition) for condition in conditions]
+		return study_obj
 
-		study_detail = StudyDetailSchema.model_validate(study)
-		study_detail.conditions = validated_conditions
+	async def get_study_summary(self, study_id: uuid.UUID) -> StudySummarySchema:
+		study_query = (
+			select(Study, func.count(StudyParticipant.id).label('total_participants'))
+			.join_from(Study, StudyParticipant, Study.id == StudyParticipant.study_id, isouter=True)
+			.where(Study.id == study_id)
+			.group_by(Study.id, Study.name, Study.description, Study.date_created, Study.created_by, Study.owner)
+		)
 
-		return study_detail
+		condition_counts_query = (
+			select(
+				StudyCondition.id.label('condition_id'),
+				StudyCondition.name.label('condition_name'),
+				func.count(StudyParticipant.id).label('participant_count'),
+			)
+			.join(StudyParticipant, StudyParticipant.condition_id == StudyCondition.id, isouter=True)
+			.where(StudyCondition.study_id == study_id)
+			.group_by(StudyCondition.id, StudyCondition.name)
+			.order_by(StudyCondition.name)
+		)
+
+		study_result = await self.db.execute(study_query)
+		study_row = study_result.first()
+
+		if not study_row:
+			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
+
+		study_obj = study_row[0]
+		total_participants_count = study_row.total_participants
+
+		condition_counts_result = await self.db.execute(condition_counts_query)
+		condition_counts_rows = condition_counts_result.all()
+
+		study_data = sa_obj_to_dict(study_obj)
+		study_data['total_participants'] = total_participants_count
+
+		participants_by_condition_list = []
+		for row in condition_counts_rows:
+			participants_by_condition_list.append(
+				ConditionCountSchema(
+					condition_id=row.condition_id,
+					condition_name=row.condition_name,
+					participant_count=row.participant_count,
+				).model_dump()
+			)
+		study_data['participants_by_condition'] = participants_by_condition_list
+
+		return StudySummarySchema.model_validate(study_data)
 
 	async def duplicate_study(
 		self, study_id: uuid.UUID, created_by: str, new_study_name: Union[str, None] = None

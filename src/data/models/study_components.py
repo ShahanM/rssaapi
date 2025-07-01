@@ -14,7 +14,9 @@ class Study(Base):
 	__tablename__ = 'study'
 
 	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-	date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	date_created: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+	)
 
 	created_by: Mapped[str] = mapped_column()
 	owner: Mapped[Optional[str]] = mapped_column()
@@ -24,8 +26,10 @@ class Study(Base):
 
 	enabled: Mapped[bool] = mapped_column(default=True)
 
-	steps: Mapped['Step'] = relationship('Step', back_populates='study', uselist=True, cascade='all, delete-orphan')
-	conditions: Mapped['StudyCondition'] = relationship(
+	steps: Mapped[List['Step']] = relationship(
+		'Step', back_populates='study', uselist=True, cascade='all, delete-orphan', order_by='Step.order_position'
+	)
+	conditions: Mapped[List['StudyCondition']] = relationship(
 		'StudyCondition', back_populates='study', uselist=True, cascade='all, delete-orphan'
 	)
 
@@ -47,7 +51,9 @@ class StudyCondition(Base):
 
 	recommendation_count: Mapped[int] = mapped_column(default=10)
 
-	date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	date_created: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+	)
 	enabled: Mapped[bool] = mapped_column(default=True)
 
 	study: Mapped['Study'] = relationship('Study', back_populates='conditions')
@@ -68,11 +74,15 @@ class Step(Base):
 	order_position: Mapped[int] = mapped_column()
 	name: Mapped[str] = mapped_column()
 	description: Mapped[Optional[str]] = mapped_column()
-	date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
+	date_created: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+	)
 	enabled: Mapped[bool] = mapped_column(default=True)
 
 	study: Mapped['Study'] = relationship('Study', back_populates='steps')
-	pages: Mapped['Page'] = relationship('Page', back_populates='step', uselist=True, cascade='all, delete-orphan')
+	pages: Mapped[List['Page']] = relationship(
+		'Page', back_populates='step', uselist=True, cascade='all, delete-orphan'
+	)
 
 	def __init__(self, study_id: uuid.UUID, order_position: int, name: str, description: Optional[str] = None):
 		self.study_id = study_id
@@ -83,7 +93,7 @@ class Step(Base):
 
 class PageContent(Base):
 	__tablename__ = 'page_content'
-
+	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	page_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('step_page.id'), primary_key=True)
 	content_id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), ForeignKey('survey_construct.id'), primary_key=True
@@ -110,7 +120,9 @@ class Page(Base):
 	order_position: Mapped[int] = mapped_column()
 	name: Mapped[str] = mapped_column()
 	description: Mapped[Optional[str]] = mapped_column()
-	date_created: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+	date_created: Mapped[datetime] = mapped_column(
+		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+	)
 	enabled: Mapped[bool] = mapped_column(default=True)
 
 	step: Mapped['Step'] = relationship('Step', back_populates='pages')

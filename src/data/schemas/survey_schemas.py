@@ -4,36 +4,22 @@ from typing import List, Optional
 
 from pydantic import AliasPath, BaseModel, Field
 
+from data.schemas.base_schemas import BaseDBSchema
 
-class ScaleLevelSchema(BaseModel):
-	id: uuid.UUID
+
+class ScaleLevelSchema(BaseDBSchema):
 	level: int
 	label: str
 	enabled: bool
 
-	class Config:
-		from_attributes = True
-		json_encoders = {
-			uuid.UUID: lambda v: str(v),
-			datetime: lambda v: v.isoformat(),
-		}
 
-
-class ConstructItemSchema(BaseModel):
-	id: uuid.UUID
+class ConstructItemSchema(BaseDBSchema):
 	text: str
 	order_position: int
 	enabled: bool
 
-	class Config:
-		from_attributes = True
-		json_encoders = {
-			uuid.UUID: lambda v: str(v),
-			datetime: lambda v: v.isoformat(),
-		}
 
-
-class PageContentSchema(BaseModel):
+class PageContentSchema(BaseDBSchema):
 	id: uuid.UUID = Field(alias='content_id')  # Same as construct.id
 	order_position: int
 	enabled: bool
@@ -47,16 +33,8 @@ class PageContentSchema(BaseModel):
 	)
 	items: List[ConstructItemSchema] = Field(validation_alias=AliasPath('survey_construct', 'items'))
 
-	class Config:
-		from_attributes = True
-		json_encoders = {
-			uuid.UUID: lambda v: str(v),
-			datetime: lambda v: v.isoformat(),
-		}
 
-
-class SurveyPageSchema(BaseModel):
-	id: uuid.UUID
+class SurveyPageSchema(BaseDBSchema):
 	study_id: uuid.UUID
 	step_id: uuid.UUID
 
@@ -69,10 +47,3 @@ class SurveyPageSchema(BaseModel):
 	page_contents: List[PageContentSchema]
 
 	last_page: bool = False
-
-	class Config:
-		from_attributes = True
-		json_encoders = {
-			uuid.UUID: lambda v: str(v),
-			datetime: lambda v: v.isoformat(),
-		}

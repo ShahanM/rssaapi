@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -14,11 +15,14 @@ class StudyConditionSchema(BaseModel):
 	Schema for study condition details.
 	"""
 
-	id: str
+	id: uuid.UUID
 	name: str
 	description: str
 	study_id: uuid.UUID
 
 	class Config:
-		orm_mode = True
-		model_config = ConfigDict(from_attributes=True)
+		from_attributes = True
+		json_encoders = {
+			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
+		}

@@ -117,3 +117,11 @@ class StudyStepRepository(BaseRepository):
 			raise HTTPException(status_code=404, detail='Next step not found')
 
 		return step
+
+	async def get_study_step_with_pages(self, step_id: uuid.UUID) -> Step:
+		query = select(Step).options(selectinload(Step.pages)).where(Step.id == step_id)
+
+		results = await self.db.execute(query)
+		study_step = results.scalar_one_or_none()
+
+		return study_step

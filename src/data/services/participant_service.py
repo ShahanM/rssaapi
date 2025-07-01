@@ -1,4 +1,6 @@
 import random
+import uuid
+from typing import List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +24,14 @@ class ParticipantService:
 		self.demographics_repo = DemographicsRepository(db)
 
 	async def create_study_participant(self, new_participant: ParticipantCreateSchema) -> StudyParticipant:
+		"""_summary_
+
+		Args:
+			new_participant (ParticipantCreateSchema): _description_
+
+		Returns:
+			StudyParticipant: _description_
+		"""
 		study_conditions = await self.study_condition_repo.get_conditions_by_study_id(new_participant.study_id)
 
 		# FIXME: make this dynamic weighted choice so that we always have n particpants for each of the k conditions
@@ -46,6 +56,14 @@ class ParticipantService:
 		return study_participant
 
 	async def update_study_participant(self, new_participant_data: ParticipantUpdateSchema) -> ParticipantSchema:
+		"""_summary_
+
+		Args:
+			new_participant_data (ParticipantUpdateSchema): _description_
+
+		Returns:
+			ParticipantSchema: _description_
+		"""
 		update_dict = new_participant_data.model_dump()
 		updated_participant = await self.participant_repo.update(new_participant_data.id, update_dict)
 
@@ -55,6 +73,11 @@ class ParticipantService:
 		return ParticipantSchema.model_validate(updated_participant)
 
 	async def create_or_update_demographic_info(self, demographic_data: DemographicsCreateSchema):
+		"""_summary_
+
+		Args:
+			demographic_data (DemographicsCreateSchema): _description_
+		"""
 		demographic_obj = await self.demographics_repo.get_by_field('participant_id', demographic_data.participant_id)
 		if demographic_obj:
 			update_dict = demographic_data.model_dump()
@@ -76,3 +99,14 @@ class ParticipantService:
 
 		await self.db.refresh(demographic_obj)
 		await self.db.commit()
+
+	async def get_participants_by_study_id(self, study_id: uuid.UUID) -> List[StudyParticipant]:
+		"""_summary_
+
+		Args:
+			study_id (uuid.UUID): _description_
+
+		Returns:
+			List[StudyParticipant]: _description_
+		"""
+		return await self.participant_repo.get_all_by_field('study_id', study_id)
