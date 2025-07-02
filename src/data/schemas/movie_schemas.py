@@ -4,9 +4,10 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
+from data.schemas.base_schemas import BaseDBSchema
 
-class EmotionsSchema(BaseModel):
-	id: uuid.UUID
+
+class EmotionsSchema(BaseDBSchema):
 	movie_id: uuid.UUID
 	movielens_id: str
 	anger: float
@@ -18,12 +19,8 @@ class EmotionsSchema(BaseModel):
 	sadness: float
 	trust: float
 
-	class Config:
-		from_attributes = True
 
-
-class RecommendationTextSchema(BaseModel):
-	id: uuid.UUID
+class RecommendationTextSchema(BaseDBSchema):
 	movie_id: uuid.UUID
 	formal: str
 	informal: str
@@ -32,12 +29,8 @@ class RecommendationTextSchema(BaseModel):
 	created_at: datetime
 	updated_at: datetime
 
-	class Config:
-		from_attributes = True
 
-
-class MovieSchema(BaseModel):
-	id: uuid.UUID
+class MovieSchema(BaseDBSchema):
 	tmdb_id: str
 	movielens_id: str
 	title: str
@@ -51,9 +44,6 @@ class MovieSchema(BaseModel):
 	# emotions: Optional[EmotionsSchema] = None
 	# recommendations_text: Optional[RecommendationTextSchema] = None
 	poster_identifier: Optional[str] = ''
-
-	class Config:
-		from_attributes = True
 
 
 class MovieSearchRequest(BaseModel):

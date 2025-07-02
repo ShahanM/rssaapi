@@ -15,7 +15,7 @@ router = APIRouter(
 )
 
 
-@router.post('/response/survey', response_model=None)
+@router.post('/responses/survey', response_model=None)
 async def create_survey_item_response(
 	survey_response: SurveyReponseCreateSchema,
 	db: AsyncSession = Depends(rssa_db),
@@ -55,7 +55,7 @@ async def create_survey_item_response(
 		) from e
 
 
-@router.post('/response/text', response_model=None)
+@router.post('/responses/text', response_model=None)
 async def create_freeform_text_response(
 	text_response: FreeformTextResponseCreateSchema,
 	db: AsyncSession = Depends(rssa_db),

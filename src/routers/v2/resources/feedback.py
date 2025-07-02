@@ -15,7 +15,7 @@ router = APIRouter(
 )
 
 
-@router.post('/feedback', response_model=None)
+@router.post('/feedbacks', response_model=None)
 async def create_feedback(
 	feedback: FeedbackCreateSchema,
 	db: AsyncSession = Depends(rssa_db),

@@ -16,7 +16,7 @@ router = APIRouter(
 )
 
 
-@router.get('/survey/{step_id}/first', response_model=SurveyPageSchema)
+@router.get('/surveys/{step_id}/first', response_model=SurveyPageSchema)
 async def get_first_page_endpoint(
 	step_id: uuid.UUID,
 	db: AsyncSession = Depends(rssa_db),
@@ -34,7 +34,7 @@ async def get_first_page_endpoint(
 	return page_to_return
 
 
-@router.get('/survey/{step_id}/page/{current_page_id}/next', response_model=SurveyPageSchema)
+@router.get('/surveys/{step_id}/page/{current_page_id}/next', response_model=SurveyPageSchema)
 async def get_next_page_endpoint(
 	current_page_id: uuid.UUID,
 	db: AsyncSession = Depends(rssa_db),

@@ -32,8 +32,11 @@ class AdvisorProfileSchema(BaseModel):
 	recommendation: MovieSchema
 
 
-@router.post('/recommendation/advisors/', response_model=List[AdvisorProfileSchema])
-async def get_advisor(rated_movies: PrefCommRatingSchema, db: AsyncSession = Depends(movie_db)):
+@router.post('/recommendations/advisors/', response_model=List[AdvisorProfileSchema])
+async def get_advisor(
+	rated_movies: PrefCommRatingSchema,
+	db: AsyncSession = Depends(movie_db),
+):
 	rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
 	rssa_model_path = get_rssa_model_path()
 	rssa_pref_comm = PreferenceCommunity(rssa_model_path, rssa_itm_pop, rssa_ave_scores, get_rating_data_path())
@@ -46,7 +49,7 @@ async def get_advisor(rated_movies: PrefCommRatingSchema, db: AsyncSession = Dep
 
 	for adv, value in recs.items():
 		profile_movies = await movie_service.get_movies_by_movielens_ids([str(val) for val in value['profile_top']])
-		recommendation = await movie_service.get_movies_by_movielens_ids([str(value['recommendation'])])
+		recommendation = await movie_service.get_movie_by_movielens_id(str(value['recommendation']))
 		# recommendation = recommendation[0]
 
 		# rec_details = await get_movie_recommendation_text(db, recommendation.id)

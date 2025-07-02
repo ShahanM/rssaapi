@@ -14,7 +14,7 @@ from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_participant_id
 
 router = APIRouter(
-	prefix='/v2/movie',
+	prefix='/v2/movies',
 	tags=[Tags.movie],
 )
 
@@ -68,15 +68,18 @@ async def get_movies_with_emotions(
 # 	return movies
 
 
-@router.post('/ers', response_model=List[MovieSchema])
-async def read_movies_by_ids(movie_ids: List[uuid.UUID], db: AsyncSession = Depends(movie_db)):
-	movies = get_ers_movies_by_ids_v2(db, movie_ids)
+# @router.post('/ers', response_model=List[MovieSchema])
+# async def read_movies_by_ids(movie_ids: List[uuid.UUID], db: AsyncSession = Depends(movie_db)):
+# 	movies = get_ers_movies_by_ids_v2(db, movie_ids)
 
-	return movies
+# 	return movies
 
 
 @router.post('/search', response_model=List[MovieSchema])
-async def search_movie(request: MovieSearchRequest, db: AsyncSession = Depends(movie_db)):
+async def search_movie(
+	request: MovieSearchRequest,
+	db: AsyncSession = Depends(movie_db),
+):
 	query = request.query.strip().lower()
 	exact_match = []
 	# near_matches: List[str] = []
@@ -86,24 +89,21 @@ async def search_movie(request: MovieSearchRequest, db: AsyncSession = Depends(m
 
 	if not query:
 		return MovieSearchResponse()
+	movie_service = MovieService(db)
+	exact_match_result = await movie_service.get_movie_by_exact_title_search(query)
 
-	exact_match_result = get_movie_by_exact_title_search(db, query)
 	if exact_match_result:
-		# exact_match = exact_match_result[0]
 		exact_match = [MovieSchema.model_validate(movie) for movie in exact_match_result]
 		return exact_match
-		# return MovieSearchResponse(exact_match=exact_match)
-		# return MovieSearchResponse(exact_match=exact_match_result)
 
-	fuzzy_matches_results = get_movies_by_fuzzy_title_match(db, query, similarity_threshold, limit)
-	# near_matches = [match[0] for match in fuzzy_matches_results]
-	near_matches = [match[0] for match in fuzzy_matches_results]
+	fuzzy_matches_results = await movie_service.get_movies_by_fuzzy_title_match(query, similarity_threshold, limit)
 
-	prefix_matches_results = get_movies_by_title_prefix_match(db, query, limit)
-	prefix_matches = [match for match in prefix_matches_results]
+	near_matches = [MovieSchema.model_validate(match) for match in fuzzy_matches_results]
+
+	prefix_matches_results = await movie_service.get_movies_by_title_prefix_match(query, limit)
+	prefix_matches = [MovieSchema.model_validate(match) for match in prefix_matches_results]
 
 	if prefix_matches:
-		# near_matches = near_matches + prefix_matches
 		near_matches = prefix_matches + near_matches
 
 	# return MovieSearchResponse(exact_match=exact_match, near_matches=near_matches)

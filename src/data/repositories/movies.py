@@ -1,8 +1,8 @@
 import uuid
-from typing import List
+from typing import Any, List, Union
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -38,3 +38,45 @@ class MovieRepository(BaseRepository[Movie]):
 		db_rows = await self.db.execute(query)
 
 		return list(db_rows.scalars().all())
+
+	async def get_by_exact_field_search(self, field_name: str, field_query: str) -> List[Movie]:
+		column_attribute = getattr(self.model, field_name, None)
+		if column_attribute is None:
+			raise AttributeError(f'Model "{self.model.__name__}" has no attribute "{field_name}" to query by.')
+
+		query = select(Movie).where(func.lower(column_attribute) == field_query)
+		result = await self.db.execute(query)
+
+		return list(result.scalars().all())
+
+	async def get_movies_by_fuzzy_field_search(
+		self, field_name: str, field_query: str, similarity_threshold: float, limit: int
+	) -> List[Movie]:
+		column_attribute = getattr(self.model, field_name, None)
+		if column_attribute is None:
+			raise AttributeError(f'Model "{self.model.__name__}" has no attribute "{field_name}" to query by.')
+
+		query = (
+			select(Movie, func.similarity(column_attribute, field_query).label('similarity'))
+			.where(func.similarity(column_attribute, field_query) > similarity_threshold)
+			.order_by(func.similarity(column_attribute, field_query).desc())
+			.limit(limit)
+		)
+
+		result = await self.db.execute(query)
+		return list(result.scalars().all())
+
+	async def get_movies_by_field_prefix_match(self, field_name: str, field_query: str, limit: int) -> List[Movie]:
+		column_attribute = self._get_column_attrs(field_name)
+
+		query = select(Movie).where(func.lower(column_attribute).like(f'{field_query}%')).limit(limit)
+
+		result = await self.db.execute(query)
+		return list(result.scalars().all())
+
+	def _get_column_attrs(self, field_name) -> Union[Any, None]:
+		column_attribute = getattr(self.model, field_name, None)
+		if column_attribute is None:
+			raise AttributeError(f'Model "{self.model.__name__}" has no attribute "{field_name}" to query by.')
+
+		return column_attribute
