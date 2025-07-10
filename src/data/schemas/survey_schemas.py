@@ -2,21 +2,10 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import AliasPath, BaseModel, Field
+from pydantic import AliasPath, Field
 
 from data.schemas.base_schemas import BaseDBSchema
-
-
-class ScaleLevelSchema(BaseDBSchema):
-	level: int
-	label: str
-	enabled: bool
-
-
-class ConstructItemSchema(BaseDBSchema):
-	text: str
-	order_position: int
-	enabled: bool
+from data.schemas.survey_construct_schemas import ConstructItemSchema, ScaleLevelSchema
 
 
 class PageContentSchema(BaseDBSchema):

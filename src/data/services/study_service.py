@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Union
+from typing import Dict, List, Union
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
@@ -19,7 +19,7 @@ from data.schemas.study_schemas import (
 	StudySchema,
 	StudySummarySchema,
 )
-from data.schemas.study_step_schemas import StudyStepSchema
+from data.schemas.study_step_schemas import StepsReorderItem, StudyStepSchema
 from data.utility import sa_obj_to_dict
 
 
@@ -86,12 +86,6 @@ class StudyService:
 		"""
 
 		study_obj = await self.study_repo.get_detailed_study_object(study_id)
-		# study_obj = await self.study_repo.get(study_id)
-		# if study_obj:
-		# 	steps = await self.study_step_repo.get_all_by_field('study_id', study_id)
-		# 	conditions = self.condition_repo.get_all_by_field('study_id', study_id)
-		# 	if steps:
-		# 		study_obj.steps = steps
 
 		return study_obj
 
@@ -223,3 +217,19 @@ class StudyService:
 
 	async def get_study_conditions(self, study_id: uuid.UUID) -> List[StudyCondition]:
 		return await self.condition_repo.get_all_by_field('study_id', study_id)
+
+	async def reorder_study_steps(self, study_id: uuid.UUID, steps_map: Dict[uuid.UUID, int]) -> List[Step]:
+		reordered_steps = await self.study_step_repo.reorder_study_steps(study_id, steps_map)
+		# await self.db.refresh(reordered_steps)
+
+		# existing_steps_orm = await self.study_step_repo.get_all_by_field('study_id', study_id)
+
+		# async with self.db.begin():
+		# 	for step_orm in existing_steps_orm:
+		# 		if step_orm.id in steps_map:
+		# 			new_pos = steps_map[step_orm.id]
+		# 			if step_orm.order_position != new_pos:
+		# 				step_orm.order_position = new_pos
+		# 	await self.db.commit()
+
+		return reordered_steps

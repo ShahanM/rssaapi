@@ -48,6 +48,7 @@ class SurveyItemResponse(Base):
 	__tablename__ = 'survey_item_response'
 
 	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+	study_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('study.id'), nullable=False)
 	participant_id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False
 	)
@@ -74,11 +75,11 @@ class SurveyItemResponse(Base):
 	# construct: Mapped['SurveyConstruct'] = relationship('SurveyConstruct', back_populates='item_responses')
 	# item: Mapped['ConstructItem'] = relationship('ConstructItem', back_populates='responses')
 
-	def __init__(self, participant_id: uuid.UUID, construct_id: uuid.UUID, item_id: uuid.UUID, response: uuid.UUID):
-		self.participant_id = participant_id
-		self.construct_id = construct_id
-		self.response = response
-		self.item_id = item_id
+	# def __init__(self, participant_id: uuid.UUID, construct_id: uuid.UUID, item_id: uuid.UUID, response: uuid.UUID):
+	# 	self.participant_id = participant_id
+	# 	self.construct_id = construct_id
+	# 	self.response = response
+	# 	self.item_id = item_id
 
 
 class SurveyFreeformResponse(Base):
@@ -91,6 +92,7 @@ class SurveyFreeformResponse(Base):
 	__tablename__ = 'freeform_response'
 
 	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+	study_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('study.id'), nullable=False)
 	participant_id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False
 	)
@@ -100,7 +102,7 @@ class SurveyFreeformResponse(Base):
 	item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
 		UUID(as_uuid=True), ForeignKey('construct_item.id'), nullable=True
 	)  # Nullable if not tied to specific item
-	context_tag: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+	context_tag: Mapped[Optional[str]] = mapped_column()
 	response_text: Mapped[str] = mapped_column()
 	date_created: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
@@ -118,18 +120,17 @@ class SurveyFreeformResponse(Base):
 	# step: Mapped['StudyStep'] = relationship('StudyStep', back_populates='freeform_responses')
 	# item: Mapped['ConstructItem'] = relationship('ConstructItem', back_populates='freeform_responses')
 
-	def __init__(
-		self,
-		participant_id: uuid.UUID,
-		survey_id: uuid.UUID,
-		response_text: str,
-		step_id: Optional[uuid.UUID],
-		item_id: Optional[uuid.UUID],
-		context_tag: Optional[str],
-	):
-		self.participant_id = participant_id
-		self.survey_id = survey_id
-		self.response_text = response_text
-		self.step_id = step_id
-		self.item_id = item_id
-		self.context_tag = context_tag
+	# def __init__(
+	# 	self,
+	# 	study_id: uuid.UUID,
+	# 	participant_id: uuid.UUID,
+	# 	response_text: str,
+	# 	step_id: Optional[uuid.UUID],
+	# 	item_id: Optional[uuid.UUID],
+	# 	context_tag: Optional[str],
+	# ):
+	# 	self.participant_id = participant_id
+	# 	self.response_text = response_text
+	# 	self.step_id = step_id
+	# 	self.item_id = item_id
+	# 	self.context_tag = context_tag

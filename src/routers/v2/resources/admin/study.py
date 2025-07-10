@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from data.rssadb import get_db as rssa_db
 from data.schemas.study_condition_schemas import StudyConditionSchema
 from data.schemas.study_schemas import StudyCreateSchema, StudyDetailSchema, StudySchema, StudySummarySchema
-from data.schemas.study_step_schemas import StudyStepSchema
+from data.schemas.study_step_schemas import StepsReorderItem, StudyStepSchema
 from data.services.study_service import StudyService
 from docs.metadata import AdminTagsEnum as Tags
 from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
@@ -18,19 +18,18 @@ logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2/admin',
+	prefix='/v2/admin/studies',
 	tags=[Tags.study],
 	dependencies=[Depends(get_auth0_authenticated_user)],
 )
 
 
-@router.get('/studies/', response_model=List[StudySchema])
+@router.get('/', response_model=List[StudySchema])
 async def get_studies(
 	db: Annotated[AsyncSession, Depends(rssa_db)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
 	"""_summary_
-
 	Args:
 		db (Annotated[AsyncSession, Depends): _description_
 		user (Annotated[Auth0UserSchema, Depends): _description_
@@ -52,7 +51,7 @@ async def get_studies(
 	return converted_studies
 
 
-@router.get('/studies/{study_id}/summary', response_model=StudySummarySchema)
+@router.get('/{study_id}/summary', response_model=StudySummarySchema)
 async def get_study_summary(
 	study_id: uuid.UUID,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
@@ -64,7 +63,7 @@ async def get_study_summary(
 	return study_summary
 
 
-@router.get('/studies/{study_id}', response_model=StudyDetailSchema)
+@router.get('/{study_id}', response_model=StudyDetailSchema)
 async def get_study_detail(
 	study_id: uuid.UUID,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
@@ -77,7 +76,7 @@ async def get_study_detail(
 	return StudyDetailSchema.model_validate(study_from_db)
 
 
-@router.post('/studies/', response_model=StudySchema)
+@router.post('/', response_model=StudySchema)
 async def create_study(
 	new_study: StudyCreateSchema,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
@@ -108,7 +107,7 @@ async def create_study(
 		)
 
 
-@router.get('/studies/{study_id}/steps', response_model=List[StudyStepSchema])
+@router.get('/{study_id}/steps', response_model=List[StudyStepSchema])
 async def get_study_steps(
 	study_id: uuid.UUID,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
@@ -132,7 +131,7 @@ async def get_study_steps(
 	return converted_steps
 
 
-@router.get('/studies/{study_id}/conditions', response_model=List[StudyConditionSchema])
+@router.get('/{study_id}/conditions', response_model=List[StudyConditionSchema])
 async def get_study_conditions(
 	study_id: uuid.UUID,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
@@ -144,3 +143,17 @@ async def get_study_conditions(
 	converted_conditions = [StudyConditionSchema.model_validate(sc) for sc in study_conditions_from_db]
 
 	return converted_conditions
+
+
+@router.put('/{study_id}/steps/order', status_code=204)
+async def reorder_study_steps(
+	study_id: uuid.UUID,
+	payload: List[StepsReorderItem],
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	step_service = StudyService(db)
+	steps_map = {item.id: item.order_position for item in payload}
+	await step_service.reorder_study_steps(study_id, steps_map)
+
+	return {'message': 'Steps reordered successfully'}

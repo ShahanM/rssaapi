@@ -1,13 +1,12 @@
 import uuid
 from typing import List, Optional
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.models.study_components import Page, Step
 from data.repositories.page import PageRepository
 from data.repositories.study_step import StudyStepRepository
-from data.schemas.study_step_schemas import StudyStepCreateSchema, StudyStepDetailSchema
+from data.schemas.study_step_schemas import StudyStepCreateSchema
 
 
 class StudyStepService:
@@ -24,8 +23,6 @@ class StudyStepService:
 			study_id=new_step.study_id,
 		)
 		await self.study_step_repo.create(study_step)
-
-		await self.db.commit()
 		await self.db.refresh(study_step)
 
 		return study_step

@@ -32,3 +32,12 @@ class StudyStepDetailSchema(StudyStepSchema):
 
 class NextStepRequest(BaseModel):
 	current_step_id: uuid.UUID
+
+
+class StepsReorderItem(BaseModel):
+	id: uuid.UUID
+	order_position: int
+
+
+class StepsReorderRequestSchema(BaseModel):
+	reordered_steps: List[StepsReorderItem]

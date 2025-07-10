@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.rssadb import get_db as rssa_db
 from data.schemas.step_page_schemas import StepPageSchema
-from data.schemas.study_step_schemas import StudyStepDetailSchema
+from data.schemas.study_step_schemas import StudyStepCreateSchema, StudyStepDetailSchema, StudyStepSchema
 from data.services.study_step_service import StudyStepService
 from docs.metadata import AdminTagsEnum as Tags
 from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
@@ -18,6 +18,7 @@ logger.setLevel(logging.INFO)
 router = APIRouter(
 	prefix='/v2/admin',
 	tags=[Tags.study_step],
+	dependencies=[Depends(get_auth0_authenticated_user), Depends(get_auth0_authenticated_user)],
 )
 
 
@@ -43,3 +44,15 @@ async def get_pages_for_study_step(
 	pages_from_db = await step_service.get_pages_for_step(study_step_id)
 
 	return [StepPageSchema.model_validate(p) for p in pages_from_db]
+
+
+@router.post('/steps/', response_model=StudyStepSchema)
+async def create_study_step(
+	new_step: StudyStepCreateSchema,
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	step_service = StudyStepService(db)
+	created_step = await step_service.create_study_step(new_step)
+
+	return StudyStepSchema.model_validate(created_step)

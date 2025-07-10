@@ -1,5 +1,6 @@
 import uuid
-from typing import List, Union
+from operator import attrgetter
+from typing import Dict, List, Union
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict
@@ -125,3 +126,25 @@ class StudyStepRepository(BaseRepository):
 		study_step = results.scalar_one_or_none()
 
 		return study_step
+
+	async def reorder_study_steps(self, study_id: uuid.UUID, steps_map: Dict[uuid.UUID, int]):
+		query = select(Step).where(Step.study_id == study_id)
+		study_step_orm = await self.db.execute(query)
+		study_steps_in_db = study_step_orm.scalars().all()
+		# study_steps_in_db = await self.get_all_by_field('study_id', study_id)
+		steps_with_target_pos = []
+		step_orm_by_id = {step.id: step for step in study_steps_in_db}
+
+		for step_id, step_orm in step_orm_by_id.items():
+			target_pos = steps_map.get(step_id, step_orm.order_position)
+			steps_with_target_pos.append({'id': step_id, 'current_orm': step_orm, 'target_pos': target_pos})
+		steps_with_target_pos.sort(key=lambda x: (x['target_pos'], x['current_orm'].order_position))
+
+		current_sequential_pos = 1
+		for item_data in steps_with_target_pos:
+			item_data['current_orm'].order_position = current_sequential_pos
+			current_sequential_pos += 1
+
+		await self.db.flush()
+
+		return sorted(study_steps_in_db, key=attrgetter('order_position'))

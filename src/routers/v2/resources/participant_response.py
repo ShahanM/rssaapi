@@ -25,7 +25,6 @@ async def create_survey_item_response(
 
 	Args:
 		survey_response (SurveyReponseCreateSchema): _description_
-		db (AsyncSession, optional): _description_. Defaults to Depends(rssa_db).
 		current_study (StudySchema, optional): _description_. Defaults to Depends(get_current_registered_study).
 
 	Raises:
@@ -38,7 +37,7 @@ async def create_survey_item_response(
 	"""
 	response_service = ParticipantResponseService(db)
 	try:
-		await response_service.create_survey_item_response(survey_response_data=survey_response)
+		await response_service.create_survey_item_response(current_study.id, survey_response_data=survey_response)
 		return {'message': 'Survey response successfully recorded.'}
 	except IntegrityError as e:
 		raise HTTPException(
@@ -61,6 +60,22 @@ async def create_freeform_text_response(
 	db: AsyncSession = Depends(rssa_db),
 	current_study: StudySchema = Depends(get_current_registered_study),
 ):
+	"""Freeform text response endpoint.
+
+	Endpoint to record participant response which is not part of a survey or a pre-defined scale.
+	May also be used for study specific interaction response that can defined by the frontend.
+
+	Args:
+
+		text_response (FreeformTextResponseCreateSchema): The payload containing the response data.
+		current_study (StudySchema): Depends on the header including the correct study_id.
+
+	Raises:
+
+		HTTPException: _description_
+		HTTPException: _description_
+		HTTPException: _description_
+	"""
 	response_service = ParticipantResponseService(db)
 	try:
 		await response_service.create_freeform_text_response(current_study.id, text_response)

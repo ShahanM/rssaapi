@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Union
 
-from sqlalchemy import DateTime, ForeignKey
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,11 +84,21 @@ class Step(Base):
 		'Page', back_populates='step', uselist=True, cascade='all, delete-orphan'
 	)
 
-	def __init__(self, study_id: uuid.UUID, order_position: int, name: str, description: Optional[str] = None):
-		self.study_id = study_id
-		self.order_position = order_position
-		self.name = name
-		self.description = description
+	__table_args__ = (
+		UniqueConstraint(
+			'study_id',
+			'order_position',
+			name='study_step_study_id_order_position_key',
+			deferrable=True,
+			initially='deferred',
+		),
+	)
+
+	# def __init__(self, study_id: uuid.UUID, order_position: int, names: str, description: Optional[str] = None):
+	# 	self.study_id = study_id
+	# 	self.order_position = order_position
+	# 	self.name = name
+	# 	self.description = description
 
 
 class PageContent(Base):

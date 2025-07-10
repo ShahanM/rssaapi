@@ -31,7 +31,7 @@ class StudyParticipant(Base):
 	condition_id: Mapped[uuid.UUID] = mapped_column(
 		UUID(as_uuid=True), ForeignKey('study_condition.id'), nullable=False
 	)
-	current_status: Mapped[str] = mapped_column()
+	current_status: Mapped[str] = mapped_column(default='active')
 	current_step: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('study_step.id'), nullable=False)
 	current_page: Mapped[Optional[uuid.UUID]] = mapped_column(
 		UUID(as_uuid=True), ForeignKey('step_page.id'), nullable=True
@@ -44,22 +44,22 @@ class StudyParticipant(Base):
 	)
 	discarded: Mapped[bool] = mapped_column(default=False)
 
-	def __init__(
-		self,
-		participant_type: uuid.UUID,
-		study_id: uuid.UUID,
-		condition_id: uuid.UUID,
-		external_id: str,
-		current_step: uuid.UUID,
-		current_page: Optional[uuid.UUID] = None,
-	):
-		self.participant_type = participant_type
-		self.study_id = study_id
-		self.condition_id = condition_id
-		self.current_status = 'active'
-		self.external_id = external_id
-		self.current_step = current_step
-		self.current_page = current_page
+	# def __init__(
+	# 	self,
+	# 	participant_type: uuid.UUID,
+	# 	study_id: uuid.UUID,
+	# 	condition_id: uuid.UUID,
+	# 	external_id: str,
+	# 	current_step: uuid.UUID,
+	# 	current_page: Optional[uuid.UUID] = None,
+	# ):
+	# 	self.participant_type = participant_type
+	# 	self.study_id = study_id
+	# 	self.condition_id = condition_id
+	# 	self.current_status = 'active'
+	# 	self.external_id = external_id
+	# 	self.current_step = current_step
+	# 	self.current_page = current_page
 
 
 class Demographic(Base):
@@ -83,24 +83,24 @@ class Demographic(Base):
 	)
 	discarded: Mapped[bool] = mapped_column(default=False)
 
-	def __init__(
-		self,
-		participant_id: uuid.UUID,
-		age_range: str,
-		gender: str,
-		race: str,
-		education: str,
-		country: str,
-		state_region: Optional[str],
-		gender_other: Optional[str],
-		race_other: Optional[str],
-	):
-		self.participant_id = participant_id
-		self.age_range = age_range
-		self.gender = gender
-		self.gender_other = gender_other
-		self.race = race
-		self.race_other = race_other
-		self.education = education
-		self.country = country
-		self.state_region = state_region
+	# def __init__(
+	# 	self,
+	# 	participant_id: uuid.UUID,
+	# 	age_range: str,
+	# 	gender: str,
+	# 	race: str,
+	# 	education: str,
+	# 	country: str,
+	# 	state_region: Optional[str],
+	# 	gender_other: Optional[str],
+	# 	race_other: Optional[str],
+	# ):
+	# 	self.participant_id = participant_id
+	# 	self.age_range = age_range
+	# 	self.gender = gender
+	# 	self.gender_other = gender_other
+	# 	self.race = race
+	# 	self.race_other = race_other
+	# 	self.education = education
+	# 	self.country = country
+	# 	self.state_region = state_region

@@ -85,15 +85,15 @@ class ParticipantService:
 			await self.demographics_repo.update(demographic_obj.id, update_dict)
 		else:
 			demographic_obj = Demographic(
-				demographic_data.participant_id,
-				demographic_data.age_range,
-				demographic_data.gender,
-				';'.join(demographic_data.race),
-				demographic_data.education,
-				demographic_data.country,
-				demographic_data.state_region,
-				demographic_data.gender_other,
-				demographic_data.race_other,
+				participant_id=demographic_data.participant_id,
+				age_range=demographic_data.age_range,
+				gender=demographic_data.gender,
+				gender_other=demographic_data.gender_other,
+				race=';'.join(demographic_data.race),
+				race_other=demographic_data.race_other,
+				education=demographic_data.education,
+				country=demographic_data.country,
+				state_region=demographic_data.state_region,
 			)
 			await self.demographics_repo.create(demographic_obj)
 
