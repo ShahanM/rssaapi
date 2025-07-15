@@ -81,7 +81,11 @@ class EmotionsRS:
 
 		return trained_model
 
-	def get_predictions(self, ratings: List[RatedItemSchema], user_id: int) -> pd.DataFrame:
+	def get_predictions(
+		self,
+		ratings: List[RatedItemSchema],
+		user_id: str,
+	) -> pd.DataFrame:
 		"""
 		Get predictions
 
@@ -134,7 +138,7 @@ class EmotionsRS:
 	def predict_diverseN(
 		self,
 		ratings: List[RatedItemSchema],
-		user_id: int,
+		user_id: str,
 		num_rec: int,
 		dist_method: str,
 		weight_sigma: float,
@@ -221,7 +225,10 @@ class EmotionsRS:
 		return RSSA_preds_df, liveUser_feature
 
 	def __get_rssa_discounted_prediction(
-		self, ratings: List[RatedItemSchema], user_id: int, num_rec: int
+		self,
+		ratings: List[RatedItemSchema],
+		user_id: str,
+		num_rec: int,
 	) -> pd.DataFrame:
 		"""
 		Get RSSA discounted predictions
@@ -245,7 +252,10 @@ class EmotionsRS:
 		return discounted_preds_sorted.head(num_rec)
 
 	def __get_candidate_item(
-		self, ratings: List[RatedItemSchema], user_id: int, item_pool_size: int
+		self,
+		ratings: List[RatedItemSchema],
+		user_id: str,
+		item_pool_size: int,
 	) -> Tuple[pd.DataFrame, pd.DataFrame]:
 		"""
 		Get candidate items
@@ -276,7 +286,7 @@ class EmotionsRS:
 	def __predict_tuned_topN(
 		self,
 		ratings: List[RatedItemSchema],
-		user_id: int,
+		user_id: str,
 		user_emotion_tags: List[str],
 		user_emotion_vals: List[float],
 		sort_order: bool,
@@ -411,7 +421,7 @@ class EmotionsRS:
 	def predict_discrete_tuned_topN(
 		self,
 		ratings: List[RatedItemSchema],
-		user_id: int,
+		user_id: str,
 		emotion_input: List[EmotionDiscreteInputSchema],
 		num_rec: int,
 		scale_vector: bool,
@@ -648,7 +658,7 @@ class EmotionsRS:
 	def predict_discrete_tuned_diverseN(
 		self,
 		ratings: List[RatedItemSchema],
-		user_id: int,
+		user_id: str,
 		emotion_input: List[EmotionDiscreteInputSchema],
 		num_rec: int,
 		sampling_size: int,
@@ -720,7 +730,7 @@ class EmotionsRS:
 	def __predict_diverseN_by_emotion(
 		self,
 		ratings: List[RatedItemSchema],
-		user_id: int,
+		user_id: str,
 		dist_method: str,
 		weight_sigma: float,
 		item_pool_size: int,

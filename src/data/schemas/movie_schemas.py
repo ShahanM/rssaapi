@@ -41,9 +41,13 @@ class MovieSchema(BaseDBSchema):
 	cast: str
 	description: str
 	poster: str
+	poster_identifier: Optional[str] = ''
 	# emotions: Optional[EmotionsSchema] = None
 	# recommendations_text: Optional[RecommendationTextSchema] = None
-	poster_identifier: Optional[str] = ''
+
+
+class ERSMovieSchema(MovieSchema):
+	emotions: EmotionsSchema
 
 
 class MovieSearchRequest(BaseModel):

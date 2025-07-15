@@ -15,11 +15,11 @@ class AdminTagsEnum(Enum):
 	movie = 'Admin: Movie'
 	study = 'Admin: Study'
 	study_step = 'Admin: Study Step'
-	survey = 'Survey'
-	construct = 'Survey Construct'
-	response = 'Response'
-	participant = 'Participant'
-	feedback = 'feedback'
+	survey = 'Admin: Survey'
+	construct = 'Admin: Survey Construct'
+	response = 'Admin: Response'
+	participant = 'Admin: Participant'
+	feedback = 'Admin: Feedback'
 
 
 class RSTagsEnum(Enum):

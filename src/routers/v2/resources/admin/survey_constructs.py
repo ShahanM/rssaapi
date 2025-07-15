@@ -2,10 +2,10 @@ import logging
 import uuid
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from data.schemas.survey_construct_schemas import ConstructDetailSchema, ConstructSummarySchema, SurveyConstructSchema
-from data.services.dependencies import get_survey_construct_service as construct_service
+from data.services.rssa_dependencies import get_survey_construct_service as construct_service
 from data.services.survey_construct_service import SurveyConstructService
 from docs.metadata import AdminTagsEnum as Tags
 from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
@@ -51,3 +51,19 @@ async def get_construct_detail(
 	construct_in_db = await service.get_construct_details(construct_id)
 	print('Construct DEETS: ', construct_in_db.__dict__)
 	return ConstructDetailSchema.model_validate(construct_in_db)
+
+
+@router.delete('/{construct_id}', status_code=204)
+async def delete_construct(
+	construct_id: uuid.UUID,
+	service: Annotated[SurveyConstructService, Depends(construct_service)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	is_super_admin = 'admin:all' in user.permissions
+	if not is_super_admin:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to do perform that action.'
+		)
+	await service.delete_survey_construct(construct_id)
+
+	return {'message': 'Survey construct deleted.'}

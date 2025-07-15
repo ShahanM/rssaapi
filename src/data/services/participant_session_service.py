@@ -2,18 +2,19 @@ import random
 import uuid
 from typing import List
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from data.models.participant_movie_sequence import ParticipantMovieSession
 from data.repositories.participant_movie_session import ParticipantMovieSessionRepository
 from data.repositories.pre_shuffled_movie_list import PreShuffledMovieRepository
 
 
 class ParticipantSessionService:
-	def __init__(self, db: AsyncSession):
-		self.db = db
-		self.movie_session_repo = ParticipantMovieSessionRepository(db)
-		self.shuffled_movie_repo = PreShuffledMovieRepository(db)
+	def __init__(
+		self,
+		movie_session_repo: ParticipantMovieSessionRepository,
+		shuffled_movie_repo: PreShuffledMovieRepository,
+	):
+		self.movie_session_repo = movie_session_repo
+		self.shuffled_movie_repo = shuffled_movie_repo
 
 	async def get_next_session_movie_ids_batch(
 		self, participant_id: uuid.UUID, offset: int, limit: int
@@ -28,5 +29,3 @@ class ParticipantSessionService:
 			random_list = random.choice(shuffled_lists)
 			new_participant_sess = ParticipantMovieSession(participant_id, random_list.list_id)
 			await self.movie_session_repo.create(new_participant_sess)
-
-			await self.db.refresh(new_participant_sess)

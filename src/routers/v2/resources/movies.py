@@ -1,15 +1,12 @@
 import uuid
-from random import shuffle
-from typing import List
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.moviedb import get_db as movie_db
-from data.rssadb import get_db as rssa_db
 from data.schemas.movie_schemas import MovieSchema, MovieSearchRequest, MovieSearchResponse
-from data.services.movie_service import MovieService
-from data.services.participant_session_service import ParticipantSessionService
+from data.services import MovieService, ParticipantSessionService
+from data.services.content_dependencies import get_movie_service
+from data.services.rssa_dependencies import get_participant_session_service
 from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_participant_id
 
@@ -30,14 +27,12 @@ router = APIRouter(
 
 @router.get('/ers', response_model=List[MovieSchema])
 async def get_movies_with_emotions(
+	movie_service: Annotated[MovieService, Depends(get_movie_service)],
+	session_service: Annotated[ParticipantSessionService, Depends(get_participant_session_service)],
+	current_participant_id: Annotated[uuid.UUID, Depends(get_current_participant_id)],
 	offset: int = Query(0, get=0, description='The starting index of the movies to return'),
 	limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
-	moviedb: AsyncSession = Depends(movie_db),
-	rssadb: AsyncSession = Depends(rssa_db),
-	current_participant_id: uuid.UUID = Depends(get_current_participant_id),
 ):
-	movie_service = MovieService(moviedb)
-	session_service = ParticipantSessionService(rssadb)
 	movies_to_fetch = await session_service.get_next_session_movie_ids_batch(current_participant_id, offset, limit)
 	if movies_to_fetch:
 		movies = await movie_service.get_movies_with_emotions_from_ids(list(movies_to_fetch))
@@ -78,7 +73,7 @@ async def get_movies_with_emotions(
 @router.post('/search', response_model=List[MovieSchema])
 async def search_movie(
 	request: MovieSearchRequest,
-	db: AsyncSession = Depends(movie_db),
+	movie_service: Annotated[MovieService, Depends(get_movie_service)],
 ):
 	query = request.query.strip().lower()
 	exact_match = []
@@ -89,7 +84,6 @@ async def search_movie(
 
 	if not query:
 		return MovieSearchResponse()
-	movie_service = MovieService(db)
 	exact_match_result = await movie_service.get_movie_by_exact_title_search(query)
 
 	if exact_match_result:

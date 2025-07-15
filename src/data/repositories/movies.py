@@ -2,7 +2,7 @@ import uuid
 from typing import Any, List, Union
 
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -80,3 +80,16 @@ class MovieRepository(BaseRepository[Movie]):
 			raise AttributeError(f'Model "{self.model.__name__}" has no attribute "{field_name}" to query by.')
 
 		return column_attribute
+
+	async def get_movies_with_emotions_by_movielens_ids(self, movielens_ids: List[str]) -> List[Movie]:
+		query = (
+			select(Movie)
+			.options(selectinload(Movie.emotions))
+			.join(Movie.emotions)
+			.where(
+				Movie.movielens_id.in_(movielens_ids),
+			)
+		)
+		db_rows = await self.db.execute(query)
+
+		return list(db_rows.scalars().all())

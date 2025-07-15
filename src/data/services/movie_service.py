@@ -1,16 +1,13 @@
 import uuid
 from typing import List, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from data.models.movies import Movie
-from data.repositories.movies import MovieRepository
+from data.repositories import MovieRepository
 
 
 class MovieService:
-	def __init__(self, db: AsyncSession):
-		self.db = db
-		self.movie_repo = MovieRepository(db)
+	def __init__(self, movie_repo: MovieRepository):
+		self.movie_repo = movie_repo
 
 	async def get_movies_with_emotions(self) -> List[Movie]:
 		movie_with_emotion = await self.movie_repo.get_movies_with_emotions()
@@ -43,3 +40,6 @@ class MovieService:
 
 	async def get_movies_by_title_prefix_match(self, query: str, limit: int) -> List[Movie]:
 		return await self.movie_repo.get_movies_by_field_prefix_match('title', query, limit)
+
+	async def get_movies_with_emotions_by_movielens_ids(self, movielens_ids: List[str]) -> List[Movie]:
+		return await self.movie_repo.get_movies_with_emotions_by_movielens_ids(movielens_ids)

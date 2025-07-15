@@ -33,11 +33,11 @@ class Study(Base):
 		'StudyCondition', back_populates='study', uselist=True, cascade='all, delete-orphan'
 	)
 
-	def __init__(self, name: str, created_by: str, description: Union[str, None] = None):
-		self.name = name
-		self.description = description
-		self.created_by = created_by
-		self.owner = created_by
+	# def __init__(self, name: str, created_by: str, description: Union[str, None] = None):
+	# 	self.name = name
+	# 	self.description = description
+	# 	self.created_by = created_by
+	# 	self.owner = created_by
 
 
 class StudyCondition(Base):
@@ -58,11 +58,11 @@ class StudyCondition(Base):
 
 	study: Mapped['Study'] = relationship('Study', back_populates='conditions')
 
-	def __init__(self, study_id: uuid.UUID, name: str, rec_count: int = 10, description: Optional[str] = None):
-		self.study_id = study_id
-		self.name = name
-		self.recommendation_count = rec_count
-		self.description = description
+	# def __init__(self, study_id: uuid.UUID, name: str, rec_count: int = 10, description: Optional[str] = None):
+	# 	self.study_id = study_id
+	# 	self.name = name
+	# 	self.recommendation_count = rec_count
+	# 	self.description = description
 
 
 class Step(Base):
@@ -94,12 +94,6 @@ class Step(Base):
 		),
 	)
 
-	# def __init__(self, study_id: uuid.UUID, order_position: int, names: str, description: Optional[str] = None):
-	# 	self.study_id = study_id
-	# 	self.order_position = order_position
-	# 	self.name = name
-	# 	self.description = description
-
 
 class PageContent(Base):
 	__tablename__ = 'page_content'
@@ -114,10 +108,10 @@ class PageContent(Base):
 	page: Mapped['Page'] = relationship('Page', back_populates='page_contents')
 	survey_construct: Mapped['SurveyConstruct'] = relationship('SurveyConstruct', back_populates='page_contents')
 
-	def __init__(self, page_id: uuid.UUID, content_id: uuid.UUID, order_position: int):
-		self.page_id = page_id
-		self.content_id = content_id
-		self.order_position = order_position
+	# def __init__(self, page_id: uuid.UUID, content_id: uuid.UUID, order_position: int):
+	# 	self.page_id = page_id
+	# 	self.content_id = content_id
+	# 	self.order_position = order_position
 
 
 class Page(Base):
@@ -141,16 +135,16 @@ class Page(Base):
 		'PageContent', back_populates='page', uselist=True, cascade='all, delete-orphan'
 	)
 
-	def __init__(
-		self,
-		study_id: uuid.UUID,
-		step_id: uuid.UUID,
-		order_position: int,
-		name: str,
-		description: Optional[str] = None,
-	):
-		self.study_id = study_id
-		self.step_id = step_id
-		self.order_position = order_position
-		self.name = name
-		self.description = description
+	# def __init__(
+	# 	self,
+	# 	study_id: uuid.UUID,
+	# 	step_id: uuid.UUID,
+	# 	order_position: int,
+	# 	name: str,
+	# 	description: Optional[str] = None,
+	# ):
+	# 	self.study_id = study_id
+	# 	self.step_id = step_id
+	# 	self.order_position = order_position
+	# 	self.name = name
+	# 	self.description = description

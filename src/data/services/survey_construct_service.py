@@ -17,3 +17,6 @@ class SurveyConstructService:
 
 	async def get_construct_details(self, construct_id: uuid.UUID) -> SurveyConstruct:
 		return await self.construct_repo.get_detailed_construct_object(construct_id)
+
+	async def delete_survey_construct(self, construct_id: uuid.UUID) -> None:
+		await self.construct_repo.delete(construct_id)

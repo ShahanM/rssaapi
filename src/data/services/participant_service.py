@@ -2,8 +2,6 @@ import random
 import uuid
 from typing import List
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from data.models.study_participants import Demographic, StudyParticipant
 from data.repositories.demographics import DemographicsRepository
 from data.repositories.participant import ParticipantRepository
@@ -17,11 +15,15 @@ from data.schemas.participant_schemas import (
 
 
 class ParticipantService:
-	def __init__(self, db: AsyncSession):
-		self.db = db
-		self.participant_repo = ParticipantRepository(db)
-		self.study_condition_repo = StudyConditionRepository(db)
-		self.demographics_repo = DemographicsRepository(db)
+	def __init__(
+		self,
+		participant_repo: ParticipantRepository,
+		study_condition_repo: StudyConditionRepository,
+		demographics_repo: DemographicsRepository,
+	):
+		self.participant_repo = participant_repo
+		self.study_condition_repo = study_condition_repo
+		self.demographics_repo = demographics_repo
 
 	async def create_study_participant(self, new_participant: ParticipantCreateSchema) -> StudyParticipant:
 		"""_summary_
@@ -51,8 +53,6 @@ class ParticipantService:
 
 		await self.participant_repo.create(study_participant)
 
-		await self.db.refresh(study_participant)
-
 		return study_participant
 
 	async def update_study_participant(self, new_participant_data: ParticipantUpdateSchema) -> ParticipantSchema:
@@ -66,9 +66,6 @@ class ParticipantService:
 		"""
 		update_dict = new_participant_data.model_dump()
 		updated_participant = await self.participant_repo.update(new_participant_data.id, update_dict)
-
-		await self.db.refresh(updated_participant)
-		await self.db.commit()
 
 		return ParticipantSchema.model_validate(updated_participant)
 
@@ -96,9 +93,6 @@ class ParticipantService:
 				state_region=demographic_data.state_region,
 			)
 			await self.demographics_repo.create(demographic_obj)
-
-		await self.db.refresh(demographic_obj)
-		await self.db.commit()
 
 	async def get_participants_by_study_id(self, study_id: uuid.UUID) -> List[StudyParticipant]:
 		"""_summary_

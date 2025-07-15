@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from data.schemas.survey_construct_schemas import ConstructItemCreateSchema, ConstructItemSchema
 from data.services.construct_item_service import ConstructItemService
-from data.services.dependencies import get_construct_item_service as construct_item_service
+from data.services.rssa_dependencies import get_construct_item_service as construct_item_service
 from docs.metadata import AdminTagsEnum as Tags
 from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 

@@ -21,7 +21,11 @@ class PreferenceVisualization(RSSABase):
 	def __init__(self, model_path: str, item_popularity: pd.DataFrame, ave_item_score: pd.DataFrame):
 		super().__init__(model_path, item_popularity, ave_item_score)
 
-	def get_prediction(self, ratings: List[RatedItemSchema], user_id: str) -> pd.DataFrame:
+	def get_prediction(
+		self,
+		ratings: List[RatedItemSchema],
+		user_id: str,
+	) -> pd.DataFrame:
 		rated_items = np.array([np.int64(rating.item_id) for rating in ratings])
 		new_ratings = pd.Series(np.array([np.float64(rating.rating) for rating in ratings]), index=rated_items)
 

@@ -87,8 +87,8 @@ class EmotionDiscreteInputSchema(BaseModel):
 
 
 class EmotionInputSchema(BaseModel):
-	user_id: int
-	user_condition: int
+	user_id: uuid.UUID
+	user_condition: uuid.UUID
 	input_type: Literal['discrete', 'continuous']
 	emotion_input: Union[List[EmotionDiscreteInputSchema], List[EmotionContinuousInputSchema]]
 	ratings: List[RatedItemSchema]

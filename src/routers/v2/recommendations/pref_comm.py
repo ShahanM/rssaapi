@@ -1,15 +1,14 @@
-from typing import List
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from compute.rspc import PreferenceCommunity
 from compute.utils import get_rating_data_path, get_rssa_ers_data, get_rssa_model_path
-from data.moviedb import get_db as movie_db
 from data.schemas.movie_schemas import MovieSchema
 from data.schemas.preferences_schemas import PrefCommRatingSchema
-from data.services.movie_service import MovieService
+from data.services import MovieService
+from data.services.content_dependencies import get_movie_service
 from docs.metadata import RSTagsEnum as Tags
 
 router = APIRouter(
@@ -35,7 +34,7 @@ class AdvisorProfileSchema(BaseModel):
 @router.post('/recommendations/advisors/', response_model=List[AdvisorProfileSchema])
 async def get_advisor(
 	rated_movies: PrefCommRatingSchema,
-	db: AsyncSession = Depends(movie_db),
+	movie_service: Annotated[MovieService, Depends(get_movie_service)],
 ):
 	rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
 	rssa_model_path = get_rssa_model_path()
@@ -44,8 +43,6 @@ async def get_advisor(
 	advisors = []
 
 	recs = rssa_pref_comm.get_advisors_with_profile(rated_movies.ratings, rated_movies.user_id, num_rec=7)
-
-	movie_service = MovieService(db)
 
 	for adv, value in recs.items():
 		profile_movies = await movie_service.get_movies_by_movielens_ids([str(val) for val in value['profile_top']])
