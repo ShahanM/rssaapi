@@ -3,20 +3,45 @@ from typing import List
 
 from data.models.survey_constructs import SurveyConstruct
 from data.repositories.survey_construct import SurveyConstructRepository
+from data.schemas.survey_construct_schemas import SurveyConstructCreateSchema
 
 
 class SurveyConstructService:
 	def __init__(self, construct_repo: SurveyConstructRepository):
 		self.construct_repo = construct_repo
 
+	async def create_survey_construct(
+		self,
+		new_construct: SurveyConstructCreateSchema,
+	) -> SurveyConstruct:
+		construct_to_insert = SurveyConstruct(
+			name=new_construct.name,
+			desc=new_construct.desc,
+			type=new_construct.type,
+			scale=new_construct.scale,
+		)
+
+		created_construct = await self.construct_repo.create(construct_to_insert)
+
+		return created_construct
+
 	async def get_survey_constructs(self) -> List[SurveyConstruct]:
 		return await self.construct_repo.get_all()
 
-	async def get_construct_summary(self, construct_id: uuid.UUID) -> SurveyConstruct:
+	async def get_construct_summary(
+		self,
+		construct_id: uuid.UUID,
+	) -> SurveyConstruct:
 		return await self.construct_repo.get_construct_summary(construct_id)
 
-	async def get_construct_details(self, construct_id: uuid.UUID) -> SurveyConstruct:
+	async def get_construct_details(
+		self,
+		construct_id: uuid.UUID,
+	) -> SurveyConstruct:
 		return await self.construct_repo.get_detailed_construct_object(construct_id)
 
-	async def delete_survey_construct(self, construct_id: uuid.UUID) -> None:
+	async def delete_survey_construct(
+		self,
+		construct_id: uuid.UUID,
+	) -> None:
 		await self.construct_repo.delete(construct_id)

@@ -25,6 +25,13 @@ class ConstructItemCreateSchema(BaseModel):
 	item_type: uuid.UUID
 
 
+class SurveyConstructCreateSchema(BaseModel):
+	name: str
+	desc: str
+	type: Optional[uuid.UUID] = None
+	scale: Optional[uuid.UUID] = None
+
+
 class SurveyConstructSchema(BaseDBSchema):
 	name: str
 	desc: str

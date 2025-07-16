@@ -4,7 +4,12 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from data.schemas.survey_construct_schemas import ConstructDetailSchema, ConstructSummarySchema, SurveyConstructSchema
+from data.schemas.survey_construct_schemas import (
+	ConstructDetailSchema,
+	ConstructSummarySchema,
+	SurveyConstructCreateSchema,
+	SurveyConstructSchema,
+)
 from data.services.rssa_dependencies import get_survey_construct_service as construct_service
 from data.services.survey_construct_service import SurveyConstructService
 from docs.metadata import AdminTagsEnum as Tags
@@ -19,6 +24,22 @@ router = APIRouter(
 	tags=[Tags.construct],
 	dependencies=[Depends(get_auth0_authenticated_user), Depends(construct_service)],
 )
+
+
+@router.post('/', response_model=SurveyConstructSchema)
+async def create_survey_construct(
+	new_construct: SurveyConstructCreateSchema,
+	service: Annotated[SurveyConstructService, Depends(construct_service)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	is_super_admin = 'admin:all' in user.permissions
+	if not is_super_admin:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to do perform that action.'
+		)
+	new_construct_in_db = await service.create_survey_construct(new_construct)
+
+	return SurveyConstructSchema.model_validate(new_construct_in_db)
 
 
 @router.get('/', response_model=List[SurveyConstructSchema])
