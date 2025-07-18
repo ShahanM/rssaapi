@@ -12,7 +12,7 @@ import pandas as pd
 
 from data.schemas.preferences_schemas import RatedItemSchema
 
-from .common import RSSABase, get_user_feature
+from .common import RSSABase, get_user_feature_from_implicitMF
 
 
 class PreferenceCommunity(RSSABase):
@@ -34,7 +34,7 @@ class PreferenceCommunity(RSSABase):
 		umat = self.model.user_features_
 		users = self.model.user_index_
 
-		user_features = get_user_feature(self.model, _ratings)
+		user_features = get_user_feature_from_implicitMF(self.model, _ratings)
 
 		# FIXME - parameterize
 		distance_method = 'cosine'

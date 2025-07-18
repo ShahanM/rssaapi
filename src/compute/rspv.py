@@ -11,10 +11,12 @@ from typing import Callable, List, Tuple
 import networkx as nx
 import numpy as np
 import pandas as pd
+from lenskit.algorithms.als import _train_bias_row_lu
 
 from data.schemas.preferences_schemas import PrefVizItem, RatedItemSchema
 
-from .common import RSSABase, predict
+from .common import RSSABase, get_user_feature_from_biasedMF, predict
+from .utils import get_rating_data_path
 
 
 class PreferenceVisualization(RSSABase):
@@ -36,7 +38,6 @@ class PreferenceVisualization(RSSABase):
 	def get_baseline_prediction(self, ratings: List[RatedItemSchema], user_id: str, num_rec: int) -> List[PrefVizItem]:
 		preds = self.get_prediction(ratings, user_id).sort_values(by='score', ascending=False)
 		preds = preds.head(num_rec)
-
 		# FIXME: This is a hack to get it working using the current data model
 		recommended_items = []
 		for _, row in preds.iterrows():
@@ -76,7 +77,6 @@ class PreferenceVisualization(RSSABase):
 		seed = hash(ratedset) % (2**32)
 
 		candidates = preds[preds['count'] >= min_rating_count]
-
 		candidates.index = pd.Index(candidates['item'].values)
 
 		if randomize:
@@ -111,6 +111,62 @@ class PreferenceVisualization(RSSABase):
 			diverse_items = self.__single_linkage_clustering(diverse_items, num_rec)
 		else:
 			diverse_items = candidates
+
+		scaled_items, scaled_avg_comm, scaled_avg_user = self.scale_and_label(diverse_items)
+
+		recommended_items = []
+		for _, row in scaled_items.iterrows():
+			recommended_items.append(
+				PrefVizItem(
+					item_id=str(int(row['item'])),  # truncate the trailing .0
+					community_score=row['community'],
+					user_score=row['user'],
+					community_label=row['community_label'],
+					user_label=row['user_label'],
+					cluster=int(row['cluster']) if 'cluster' in row else 0,
+				)
+			)
+
+		return recommended_items
+
+	def predict_reference_items(
+		self,
+		ratings: List[RatedItemSchema],
+		num_rec: int,
+		user_id: str,
+		init_sample_size: int = 500,
+		min_rating_count: int = 50,
+	) -> List[PrefVizItem]:
+		distance_method = 'cosine'
+		k = 200  # number of neighboars ot use as candidates
+
+		preds = self.get_prediction(ratings, user_id)
+
+		umat = self.model.user_features_
+		users = self.model.user_index_
+
+		u_feat = get_user_feature_from_biasedMF(self.model, preds['score'])
+		knn = RSSABase._find_neighbors(self, umat, users, u_feat, distance_method, k)
+
+		neighbors = knn['user'].tolist()
+		rating_data = pd.read_csv(get_rating_data_path())
+
+		neighbor_ratings_for_target_items = rating_data[
+			(rating_data['user_id'].isin(neighbors)) & (rating_data['movie_id'].isin(preds['item']))
+		]
+
+		average_neighbor_ratings = neighbor_ratings_for_target_items.groupby('movie_id')['rating'].mean()
+
+		merged_preds = pd.merge(preds, average_neighbor_ratings, how='left', left_on='item', right_index=True)
+		merged_preds = pd.merge(merged_preds, self.item_popularity, how='left', on='item')
+		merged_preds = merged_preds.rename(columns={'rating': 'ave_score'})
+		merged_preds.dropna(inplace=True)
+
+		candidates = merged_preds[merged_preds['count'] >= min_rating_count]
+		candidates.index = pd.Index(candidates['item'].values)
+
+		diverse_items, _ = self.__fishingnet(candidates, init_sample_size)
+		diverse_items = self.__single_linkage_clustering(diverse_items, num_rec)
 
 		scaled_items, scaled_avg_comm, scaled_avg_user = self.scale_and_label(diverse_items)
 
@@ -190,9 +246,13 @@ class PreferenceVisualization(RSSABase):
 		_candidates = candidates.copy()
 
 		# This is weird, but a DataFrame row essentially behaved like a dict
-		score_avescore: Callable[[dict[str, float]], Tuple[float, float]]
-		score_avescore = lambda x: (x['score'], x['ave_score'])
-		_candidates['grid_idx'] = _candidates.apply(score_avescore, axis=1)
+		# score_avescore: Callable[[dict[str, float]], Tuple[float, float]]
+		# score_avescore = lambda x: (x['score'], x['ave_score'])
+
+		def unzip_scores(x):
+			return (x['score'], x['ave_score'])
+
+		_candidates['grid_idx'] = _candidates.apply(unzip_scores, axis=1)
 
 		G = nx.Graph()
 		G.add_nodes_from(_candidates['grid_idx'].values)

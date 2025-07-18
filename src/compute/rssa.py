@@ -15,7 +15,7 @@ from pydantic.dataclasses import dataclass
 
 from data.schemas.preferences_schemas import RatedItemSchema
 
-from .common import RSSABase, get_user_feature, predict_discounted
+from .common import RSSABase, get_user_feature_from_implicitMF, predict_discounted
 
 
 @dataclass
@@ -136,7 +136,7 @@ class AlternateRS(RSSABase):
 		umat = self.model.user_features_
 		users = self.model.user_index_
 
-		user_features = get_user_feature(self.model, _ratings)
+		user_features = get_user_feature_from_implicitMF(self.model, _ratings)
 
 		# FIXME - parameterize
 		distance_method = 'cosine'

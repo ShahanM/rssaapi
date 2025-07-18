@@ -96,7 +96,7 @@ async def recommend_for_study_condition(
 		request_model.user_id,
 		tuple(sorted_ratings),
 		request_model.user_condition,
-		request_model.is_baseline,
+		request_model.rec_type,
 		study.id,
 	)
 	if cache_key in CACHE:
@@ -113,20 +113,20 @@ async def recommend_for_study_condition(
 	if not study_condition or study_condition.study_id != study.id:
 		raise HTTPException(status_code=404, detail='Study condition not found')
 
+	algo = 'fishnet + single_linkage'
+	randomize = False
+	init_sample_size = 500
+	min_rating_count = 50
 	recs = []
-	if request_model.is_baseline:
+	if request_model.rec_type == 'baseline':
 		recs = pref_viz.get_baseline_prediction(
 			request_model.ratings,
 			str(request_model.user_id),
 			study_condition.recommendation_count,  # type: ignore
 		)
-	else:
+	elif request_model.rec_type == 'diverse':
 		# FIXME: These values are hardcoded for now but should be fetched from the
 		# study condition or a study manifest
-		algo = 'fishnet + single_linkage'
-		randomize = False
-		init_sample_size = 500
-		min_rating_count = 50
 
 		recs = pref_viz.predict_diverse_items(
 			request_model.ratings,
@@ -137,13 +137,20 @@ async def recommend_for_study_condition(
 			init_sample_size,
 			min_rating_count,
 		)
+	elif request_model.rec_type == 'reference':
+		recs = pref_viz.predict_reference_items(
+			request_model.ratings,
+			study_condition.recommendation_count,
+			str(request_model.user_id),
+			init_sample_size,
+			min_rating_count,
+		)
 
 	if len(recs) == 0:
 		raise HTTPException(status_code=500, detail='No recommendations were generated.')
 
 	recmap = {r.item_id: r for r in recs}
 	movies = await movie_service.get_movies_by_movielens_ids(list(recmap.keys()))
-	# movies = await get_ers_movies_by_movielens_ids(movie_db, list(recmap.keys()))
 
 	res = []
 

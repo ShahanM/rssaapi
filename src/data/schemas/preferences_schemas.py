@@ -41,7 +41,7 @@ class PrefVizDemoRequestSchema(BaseModel):
 class PreferenceRequestSchema(BaseModel):
 	user_id: uuid.UUID
 	user_condition: uuid.UUID
-	is_baseline: bool = False
+	rec_type: Literal['baseline', 'reference', 'diverse']
 	ratings: List[RatedItemSchema]
 
 	def __hash__(self):
