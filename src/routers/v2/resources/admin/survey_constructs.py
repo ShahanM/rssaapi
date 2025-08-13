@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from data.schemas.survey_construct_schemas import (
 	ConstructDetailSchema,
-	ConstructSummarySchema,
+	ReorderPayloadSchema,
 	SurveyConstructCreateSchema,
 	SurveyConstructSchema,
 )
-from data.services.rssa_dependencies import get_survey_construct_service as construct_service
-from data.services.survey_construct_service import SurveyConstructService
+from data.services.survey_dependencies import SurveyConstructService
+from data.services.survey_dependencies import get_survey_construct_service as construct_service
 from docs.metadata import AdminTagsEnum as Tags
 from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
@@ -45,7 +45,6 @@ async def create_survey_construct(
 @router.get('/', response_model=List[SurveyConstructSchema])
 async def get_survey_constructs(
 	service: Annotated[SurveyConstructService, Depends(construct_service)],
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
 	constructs_in_db = await service.get_survey_constructs()
 	converted = [SurveyConstructSchema.model_validate(c) for c in constructs_in_db]
@@ -53,15 +52,20 @@ async def get_survey_constructs(
 	return converted
 
 
-@router.get('/{construct_id}/summary', response_model=ConstructSummarySchema)
+@router.get('/{construct_id}/summary', response_model=SurveyConstructSchema)
 async def get_construct_summary(
 	construct_id: uuid.UUID,
 	service: Annotated[SurveyConstructService, Depends(construct_service)],
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	construct_in_db = await service.get_construct_summary(construct_id)
+	construct_in_db = await service.get_survey_construct(construct_id)
 
-	return ConstructSummarySchema.model_validate(construct_in_db)
+	if not construct_in_db:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND, detail=f'Survey construct with ID {construct_id} not found.'
+		)
+	logger.info(f'Retrieved construct summary for ID {construct_id}: {construct_in_db}')
+
+	return SurveyConstructSchema.model_validate(construct_in_db)
 
 
 @router.get('/{construct_id}', response_model=ConstructDetailSchema)
@@ -70,7 +74,12 @@ async def get_construct_detail(
 	service: Annotated[SurveyConstructService, Depends(construct_service)],
 ):
 	construct_in_db = await service.get_construct_details(construct_id)
-	print('Construct DEETS: ', construct_in_db.__dict__)
+
+	if not construct_in_db:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND, detail=f'Survey construct with ID {construct_id} not found.'
+		)
+	logger.info(f'Retrieved construct details for ID {construct_id}: {construct_in_db}')
 	return ConstructDetailSchema.model_validate(construct_in_db)
 
 
@@ -83,8 +92,18 @@ async def delete_construct(
 	is_super_admin = 'admin:all' in user.permissions
 	if not is_super_admin:
 		raise HTTPException(
-			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to do perform that action.'
+			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to perform that action.'
 		)
 	await service.delete_survey_construct(construct_id)
 
 	return {'message': 'Survey construct deleted.'}
+
+
+@router.put('/{construct_id}/items/order', status_code=204)
+async def update_scale_levels_order(
+	construct_id: uuid.UUID,
+	service: Annotated[SurveyConstructService, Depends(construct_service)],
+	payload: List[ReorderPayloadSchema],
+):
+	levels_map = {item.id: item.order_position for item in payload}
+	await service.reorder_items(construct_id, levels_map)

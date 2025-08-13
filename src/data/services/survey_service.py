@@ -1,18 +1,21 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from data.models.study_components import Page
-from data.repositories.page import PageRepository
-from data.repositories.study_step import StudyStepRepository
+from data.models.study_components import Page, PageContent
+from data.repositories import PageContentRepository, PageRepository, StudyStepRepository
+from data.schemas.survey_construct_schemas import PageContentCreateSchema
 
 
 class SurveyService:
-	def __init__(self, db: AsyncSession):
-		self.db = db
-		self.page_repository = PageRepository(db)
-		self.study_step_repository = StudyStepRepository(db)
+	def __init__(
+		self,
+		page_repo: PageRepository,
+		step_repo: StudyStepRepository,
+		content_repo: PageContentRepository,
+	):
+		self.content_repo = content_repo
+		self.page_repository = page_repo
+		self.step_repository = step_repo
 
 	async def get_first_survey_page(self, step_id: uuid.UUID) -> Optional[Page]:
 		first_page = await self.page_repository.get_first_page_in_step(step_id)
@@ -35,3 +38,17 @@ class SurveyService:
 		Determines if a given page is the last page within its step.
 		"""
 		return not await self.page_repository.has_subsequent_page(page.step_id, page.order_position)
+
+	async def create_survey_page(self, new_survey_page: PageContentCreateSchema) -> PageContent:
+		last_page_content = await self.content_repo.get_last_page_content(new_survey_page.page_id)
+		order_position = last_page_content.order_position + 1 if last_page_content else 1
+		page_content = PageContent(
+			page_id=new_survey_page.page_id,
+			content_id=new_survey_page.construct_id,
+			scale_id=new_survey_page.scale_id,
+			order_position=order_position,
+		)
+
+		await self.content_repo.create(page_content)
+
+		return page_content

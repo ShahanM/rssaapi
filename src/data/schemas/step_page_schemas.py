@@ -9,12 +9,12 @@ from data.schemas.base_schemas import BaseDBSchema
 class StepPageCreateSchema(BaseModel):
 	study_id: uuid.UUID
 	step_id: uuid.UUID
-	order_position: int
 	name: str
 	description: str
 
 
-class StepPageSchema(BaseDBSchema):
+class StepPageSchema(BaseModel):
+	id: uuid.UUID
 	study_id: uuid.UUID
 	step_id: uuid.UUID
 	order_position: int

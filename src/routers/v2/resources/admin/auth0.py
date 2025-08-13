@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Annotated, List, Optional, Union
 
 import httpx
@@ -12,6 +13,8 @@ from pydantic import BaseModel
 
 import config as cfg
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 # from data.models.schemas.studyschema import Auth0UserSchema
 
 AUTH0_DOMAIN = cfg.get_env_var('AUTH0_DOMAIN', '')
@@ -41,22 +44,13 @@ REQUIRED_AUTH0_VARS = [
 	AUTH0_API_ID,
 ]
 if any(var == '' for var in REQUIRED_AUTH0_VARS):
-	# In a real app, use a proper logger here
-	print(
-		'CRITICAL ERROR: One or more required Auth0 environment variables are not set. \
-			Auth0-protected routes may not function correctly.'
+	logging.critical(
+		'One or more required Auth0 environment variables are not set. \
+		Auth0-protected routes may not function correctly.'
 	)
-	# You might set a global flag or raise an exception here if you want to prevent startup
-	# raise ValueError("Missing Auth0 environment variables.")
 	routes_disabled = True  # Example flag for conditional route inclusion
 else:
 	routes_disabled = False
-
-# routes_disabled = False
-# if any([AUTH0_DOMAIN == '', AUTH0_API_AUDIENCE == '', AUTH0_ALGORITHMS[0] == '', AUTH0_CLIENT_ID == '']):
-# 	routes_disabled = True
-# 	raise Warning('One or more required Auth0 environment variables are not set.\n Admin routes disabled.')
-
 
 router = APIRouter()
 
@@ -83,41 +77,6 @@ class Auth0UserSchema(BaseModel):
 	picture: Optional[str]
 
 
-# async def get_management_api_token() -> str:
-# 	url = f'https://{AUTH0_DOMAIN}/oauth/token'
-# 	headers = {'Content-Type': 'application/json'}
-# 	payload = {
-# 		'client_id': AUTH0_CLIENT_ID,
-# 		'client_secret': AUTH0_CLIENT_SECRET,
-# 		'audience': AUTH0_MANAGEMENT_API_AUDIENCE,
-# 		'grant_type': 'client_credentials',
-# 	}
-
-# 	token = ''
-
-# 	async with httpx.AsyncClient() as client:
-# 		try:
-# 			response = await client.post(url, headers=headers, json=payload)
-# 			response.raise_for_status()
-# 			token = response.json().get('access_token')
-# 			if not token:
-# 				raise HTTPException(
-# 					status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to obtain management API token'
-# 				)
-# 		except httpx.ConnectTimeout as e:
-# 			raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
-# 		except httpx.HTTPError as e:
-# 			print(f'HTTP Error: {e}')
-# 			print(f'Response status: {response.status_code}')
-# 			try:
-# 				error_data = response.json()
-# 				print(f'Response JSON: {error_data}')
-# 			except json.JSONDecodeError:
-# 				print(f'Response Text: {response.text}')
-
-# 	return token
-
-
 # --- Auth0 Management API Token Caching and Retrieval ---
 # Cache management token for 5 minutes (300 seconds)
 # Auth0 management tokens typically last for 24 hours, so a 5-minute cache is safe.
@@ -131,15 +90,18 @@ async def get_management_api_token_cached() -> str:
 	url = f'https://{AUTH0_DOMAIN}/oauth/token'
 	headers = {'Content-Type': 'application/json'}
 	payload = {
-		'client_id': AUTH0_MANAGEMENT_API_ID,  # Use Management API Client ID
+		'client_id': AUTH0_CLIENT_ID,  # Use Management API Client ID
 		'client_secret': AUTH0_CLIENT_SECRET,
 		'audience': AUTH0_MANAGEMENT_API_AUDIENCE,
 		'grant_type': 'client_credentials',
 	}
 	async with httpx.AsyncClient() as client:
 		try:
+			print('Requesting Auth0 Management API token...')
 			response = await client.post(url, headers=headers, json=payload)
+			print('Received Auth0 Management API token response')
 			response.raise_for_status()
+			print('Auth0 Management API token response status:', response.status_code)
 			token = response.json().get('access_token')
 			if not token:
 				raise HTTPException(
@@ -337,7 +299,7 @@ async def assign_permission_to_user(user_id: str, permission_name: str):
 	Returns:
 		_type_: _description_
 	"""
-	token = get_management_api_token_cached()
+	token = await get_management_api_token_cached()
 	url = f'https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/permissions'
 	headers = {'Authorization': f'Bearer {token}', 'content-type': 'application/json'}
 	payload = {
@@ -479,93 +441,99 @@ async def get_auth0_authenticated_user(
 
 
 # --- Permissions Checker Dependencies (Authorization) ---
+def require_permissions(*scopes: str):
+	"""
+	FastAPI dependency factory to check if the authenticated user has AT LEAST ONE
+	of the required permission scopes.
 
-
-def require_permissions(permission_scope: str):
-	"""FastAPI dependency factor to check if the authenticated user has a specific permission scope.
-
-	Usage: Depends(require_permission("read:studies))
+	Usage: Depends(require_permissions("read:studies", "admin:all"))
 
 	Args:
-		permission_scope (str): _description_
+		scopes (str): _description_
 	"""
 
 	def check_permission_inner(user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)]):
-		if permission_scope not in user.permissions:
+		if not any(scope in user.permissions for scope in scopes):
 			raise HTTPException(
-				status_code=status.HTTP_403_FORBIDDEN, detail=f'User does not "{permission_scope}" permission.'
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail=f'User lacks required permissions. Needs one of: {list(scopes)}',
 			)
 		return user
 
 	return check_permission_inner
 
 
-# def auth0_bearer_token(request: Request):
-# 	authorization = request.headers.get('Authorization')
-# 	scheme, param = get_authorization_scheme_param(authorization)
-# 	if not authorization or scheme.lower() != 'bearer':
-# 		raise HTTPException(
-# 			status_code=status.HTTP_401_UNAUTHORIZED,
-# 			detail='Invalid Authorization header',
-# 			headers={'WWW-Authenticate': 'Bearer'},
-# 		)
-# 	return param
+async def get_user_profile_by_id(user_id: str) -> Optional[dict]:
+	"""
+	Fetches a user's public profile (name, picture) from the Auth0 Management API.
+	"""
+	print('Getting user profile for', user_id)
+	token = await get_management_api_token_cached()
+	print('I GOT MY TOKEN')
+	headers = {'Authorization': f'Bearer {token}'}
+	url = f'https://{AUTH0_DOMAIN}/api/v2/users/{user_id}'
+
+	async with httpx.AsyncClient(headers=headers) as client:
+		try:
+			response = await client.get(url)
+			response.raise_for_status()
+
+			user_data = response.json()
+
+			return {
+				'name': user_data.get('name'),
+				'picture': user_data.get('picture'),
+				'nickname': user_data.get('nickname'),
+			}
+		except httpx.HTTPStatusError as e:
+			if e.response.status_code == 404:
+				return None
+			raise HTTPException(
+				status_code=e.response.status_code,
+				detail=f'Auth0: HTTP error getting user profile: {e.response.text}',
+			) from e
+		except Exception as e:
+			raise HTTPException(
+				status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+				detail=f'Auth0: Unexpected error getting user profile: {e}',
+			) from e
 
 
-# async def decode_jwt(token: str):
-# 	jwks = await get_jwks()
-# 	unverified_header = jwt.get_unverified_header(token)
-# 	rsa_key = {}
-# 	for key in jwks['keys']:
-# 		if key['kid'] == unverified_header['kid']:
-# 			rsa_key = {'kty': key['kty'], 'kid': key['kid'], 'use': key['use'], 'n': key['n'], 'e': key['e']}
-# 			break
-# 	try:
-# 		payload = jwt.decode(
-# 			token,
-# 			rsa_key,
-# 			algorithms=AUTH0_ALGORITHMS[0],
-# 			audience=AUTH0_API_AUDIENCE,
-# 			issuer=f'https://{AUTH0_DOMAIN}/',
-# 			access_token=token,
-# 		)
-# 		return payload
-# 	except JWTError as e:
-# 		raise HTTPException(
-# 			status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e), headers={'WWW-Authenticate': 'Bearer'}
-# 		) from e
+async def search_users(search_query: Optional[str] = None, page: int = 0, per_page: int = 50) -> list[dict]:
+	"""
+	Searches for users in Auth0, with pagination.
+	Returns a list of user profiles containing only essential fields.
+	"""
+	token = await get_management_api_token_cached()
+	headers = {'Authorization': f'Bearer {token}'}
 
+	fields_to_include = 'user_id,name,email,picture,nickname'
 
-# async def get_current_user_profile(request: Request):
-# 	current_user = await decode_jwt(auth0_bearer_token(request))
-# 	user_profile = f'https://{auth0_domain}/userinfo'
-# 	async with httpx.AsyncClient() as client:
-# 		response = await client.get(user_profile, headers={'Authorization': f'Bearer {auth0_bearer_token(request)}'})
-# 		response.raise_for_status()
-# 		user = response.json()
-# 		if current_user['sub'] != user['sub']:
-# 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Token is invalid')
-# 	return user
+	params = {
+		'per_page': per_page,
+		'page': page,
+		'include_fields': 'true',
+		'fields': fields_to_include,
+		'search_engine': 'v3',
+	}
 
+	if search_query:
+		params['q'] = search_query
 
-# async def get_current_user(request: Request) -> Auth0UserSchema:
-# 	token = get_management_api_token()
-# 	current_user = await decode_jwt(auth0_bearer_token(request))
-# 	# TODO: Check if user has read:all permission
-# 	auth0user = Auth0UserSchema(**current_user)
-# 	return auth0user
+	url = f'https://{AUTH0_DOMAIN}/api/v2/users'
 
-
-# async def get_current_admin_user(
-# 	request: Request, required_permissions: List[str] = ['read:all', 'write:all', 'delete:all']
-# ):
-# 	current_user = await decode_jwt(auth0_bearer_token(request))
-
-# 	# admin_permissions = ['read:all', 'write:all', 'delete:all']
-# 	print(current_user)
-# 	# admin_privileges = lambda perms: [x in perms for x in admin_permissions]
-# 	if not all(perm in current_user['permissions'] for perm in required_permissions):
-# 		raise HTTPException(
-# 			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permission to access this route.'
-# 		)
-# 	return Auth0UserSchema(**current_user)
+	async with httpx.AsyncClient(headers=headers) as client:
+		try:
+			response = await client.get(url, params=params)
+			response.raise_for_status()
+			return response.json()
+		except httpx.HTTPStatusError as e:
+			raise HTTPException(
+				status_code=e.response.status_code,
+				detail=f'Auth0: HTTP error searching users: {e.response.text}',
+			) from e
+		except Exception as e:
+			raise HTTPException(
+				status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+				detail=f'Auth0: Unexpected error searching users: {e}',
+			) from e

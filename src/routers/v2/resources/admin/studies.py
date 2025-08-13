@@ -152,8 +152,8 @@ async def reorder_study_steps(
 	db: Annotated[AsyncSession, Depends(rssa_db)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	step_service = StudyService(db)
+	study_service = StudyService(db)
 	steps_map = {item.id: item.order_position for item in payload}
-	await step_service.reorder_study_steps(study_id, steps_map)
+	await study_service.reorder_study_steps(study_id, steps_map)
 
 	return {'message': 'Steps reordered successfully'}

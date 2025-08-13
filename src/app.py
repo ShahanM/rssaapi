@@ -28,11 +28,15 @@ from routers.v2.resources import (
 )
 from routers.v2.resources.admin import auth0
 from routers.v2.resources.admin import construct_items as items_admin
-from routers.v2.resources.admin import step_page as page_admin
-from routers.v2.resources.admin import study as study_admin
-from routers.v2.resources.admin import study_condition as condition_admin
-from routers.v2.resources.admin import study_step as step_admin
+from routers.v2.resources.admin import construct_scales as scales_admin
+from routers.v2.resources.admin import scale_levels as level_admin
+from routers.v2.resources.admin import step_pages as page_admin
+from routers.v2.resources.admin import studies as study_admin
+from routers.v2.resources.admin import study_conditions as condition_admin
+from routers.v2.resources.admin import study_steps as step_admin
 from routers.v2.resources.admin import survey_constructs as construct_admin
+from routers.v2.resources.admin import survey_pages as survey_admin
+from routers.v2.resources.admin import users as admin_users
 
 # Configure logging
 configure_logging()
@@ -90,6 +94,8 @@ origins = [
 	'http://localhost:3340',
 	'http://localhost:3350',
 	'http://localhost:3000',
+	'http://192.68.0.21:3330',
+	'http://192.68.0.21:3330/*',
 ]
 
 
@@ -101,9 +107,13 @@ app.include_router(auth0.router)
 app.include_router(study_admin.router)
 app.include_router(step_admin.router)
 app.include_router(page_admin.router)
-app.include_router(construct_admin.router)
 app.include_router(condition_admin.router)
 app.include_router(items_admin.router)
+app.include_router(scales_admin.router)
+app.include_router(construct_admin.router)
+app.include_router(level_admin.router)
+app.include_router(survey_admin.router)
+app.include_router(admin_users.router)
 """
 Resources API Routers
 """

@@ -119,6 +119,13 @@ class StudyStepRepository(BaseRepository):
 
 		return step
 
+	async def get_last_step_in_study(self, study_id: uuid.UUID) -> Union[Step, None]:
+		query = select(Step).where(Step.study_id == study_id).order_by(Step.order_position.desc())
+		result = await self.db.execute(query)
+		step = result.scalars().first()
+
+		return step
+
 	async def get_study_step_with_pages(self, step_id: uuid.UUID) -> Step:
 		query = select(Step).options(selectinload(Step.pages)).where(Step.id == step_id)
 

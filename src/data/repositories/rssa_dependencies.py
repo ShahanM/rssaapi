@@ -5,26 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.rssadb import get_db
 
-from .construct_item import ConstructItemRepository
 from .demographics import DemographicsRepository
+from .page import PageRepository
+from .page_content import PageContentRepository
 from .participant import ParticipantRepository
 from .participant_movie_session import ParticipantMovieSessionRepository
 from .pre_shuffled_movie_list import PreShuffledMovieRepository
 from .study import StudyRepository
 from .study_condition import StudyConditionRepository
-from .survey_construct import SurveyConstructRepository
-
-
-def get_survey_construct_repository(
-	db: Annotated[AsyncSession, Depends(get_db)],
-) -> SurveyConstructRepository:
-	return SurveyConstructRepository(db)
-
-
-def get_construct_item_repository(
-	db: Annotated[AsyncSession, Depends(get_db)],
-) -> ConstructItemRepository:
-	return ConstructItemRepository(db)
+from .study_step import StudyStepRepository
 
 
 def get_study_repository(
@@ -61,3 +50,21 @@ def get_demographics_repository(
 	db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DemographicsRepository:
 	return DemographicsRepository(db)
+
+
+def get_page_content_repository(
+	db: Annotated[AsyncSession, Depends(get_db)],
+) -> PageContentRepository:
+	return PageContentRepository(db)
+
+
+def get_page_repository(
+	db: Annotated[AsyncSession, Depends(get_db)],
+) -> PageRepository:
+	return PageRepository(db)
+
+
+def get_study_step_repository(
+	db: Annotated[AsyncSession, Depends(get_db)],
+) -> StudyStepRepository:
+	return StudyStepRepository(db)

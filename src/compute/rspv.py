@@ -160,8 +160,8 @@ class PreferenceVisualization(RSSABase):
 		merged_preds = pd.merge(preds, average_neighbor_ratings, how='left', left_on='item', right_index=True)
 		merged_preds = pd.merge(merged_preds, self.item_popularity, how='left', on='item')
 		merged_preds = merged_preds.rename(columns={'rating': 'ave_score'})
-		merged_preds.dropna(inplace=True)
 
+		merged_preds.dropna(inplace=True)
 		candidates = merged_preds[merged_preds['count'] >= min_rating_count]
 		candidates.index = pd.Index(candidates['item'].values)
 

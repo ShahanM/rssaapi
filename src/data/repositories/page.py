@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from sqlalchemy import and_, asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,8 +56,7 @@ class PageRepository(BaseRepository[Page]):
 				.selectinload(PageContent.survey_construct)
 				.selectinload(SurveyConstruct.items),
 				selectinload(Page.page_contents)
-				.selectinload(PageContent.survey_construct)
-				.selectinload(SurveyConstruct.construct_scale)
+				.selectinload(PageContent.construct_scale)
 				.selectinload(ConstructScale.scale_levels),
 			)
 		)
@@ -97,9 +96,9 @@ class PageRepository(BaseRepository[Page]):
 				selectinload(Page.page_contents)
 				.selectinload(PageContent.survey_construct)
 				.selectinload(SurveyConstruct.items),
+				selectinload(Page.page_contents).selectinload(PageContent.survey_construct),
 				selectinload(Page.page_contents)
-				.selectinload(PageContent.survey_construct)
-				.selectinload(SurveyConstruct.construct_scale)
+				.selectinload(PageContent.construct_scale)
 				.selectinload(ConstructScale.scale_levels),
 			)
 		)
@@ -120,6 +119,13 @@ class PageRepository(BaseRepository[Page]):
 		)  # We only need to know if at least one exists
 		result = await self.db.execute(stmt)
 		return result.scalars().first() is not None  # Returns True if a subsequent page exists, False otherwise
+
+	async def get_last_page_in_step(self, step_id: uuid.UUID) -> Union[Page, None]:
+		query = select(Page).where(Page.study_id == step_id).order_by(Page.order_position.desc())
+		result = await self.db.execute(query)
+		step = result.scalars().first()
+
+		return step
 
 	async def copy_pages_from(
 		self, from_step_id: uuid.UUID, to_step_id: uuid.UUID, new_study_id: uuid.UUID

@@ -16,9 +16,11 @@ class StudyStepService:
 		self.step_page_repo = PageRepository(db)
 
 	async def create_study_step(self, new_step: StudyStepCreateSchema) -> Step:
+		last_step = await self.study_step_repo.get_last_step_in_study(new_step.study_id)
+		next_order_pos = 1 if last_step is None else last_step.order_position + 1
 		study_step = Step(
 			name=new_step.name,
-			order_position=new_step.order_position,
+			order_position=next_order_pos,
 			description=new_step.description,
 			study_id=new_step.study_id,
 		)

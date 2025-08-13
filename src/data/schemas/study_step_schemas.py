@@ -11,13 +11,14 @@ from data.schemas.step_page_schemas import StepPagePreviewSchema
 class StudyStepCreateSchema(BaseModel):
 	name: str
 	description: str
-	order_position: int
 	study_id: uuid.UUID
 
 
 class StudyStepSchema(BaseDBSchema):
 	name: str
 	description: str
+	title: Optional[str] = None
+	instructions: Optional[str] = None
 	order_position: int
 	date_created: Optional[datetime]
 	study_id: uuid.UUID

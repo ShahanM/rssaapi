@@ -2,7 +2,7 @@ import uuid
 from typing import Any, List, Union
 
 from pydantic import BaseModel
-from sqlalchemy import func, select, and_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 

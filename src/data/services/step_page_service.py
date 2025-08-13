@@ -2,11 +2,10 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.models.study_components import Page, PageContent
+from data.models.study_components import Page
 from data.repositories.page import PageRepository
 from data.repositories.page_content import PageContentRepository
 from data.schemas.step_page_schemas import StepPageCreateSchema
-from data.schemas.survey_construct_schemas import ConstructLinkSchema, LinkedContentSchema
 
 
 class StepPageService:
@@ -16,10 +15,12 @@ class StepPageService:
 		self.content_repo = PageContentRepository(db)
 
 	async def create_step_page(self, new_page: StepPageCreateSchema) -> Page:
+		last_page = await self.page_repo.get_last_page_in_step(new_page.step_id)
+		next_order_pos = 1 if last_page is None else last_page.order_position + 1
 		step_page = Page(
 			study_id=new_page.study_id,
 			step_id=new_page.step_id,
-			order_position=new_page.order_position,
+			order_position=next_order_pos,
 			name=new_page.name,
 			description=new_page.description,
 		)
@@ -34,15 +35,3 @@ class StepPageService:
 
 	async def get_page_with_content_detail(self, page_id: uuid.UUID) -> Page:
 		return await self.page_repo.get_page_with_content_detail(page_id)
-
-	async def link_construct_to_page(self, construct_content: ConstructLinkSchema) -> LinkedContentSchema:
-		new_page_content = PageContent(
-			page_id=construct_content.page_id,
-			content_id=construct_content.construct_id,
-			order_position=construct_content.order_position,
-		)
-
-		await self.content_repo.create(new_page_content)
-		await self.db.refresh(new_page_content)
-
-		return new_page_content

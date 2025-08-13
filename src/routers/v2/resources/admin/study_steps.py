@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 router = APIRouter(
-	prefix='/v2/admin',
+	prefix='/v2/admin/steps',
 	tags=[Tags.study_step],
 	dependencies=[Depends(get_auth0_authenticated_user), Depends(get_auth0_authenticated_user)],
 )
 
 
-@router.get('/steps/{study_step_id}', response_model=StudyStepDetailSchema)
+@router.get('/{study_step_id}', response_model=StudyStepDetailSchema)
 async def get_study_step(
 	study_step_id: uuid.UUID,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
@@ -34,7 +34,7 @@ async def get_study_step(
 	return StudyStepDetailSchema.model_validate(step_in_db)
 
 
-@router.get('/steps/{study_step_id}/pages', response_model=List[StepPageSchema])
+@router.get('/{study_step_id}/pages', response_model=List[StepPageSchema])
 async def get_pages_for_study_step(
 	study_step_id: uuid.UUID,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
@@ -46,7 +46,7 @@ async def get_pages_for_study_step(
 	return [StepPageSchema.model_validate(p) for p in pages_from_db]
 
 
-@router.post('/steps/', response_model=StudyStepSchema)
+@router.post('/', response_model=StudyStepSchema)
 async def create_study_step(
 	new_step: StudyStepCreateSchema,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
@@ -56,3 +56,10 @@ async def create_study_step(
 	created_step = await step_service.create_study_step(new_step)
 
 	return StudyStepSchema.model_validate(created_step)
+
+
+# @router.put('/{study_step_id}', response_model=StudyStepDetailSchema)
+# async def update_study_step(
+# 	study_step_idL uuid.UUID,
+
+# )

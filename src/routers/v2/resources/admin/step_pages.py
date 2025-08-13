@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.rssadb import get_db as rssa_db
 from data.schemas.step_page_schemas import StepPageCreateSchema, StepPageSchema
-from data.schemas.survey_construct_schemas import ConstructLinkSchema, LinkedContentSchema
 from data.schemas.survey_schemas import SurveyPageSchema
 from data.services.step_page_service import StepPageService
 from docs.metadata import AdminTagsEnum as Tags
@@ -46,16 +45,3 @@ async def get_step_page_details(
 	page_from_db = await page_service.get_page_with_content_detail(page_id)
 
 	return SurveyPageSchema.model_validate(page_from_db)
-
-
-@router.post('/pages/{page_id}', response_model=LinkedContentSchema)
-async def link_survey_construct_to_page(
-	construct_content: ConstructLinkSchema,
-	db: Annotated[AsyncSession, Depends(rssa_db)],
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
-):
-	page_service = StepPageService(db)
-
-	page_content = await page_service.link_construct_to_page(construct_content)
-
-	return LinkedContentSchema.model_validate(page_content)
