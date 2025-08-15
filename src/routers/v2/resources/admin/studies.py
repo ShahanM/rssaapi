@@ -7,7 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.rssadb import get_db as rssa_db
 from data.schemas.study_condition_schemas import StudyConditionSchema
-from data.schemas.study_schemas import StudyCreateSchema, StudyDetailSchema, StudySchema, StudySummarySchema
+from data.schemas.study_schemas import (
+	StudyConfigSchema,
+	StudyCreateSchema,
+	StudyDetailSchema,
+	StudySchema,
+	StudySummarySchema,
+)
 from data.schemas.study_step_schemas import StepsReorderItem, StudyStepSchema
 from data.services.study_service import StudyService
 from docs.metadata import AdminTagsEnum as Tags
@@ -157,3 +163,15 @@ async def reorder_study_steps(
 	await study_service.reorder_study_steps(study_id, steps_map)
 
 	return {'message': 'Steps reordered successfully'}
+
+
+@router.get('/{study_id}/export_study_config', response_model=StudyConfigSchema)
+async def export_study_config(
+	study_id: uuid.UUID,
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	study_service = StudyService(db)
+	study_config = await study_service.export_study_config(study_id)
+
+	return StudyConfigSchema.model_validate(study_config)

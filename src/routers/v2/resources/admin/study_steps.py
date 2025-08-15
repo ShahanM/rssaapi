@@ -46,20 +46,25 @@ async def get_pages_for_study_step(
 	return [StepPageSchema.model_validate(p) for p in pages_from_db]
 
 
-@router.post('/', response_model=StudyStepSchema)
+@router.post('/', status_code=201)
 async def create_study_step(
 	new_step: StudyStepCreateSchema,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
 	step_service = StudyStepService(db)
-	created_step = await step_service.create_study_step(new_step)
-
-	return StudyStepSchema.model_validate(created_step)
+	await step_service.create_study_step(new_step)
 
 
-# @router.put('/{study_step_id}', response_model=StudyStepDetailSchema)
-# async def update_study_step(
-# 	study_step_idL uuid.UUID,
+@router.put('/{study_step_id}', status_code=201)
+async def update_study_step(
+	study_step_id: uuid.UUID,
+	payload: dict[str, str],
+	db: Annotated[AsyncSession, Depends(rssa_db)],
+	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+):
+	if 'update:steps' not in user.permissions:
+		raise PermissionError('User does not have permission to update study steps.')
 
-# )
+	step_service = StudyStepService(db)
+	await step_service.update_study_step(study_step_id, payload)

@@ -220,16 +220,20 @@ class StudyService:
 
 	async def reorder_study_steps(self, study_id: uuid.UUID, steps_map: Dict[uuid.UUID, int]) -> List[Step]:
 		reordered_steps = await self.study_step_repo.reorder_study_steps(study_id, steps_map)
-		# await self.db.refresh(reordered_steps)
-
-		# existing_steps_orm = await self.study_step_repo.get_all_by_field('study_id', study_id)
-
-		# async with self.db.begin():
-		# 	for step_orm in existing_steps_orm:
-		# 		if step_orm.id in steps_map:
-		# 			new_pos = steps_map[step_orm.id]
-		# 			if step_orm.order_position != new_pos:
-		# 				step_orm.order_position = new_pos
-		# 	await self.db.commit()
 
 		return reordered_steps
+
+	async def export_study_config(
+		self, study_id: uuid.UUID
+	) -> dict[str, Union[uuid.UUID, list[dict[str, uuid.UUID]], dict[str, uuid.UUID]]]:
+		study_details = await self.get_study_details(study_id)
+
+		study_config = {
+			'study_id': study_details.id,
+			'study_steps': [
+				{step.name: step.id} for step in sorted(study_details.steps, key=lambda s: s.order_position)
+			],
+			'conditions': {cond.name: cond.id for cond in study_details.conditions},
+		}
+
+		return study_config

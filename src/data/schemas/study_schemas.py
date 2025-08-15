@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -53,7 +53,7 @@ class StudyDetailSchema(BaseModel):
 	created_by: Optional[str]
 	owner: Optional[str]
 
-	steps: List[StudyStepSchema]
+	steps: list[StudyStepSchema]
 	conditions: list[StudyConditionSchema]
 
 	class Config:
@@ -86,7 +86,7 @@ class StudySummarySchema(BaseModel):
 	owner: Optional[str]
 
 	total_participants: Optional[int]
-	participants_by_condition: List[ConditionCountSchema]
+	participants_by_condition: list[ConditionCountSchema]
 
 	class Config:
 		from_attributes = True
@@ -99,3 +99,9 @@ class StudySummarySchema(BaseModel):
 	def compute_study_metrics(self):
 		# TODO: Show other metrics such as time active or last response
 		return self
+
+
+class StudyConfigSchema(BaseModel):
+	study_id: uuid.UUID
+	study_steps: list[dict[str, uuid.UUID]]
+	conditions: dict[str, uuid.UUID]

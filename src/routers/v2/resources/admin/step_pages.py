@@ -23,16 +23,14 @@ router = APIRouter(
 )
 
 
-@router.post('/pages/', response_model=StepPageSchema)
+@router.post('/pages/', status_code=201)
 async def create_step_page(
 	new_page: StepPageCreateSchema,
 	db: Annotated[AsyncSession, Depends(rssa_db)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
 	page_service = StepPageService(db)
-	created_page = await page_service.create_step_page(new_page)
-
-	return StepPageSchema.model_validate(created_page)
+	await page_service.create_step_page(new_page)
 
 
 @router.get('/pages/{page_id}', response_model=SurveyPageSchema)

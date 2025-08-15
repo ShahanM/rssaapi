@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,11 +29,14 @@ class StudyStepService:
 
 		return study_step
 
+	async def update_study_step(self, study_step_id: uuid.UUID, update_data: dict[str, str]) -> None:
+		await self.study_step_repo.update(study_step_id, update_data)
+
 	async def get_study_step(self, study_step_id: uuid.UUID) -> Optional[Step]:
 		return await self.study_step_repo.get(study_step_id)
 
 	async def get_study_step_with_pages(self, study_step_id: uuid.UUID) -> Step:
 		return await self.study_step_repo.get_study_step_with_pages(study_step_id)
 
-	async def get_pages_for_step(self, study_step_id: uuid.UUID) -> List[Page]:
+	async def get_pages_for_step(self, study_step_id: uuid.UUID) -> list[Page]:
 		return await self.step_page_repo.get_all_by_field('step_id', study_step_id)
