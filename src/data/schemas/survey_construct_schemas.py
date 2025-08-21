@@ -19,32 +19,32 @@ class ScaleLevelSchema(BaseDBSchema):
 	label: str
 	enabled: bool
 
+	class Config:
+		from_attributes = True
+		json_encoders = {
+			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
+		}
+
 
 class ConstructItemSchema(BaseDBSchema):
 	text: str
 	order_position: int
 	enabled: bool
 
+	class Config:
+		from_attributes = True
+		json_encoders = {
+			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
+		}
+
 
 class ConstructItemCreateSchema(BaseModel):
 	construct_id: uuid.UUID
 	text: str
-	# order_position: int
-	# item_type: uuid.UUID
 
 
-# class ConstructTypeSchema(BaseModel):
-# 	id: uuid.UUID
-# 	type: str
-
-# 	enabled: bool
-
-
-# 	class Config:
-# 		from_attributes = True
-# 		json_encoders = {
-# 			uuid.UUID: lambda v: str(v),
-# 		}
 class ConstructScaleCreateSchema(BaseModel):
 	name: Optional[str] = None
 	description: Optional[str] = None
@@ -60,6 +60,7 @@ class ConstructScaleSchema(BaseDBSchema):
 		from_attributes = True
 		json_encoders = {
 			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
 		}
 
 
@@ -123,25 +124,8 @@ class PageContentCreateSchema(BaseModel):
 	scale_id: uuid.UUID
 
 
-# class ConstructSummarySchema(BaseDBSchema):
-# name: str
-# desc: str
-
-# construct_type: Optional[str] = Field(validation_alias=AliasPath('construct_type', 'type'))
-# scale_name: Optional[str] = Field(validation_alias=AliasPath('construct_scale', 'name'))
-
-
 class ConstructDetailSchema(BaseDBSchema):
 	id: uuid.UUID
-
 	name: str
 	desc: str
-	# scale_name: str = Field(validation_alias=AliasPath('construct_scale', 'name'))
-	# scale_level_cnt: int = Field(validation_alias=AliasPath('construct_scale', 'levels'))
-	# scale_levels: List[ScaleLevelSchema] = Field(validation_alias=AliasPath('construct_scale', 'scale_levels'))
 	items: List[ConstructItemSchema] = Field(validation_alias=AliasPath('items'))
-
-
-class ReorderPayloadSchema(BaseModel):
-	id: uuid.UUID
-	order_position: int

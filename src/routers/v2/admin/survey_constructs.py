@@ -1,19 +1,19 @@
 import logging
 import uuid
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from data.schemas.base_schemas import ReorderPayloadSchema
 from data.schemas.survey_construct_schemas import (
 	ConstructDetailSchema,
-	ReorderPayloadSchema,
 	SurveyConstructCreateSchema,
 	SurveyConstructSchema,
 )
 from data.services.survey_dependencies import SurveyConstructService
 from data.services.survey_dependencies import get_survey_construct_service as construct_service
 from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -42,7 +42,7 @@ async def create_survey_construct(
 	return SurveyConstructSchema.model_validate(new_construct_in_db)
 
 
-@router.get('/', response_model=List[SurveyConstructSchema])
+@router.get('/', response_model=list[SurveyConstructSchema])
 async def get_survey_constructs(
 	service: Annotated[SurveyConstructService, Depends(construct_service)],
 ):
@@ -103,7 +103,7 @@ async def delete_construct(
 async def update_scale_levels_order(
 	construct_id: uuid.UUID,
 	service: Annotated[SurveyConstructService, Depends(construct_service)],
-	payload: List[ReorderPayloadSchema],
+	payload: list[ReorderPayloadSchema],
 ):
 	levels_map = {item.id: item.order_position for item in payload}
 	await service.reorder_items(construct_id, levels_map)

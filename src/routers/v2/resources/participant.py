@@ -1,9 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.rssadb import get_db as rssa_db
 from data.schemas.participant_schemas import (
 	DemographicsCreateSchema,
 	ParticipantCreateSchema,
@@ -25,7 +23,7 @@ async def create_study_participant(
 	new_participant: ParticipantCreateSchema,
 	participant_service: Annotated[ParticipantService, Depends(get_participant_service)],
 	session_service: Annotated[ParticipantSessionService, Depends(get_participant_session_service)],
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	current_study: Annotated[StudySchema, Depends(get_current_registered_study)],
 ):
 	"""_summary_
 
@@ -37,14 +35,10 @@ async def create_study_participant(
 		_type_: _description_
 	"""
 
-	new_participant = await participant_service.create_study_participant(new_participant)
-
-	print(new_participant.id)
+	new_participant = await participant_service.create_study_participant(current_study.id, new_participant)
 
 	movie_subset = 'ers'  # FIXME: This should be parameter in the study that defines the segment of items to include
 	await session_service.assign_pre_shuffled_list_participant(new_participant.id, movie_subset)
-
-	await db.commit()
 
 	return ParticipantSchema.model_validate(new_participant)
 

@@ -7,6 +7,8 @@ from data.repositories import (
 	ConstructScaleRepository,
 	ScaleLevelRepository,
 	SurveyConstructRepository,
+)
+from data.repositories.survey_dependencies import (
 	get_construct_item_repository,
 	get_construct_scale_repository,
 	get_scale_level_repository,

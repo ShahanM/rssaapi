@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import AliasPath, Field
 
@@ -9,16 +9,26 @@ from data.schemas.survey_construct_schemas import ConstructItemSchema, ScaleLeve
 
 
 class PageContentSchema(BaseDBSchema):
-	id: uuid.UUID = Field(alias='content_id')  # Same as construct.id
 	order_position: int
-	enabled: bool
+
+	construct_id: uuid.UUID = Field(validation_alias='content_id')
+	items: list[ConstructItemSchema] = Field(validation_alias=AliasPath('survey_construct', 'items'))
 
 	name: str = Field(validation_alias=AliasPath('survey_construct', 'name'))
 	desc: str = Field(validation_alias=AliasPath('survey_construct', 'desc'))
+
+	scale_id: uuid.UUID = Field(validation_alias=AliasPath('construct_scale', 'id'))
 	scale_name: str = Field(validation_alias=AliasPath('construct_scale', 'name'))
-	# scale_level_cnt: int = Field(validation_alias=AliasPath('survey_construct', 'construct_scale', 'levels'))
-	scale_levels: List[ScaleLevelSchema] = Field(validation_alias=AliasPath('construct_scale', 'scale_levels'))
-	items: List[ConstructItemSchema] = Field(validation_alias=AliasPath('survey_construct', 'items'))
+	scale_levels: list[ScaleLevelSchema] = Field(validation_alias=AliasPath('construct_scale', 'scale_levels'))
+
+	enabled: bool
+
+	class Config:
+		from_attributes = True
+		json_encoders = {
+			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
+		}
 
 
 class SurveyPageSchema(BaseDBSchema):
@@ -27,17 +37,20 @@ class SurveyPageSchema(BaseDBSchema):
 	step_id: uuid.UUID
 
 	order_position: int
+
 	name: str
+	title: Optional[str]
+	instructions: Optional[str]
 	description: Optional[str]
-	date_created: datetime
+	page_contents: list[PageContentSchema]
+
 	enabled: bool
-
-	page_contents: List[PageContentSchema]
-
+	date_created: datetime
 	last_page: bool = False
 
 	class Config:
 		from_attributes = True
 		json_encoders = {
 			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
 		}

@@ -6,25 +6,6 @@ from .survey_constructs import (
 	ConstructScaleRepository,
 	ScaleLevelRepository,
 )
-from .survey_dependencies import (
-	get_survey_construct_repository,
-	get_construct_item_repository,
-	get_construct_scale_repository,
-	get_scale_level_repository,
-)
-from .rssa_dependencies import (
-	get_page_content_repository,
-	get_study_step_repository,
-	get_page_repository,
-	get_demographics_repository,
-	get_participant_repository,
-	get_participant_session_repository,
-	get_study_repository,
-	get_study_condition_repository,
-	get_pre_shuffled_movie_repository,
-	get_page_content_repository,
-	get_page_repository,
-)
 from .movies import MovieRepository
 from .participant_movie_session import ParticipantMovieSessionRepository
 from .pre_shuffled_movie_list import PreShuffledMovieRepository
@@ -51,23 +32,4 @@ __all__ = [
 	"PreShuffledMovieRepository",
 	"ParticipantRepository",
 	"DemographicsRepository",
-	"get_page_content_repository",
-	"get_scale_level_repository",
-	"get_survey_construct_repository",
-	"get_construct_item_repository",
-	"get_construct_scale_repository",
-	"get_study_step_repository",
-	"get_page_repository",
-	"get_demographics_repository",
-	"get_participant_repository",
-	"get_participant_session_repository",
-	"get_study_repository",
-	"get_study_condition_repository",
-	"get_pre_shuffled_movie_repository",
-	"get_page_content_repository",
-	"get_page_repository",
-	"get_survey_construct_repository",
-	"get_construct_item_repository",
-	"get_construct_scale_repository",
-	"get_scale_level_repository",
 ]

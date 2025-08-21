@@ -21,7 +21,7 @@ from data.services import MovieService, StudyConditionService
 from data.services.content_dependencies import get_movie_service
 from data.services.rssa_dependencies import get_study_condition_service as study_condition_service
 from docs.metadata import RSTagsEnum as Tags
-from routers.v2.resources.study import get_current_registered_study
+from routers.v2.resources.authorization import get_current_registered_study
 
 router = APIRouter(
 	prefix='/v2',

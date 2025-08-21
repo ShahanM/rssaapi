@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -12,11 +12,6 @@ class ParticipantCreateSchema(BaseModel):
 		description="""
 		The UUID identifying the type of participant.
 		""",
-	)
-	study_id: uuid.UUID = Field(
-		default='',
-		examples=[],
-		description="""The UUID identifying the current study. This must match with the current registered study.""",
 	)
 	external_id: str = Field(
 		default='Test Participant',
@@ -51,11 +46,12 @@ class ParticipantSchema(BaseModel):
 
 class ParticipantUpdateSchema(BaseModel):
 	id: uuid.UUID
+	study_id: uuid.UUID
+
 	participant_type: Optional[uuid.UUID] = Field(
 		examples=[uuid.UUID('149078d0-cece-4b2c-81cd-a7df4f76d15a')], description=''
 	)
 	external_id: Optional[str]
-	study_id: uuid.UUID
 	condition_id: Optional[uuid.UUID]
 	current_status: Optional[str]
 	current_step: Optional[uuid.UUID]
@@ -66,7 +62,7 @@ class DemographicsCreateSchema(BaseModel):
 	participant_id: uuid.UUID
 	age_range: str
 	gender: str
-	race: List[str]
+	race: list[str]
 	education: str
 	country: str
 	state_region: Optional[str]

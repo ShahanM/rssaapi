@@ -3,9 +3,8 @@ import uuid
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from data.rssadb import get_db as rssa_db
+from data.schemas.base_schemas import ReorderPayloadSchema
 from data.schemas.study_condition_schemas import StudyConditionSchema
 from data.schemas.study_schemas import (
 	StudyConfigSchema,
@@ -14,10 +13,10 @@ from data.schemas.study_schemas import (
 	StudySchema,
 	StudySummarySchema,
 )
-from data.schemas.study_step_schemas import StepsReorderItem, StudyStepSchema
-from data.services.study_service import StudyService
-from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from data.schemas.study_step_schemas import StudyStepSchema
+from data.services import StudyService
+from data.services.rssa_dependencies import get_study_service as study_service
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -25,26 +24,39 @@ logger.setLevel(logging.INFO)
 
 router = APIRouter(
 	prefix='/v2/admin/studies',
-	tags=[Tags.study],
-	dependencies=[Depends(get_auth0_authenticated_user)],
+	tags=['Studies'],
+	dependencies=[Depends(get_auth0_authenticated_user), Depends(study_service)],
 )
 
 
-@router.get('/', response_model=List[StudySchema])
+@router.get(
+	'/',
+	response_model=list[StudySchema],
+	summary='Get the list of all available studies',
+	description="""
+	Retrieves the list of all the studies that the current authenticated user has access to.
+
+	- This endpoint is used to facilitate in the administration and organization of studies.
+	- Responds with an empty list if the current authenticated user does not have the corrent authorization.
+	""",
+	response_description='The list of studies',
+)
 async def get_studies(
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	"""_summary_
+	"""Retrieves all studies in the database by filtering on access rights.
+
+	The special permission 'admin:all' gets all studies.
+
 	Args:
-		db (Annotated[AsyncSession, Depends): _description_
-		user (Annotated[Auth0UserSchema, Depends): _description_
+		study_service: The dependency injection for the study service.
+		user: The dependency injection that tests whether the access token in the header is authorized.
 
 	Returns:
-		_type_: _description_
+		[]: Empty list if there are no studies to show.
 	"""
 	is_super_admin = 'admin:all' in user.permissions
-	study_service = StudyService(db)
 
 	studies_from_db = []
 	if is_super_admin:
@@ -60,23 +72,22 @@ async def get_studies(
 @router.get('/{study_id}/summary', response_model=StudySummarySchema)
 async def get_study_summary(
 	study_id: uuid.UUID,
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	study_service = StudyService(db)
-
 	study_summary = await study_service.get_study_summary(study_id)
+
+	if study_summary is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
 	return study_summary
 
 
 @router.get('/{study_id}', response_model=StudyDetailSchema)
 async def get_study_detail(
 	study_id: uuid.UUID,
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	study_service = StudyService(db)
-
 	study_from_db = await study_service.get_study_details(study_id)
 
 	return StudyDetailSchema.model_validate(study_from_db)
@@ -85,24 +96,10 @@ async def get_study_detail(
 @router.post('/', response_model=StudySchema)
 async def create_study(
 	new_study: StudyCreateSchema,
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	"""_summary_
-
-	Args:
-		new_study (StudyCreateSchema): _description_
-		db (Annotated[AsyncSession, Depends): _description_
-		user (Annotated[Auth0UserSchema, Depends): _description_
-
-	Raises:
-		HTTPException: _description_
-
-	Returns:
-		_type_: _description_
-	"""
 	has_write_access = 'admin:all' in user.permissions or 'study:create' in user.permissions
-	study_service = StudyService(db)
 
 	if has_write_access:
 		created_study = await study_service.create_new_study(new_study, user.sub)
@@ -116,20 +113,9 @@ async def create_study(
 @router.get('/{study_id}/steps', response_model=List[StudyStepSchema])
 async def get_study_steps(
 	study_id: uuid.UUID,
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	"""_summary_
-
-	Args:
-		study_id (uuid.UUID): _description_
-		db (Annotated[AsyncSession, Depends): _description_
-		user (Annotated[Auth0UserSchema, Depends): _description_
-
-	Returns:
-		_type_: _description_
-	"""
-	study_service = StudyService(db)
 	study_steps_from_db = await study_service.get_study_steps(study_id)
 
 	converted_steps = [StudyStepSchema.model_validate(s) for s in study_steps_from_db]
@@ -140,10 +126,9 @@ async def get_study_steps(
 @router.get('/{study_id}/conditions', response_model=List[StudyConditionSchema])
 async def get_study_conditions(
 	study_id: uuid.UUID,
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	study_service = StudyService(db)
 	study_conditions_from_db = await study_service.get_study_conditions(study_id)
 
 	converted_conditions = [StudyConditionSchema.model_validate(sc) for sc in study_conditions_from_db]
@@ -154,11 +139,10 @@ async def get_study_conditions(
 @router.put('/{study_id}/steps/order', status_code=204)
 async def reorder_study_steps(
 	study_id: uuid.UUID,
-	payload: List[StepsReorderItem],
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	payload: list[ReorderPayloadSchema],
+	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	study_service = StudyService(db)
 	steps_map = {item.id: item.order_position for item in payload}
 	await study_service.reorder_study_steps(study_id, steps_map)
 
@@ -168,10 +152,9 @@ async def reorder_study_steps(
 @router.get('/{study_id}/export_study_config', response_model=StudyConfigSchema)
 async def export_study_config(
 	study_id: uuid.UUID,
-	db: Annotated[AsyncSession, Depends(rssa_db)],
+	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	study_service = StudyService(db)
 	study_config = await study_service.export_study_config(study_id)
 
 	return StudyConfigSchema.model_validate(study_config)

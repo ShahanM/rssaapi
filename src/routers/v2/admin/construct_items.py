@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from data.schemas.survey_construct_schemas import ConstructItemCreateSchema, ConstructItemSchema
 from data.services import ConstructItemService
-from data.services import get_construct_item_service as item_service
+from data.services.survey_dependencies import get_construct_item_service as item_service
 from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -32,15 +32,15 @@ async def get_item(
 	return ConstructItemSchema.model_validate(item_in_db)
 
 
-@router.post('/', response_model=ConstructItemSchema)
+@router.post('/', status_code=201)
 async def create_construct_item(
 	new_item: ConstructItemCreateSchema,
 	service: Annotated[ConstructItemService, Depends(item_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	new_item_in_db = await service.create_construct_item(new_item)
+	await service.create_construct_item(new_item)
 
-	return ConstructItemSchema.model_validate(new_item_in_db)
+	return {'message': 'Construct item created.'}
 
 
 @router.delete('/{item_id}', status_code=204)

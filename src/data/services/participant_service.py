@@ -25,7 +25,9 @@ class ParticipantService:
 		self.study_condition_repo = study_condition_repo
 		self.demographics_repo = demographics_repo
 
-	async def create_study_participant(self, new_participant: ParticipantCreateSchema) -> StudyParticipant:
+	async def create_study_participant(
+		self, study_id: uuid.UUID, new_participant: ParticipantCreateSchema
+	) -> StudyParticipant:
 		"""_summary_
 
 		Args:
@@ -34,7 +36,7 @@ class ParticipantService:
 		Returns:
 			StudyParticipant: _description_
 		"""
-		study_conditions = await self.study_condition_repo.get_conditions_by_study_id(new_participant.study_id)
+		study_conditions = await self.study_condition_repo.get_conditions_by_study_id(study_id)
 
 		# FIXME: make this dynamic weighted choice so that we always have n particpants for each of the k conditions
 		# n%k = 0 => n_i = n_k = n/k for all i \in [1, ..., k], where n_i is the participant count in the i'th condition
@@ -44,7 +46,7 @@ class ParticipantService:
 
 		study_participant = StudyParticipant(
 			participant_type=new_participant.participant_type,
-			study_id=new_participant.study_id,
+			study_id=study_id,
 			condition_id=participant_condition.id,
 			external_id=new_participant.external_id,
 			current_step=new_participant.current_step,

@@ -12,6 +12,8 @@ from data.repositories import (
 	StudyConditionRepository,
 	StudyRepository,
 	StudyStepRepository,
+)
+from data.repositories.rssa_dependencies import (
 	get_demographics_repository,
 	get_page_content_repository,
 	get_page_repository,
@@ -25,7 +27,10 @@ from data.repositories import (
 
 from .participant_service import ParticipantService
 from .participant_session_service import ParticipantSessionService
+from .step_page_service import StepPageService
 from .study_condition_service import StudyConditionService
+from .study_service import StudyService
+from .study_step_service import StudyStepService
 from .survey_service import SurveyService
 
 
@@ -57,3 +62,26 @@ def get_survey_service(
 	content_repo: Annotated[PageContentRepository, Depends(get_page_content_repository)],
 ) -> SurveyService:
 	return SurveyService(page_repo, step_repo, content_repo)
+
+
+def get_step_page_service(
+	step_repo: Annotated[StudyStepRepository, Depends(get_study_step_repository)],
+	page_repo: Annotated[PageRepository, Depends(get_page_repository)],
+	content_repo: Annotated[PageContentRepository, Depends(get_page_content_repository)],
+) -> StepPageService:
+	return StepPageService(page_repo, content_repo, step_repo)
+
+
+def get_study_service(
+	study_repo: Annotated[StudyRepository, Depends(get_study_repository)],
+	step_repo: Annotated[StudyStepRepository, Depends(get_study_step_repository)],
+	condition_repo: Annotated[StudyConditionRepository, Depends(get_study_condition_repository)],
+) -> StudyService:
+	return StudyService(study_repo, step_repo, condition_repo)
+
+
+def get_study_step_service(
+	step_repo: Annotated[StudyStepRepository, Depends(get_study_step_repository)],
+	page_repo: Annotated[PageRepository, Depends(get_page_repository)],
+) -> StudyStepService:
+	return StudyStepService(step_repo, page_repo)

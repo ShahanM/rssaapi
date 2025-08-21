@@ -15,18 +15,17 @@ class ParticipantResponseService:
 
 	async def create_survey_item_response(self, study_id: uuid.UUID, survey_response_data: SurveyReponseCreateSchema):
 		svy_responses = []
-		for svy_content in survey_response_data.responses:
-			for item_response in svy_content.items:
-				svy_item_response = SurveyItemResponse(
-					study_id=study_id,
-					participant_id=survey_response_data.participant_id,
-					construct_id=svy_content.content_id,
-					item_id=item_response.item_id,
-					response=item_response.response_id,  # this is the id of the scale_level item
-				)
-				svy_responses.append(svy_item_response)
+		for item_response in survey_response_data.responses:
+			svy_item_response = SurveyItemResponse(
+				study_id=study_id,
+				participant_id=survey_response_data.participant_id,
+				construct_id=item_response.construct_id,
+				item_id=item_response.item_id,
+				scale_id=item_response.scale_id,
+				response=item_response.scale_level_id,  # this is the id of the scale_level item
+			)
+			svy_responses.append(svy_item_response)
 		_ = await self.survey_item_response_repo.create_all(svy_responses)
-		await self.db.commit()
 
 	async def create_freeform_text_response(
 		self, study_id: uuid.UUID, text_response_data: FreeformTextResponseCreateSchema

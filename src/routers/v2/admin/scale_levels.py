@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -9,9 +9,9 @@ from data.schemas.survey_construct_schemas import (
 	ScaleLevelSchema,
 )
 from data.services import ScaleLevelService
-from data.services import get_scale_level_service as scale_level_service
+from data.services.survey_dependencies import get_scale_level_service as scale_level_service
 from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

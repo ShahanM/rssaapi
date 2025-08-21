@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional, Union
+from typing import Optional
 
 from sqlalchemy import and_, asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,7 @@ class PageRepository(BaseRepository[Page]):
 	def __init__(self, db: AsyncSession):
 		super().__init__(db, Page)
 
-	async def get_pages_by_step_id(self, step_id: uuid.UUID) -> List[Page]:
+	async def get_pages_by_step_id(self, step_id: uuid.UUID) -> list[Page]:
 		query = select(Page).where(Page.step_id == step_id).order_by(asc(Page.order_position))
 		result = await self.db.execute(query)
 		return list(result.scalars().all())
@@ -111,16 +111,12 @@ class PageRepository(BaseRepository[Page]):
 		This is used to determine if a page is the 'last_page'.
 		"""
 		stmt = (
-			select(Page.id)
-			.where(  # Select just the ID for efficiency
-				and_(Page.step_id == step_id, Page.order_position > current_order_position)
-			)
-			.limit(1)
-		)  # We only need to know if at least one exists
+			select(Page.id).where(and_(Page.step_id == step_id, Page.order_position > current_order_position)).limit(1)
+		)
 		result = await self.db.execute(stmt)
-		return result.scalars().first() is not None  # Returns True if a subsequent page exists, False otherwise
+		return result.scalars().first() is not None
 
-	async def get_last_page_in_step(self, step_id: uuid.UUID) -> Union[Page, None]:
+	async def get_last_page_in_step(self, step_id: uuid.UUID) -> Optional[Page]:
 		query = select(Page).where(Page.study_id == step_id).order_by(Page.order_position.desc())
 		result = await self.db.execute(query)
 		step = result.scalars().first()
@@ -129,7 +125,7 @@ class PageRepository(BaseRepository[Page]):
 
 	async def copy_pages_from(
 		self, from_step_id: uuid.UUID, to_step_id: uuid.UUID, new_study_id: uuid.UUID
-	) -> List[Page]:
+	) -> list[Page]:
 		pages_to_copy = await self.get_pages_by_step_id(from_step_id)
 		new_pages = []
 		for page in pages_to_copy:

@@ -1,130 +1,64 @@
 import uuid
-from typing import Dict, List, Union
-
-from fastapi import HTTPException, status
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from typing import Optional, Union
 
 from data.models.study_components import Step, Study, StudyCondition
-from data.models.study_participants import StudyParticipant
 from data.repositories.study import StudyRepository
 from data.repositories.study_condition import StudyConditionRepository
 from data.repositories.study_step import StudyStepRepository
-from data.schemas.study_condition_schemas import StudyConditionSchema
 from data.schemas.study_schemas import (
 	ConditionCountSchema,
 	StudyCreateSchema,
-	StudyDetailSchema,
 	StudySchema,
 	StudySummarySchema,
 )
-from data.schemas.study_step_schemas import StepsReorderItem, StudyStepSchema
+from data.schemas.study_step_schemas import StudyStepSchema
 from data.utility import sa_obj_to_dict
 
 
 class StudyService:
-	def __init__(self, db: AsyncSession):
-		self.db = db
-		self.study_repo = StudyRepository(db)
-		self.study_step_repo = StudyStepRepository(db)
-		self.condition_repo = StudyConditionRepository(db)
+	def __init__(
+		self,
+		study_repo: StudyRepository,
+		step_repo: StudyStepRepository,
+		condition_repo: StudyConditionRepository,
+	):
+		self.study_repo = study_repo
+		self.study_step_repo = step_repo
+		self.condition_repo = condition_repo
 
 	async def create_new_study(self, study_in: StudyCreateSchema, created_by: str) -> StudySchema:
-		"""_summary_
-
-		Args:
-			study_in (StudyCreateSchema): _description_
-			created_by (str): _description_
-
-		Returns:
-			StudySchema: _description_
-		"""
 		study = Study(name=study_in.name, description=study_in.description, created_by=created_by)
 
 		return await self.study_repo.create(study)
 
-	async def get_all_studies(self) -> List[Study]:
-		"""_summary_
-
-		Returns:
-			List[Study]: _description_
-		"""
-		# FIME: use start index and limit to page responses
+	async def get_all_studies(self) -> list[Study]:
+		# FIXME: use start index and limit to page responses
 		return await self.study_repo.get_all()
 
 	async def get_study_by_id(self, study_id: uuid.UUID) -> Study:
-		"""_summary_
-
-		Args:
-			study_id (uuid.UUID): _description_
-
-		Returns:
-			Study: _description_
-		"""
 		return await self.study_repo.get(study_id)
 
-	async def get_studies_by_ownership(self, owner: str) -> List[Study]:
-		"""_summary_
-
-		Args:
-			owner (str): _description_
-
-		Returns:
-			Union[List[Study], None]: _description_
-		"""
+	async def get_studies_by_ownership(self, owner: str) -> list[Study]:
 		return await self.study_repo.get_all_by_field('owner', owner)
 
 	async def get_study_details(self, study_id: uuid.UUID) -> Study:
-		"""_summary_
-
-		Args:
-			study_id (uuid.UUID): _description_
-
-		Returns:
-			Study: _description_
-		"""
-
 		study_obj = await self.study_repo.get_detailed_study_object(study_id)
 
 		return study_obj
 
-	async def get_study_summary(self, study_id: uuid.UUID) -> StudySummarySchema:
-		study_query = (
-			select(Study, func.count(StudyParticipant.id).label('total_participants'))
-			.join_from(Study, StudyParticipant, Study.id == StudyParticipant.study_id, isouter=True)
-			.where(Study.id == study_id)
-			.group_by(Study.id, Study.name, Study.description, Study.date_created, Study.created_by, Study.owner)
-		)
-
-		condition_counts_query = (
-			select(
-				StudyCondition.id.label('condition_id'),
-				StudyCondition.name.label('condition_name'),
-				func.count(StudyParticipant.id).label('participant_count'),
-			)
-			.join(StudyParticipant, StudyParticipant.condition_id == StudyCondition.id, isouter=True)
-			.where(StudyCondition.study_id == study_id)
-			.group_by(StudyCondition.id, StudyCondition.name)
-			.order_by(StudyCondition.name)
-		)
-
-		study_result = await self.db.execute(study_query)
-		study_row = study_result.first()
-
+	async def get_study_summary(self, study_id: uuid.UUID) -> Optional[StudySummarySchema]:
+		study_row = await self.study_repo.get_total_participants(study_id)
 		if not study_row:
-			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
-
+			return None
+		print(study_row)
 		study_obj = study_row[0]
 		total_participants_count = study_row.total_participants
-
-		condition_counts_result = await self.db.execute(condition_counts_query)
-		condition_counts_rows = condition_counts_result.all()
 
 		study_data = sa_obj_to_dict(study_obj)
 		study_data['total_participants'] = total_participants_count
 
 		participants_by_condition_list = []
+		condition_counts_rows = await self.condition_repo.get_participant_count_by_condition(study_id)
 		for row in condition_counts_rows:
 			participants_by_condition_list.append(
 				ConditionCountSchema(
@@ -138,21 +72,8 @@ class StudyService:
 		return StudySummarySchema.model_validate(study_data)
 
 	async def duplicate_study(
-		self, study_id: uuid.UUID, created_by: str, new_study_name: Union[str, None] = None
+		self, study_id: uuid.UUID, created_by: str, new_study_name: Optional[str] = None
 	) -> Study:
-		"""_summary_
-
-		Args:
-			study_id (uuid.UUID): _description_
-			created_by (str): _description_
-			new_study_name (Union[str, None], optional): _description_. Defaults to None.
-
-		Raises:
-			ValueError: _description_
-
-		Returns:
-			Study: _description_
-		"""
 		original_study = await self.study_repo.get(study_id)
 		if not original_study:
 			raise ValueError('Study not found')
@@ -170,29 +91,12 @@ class StudyService:
 
 		return new_study
 
-	async def get_first_step(self, study_id: uuid.UUID) -> StudyStepSchema:
-		"""_summary_
-
-		Args:
-			study_id (uuid.UUID): _description_
-
-		Returns:
-			StudyStepSchema: _description_
-		"""
+	async def get_first_step(self, study_id: uuid.UUID) -> Step:
 		study_steps = await self.study_step_repo.get_steps_by_study_id(study_id)
 
-		return StudyStepSchema.model_validate(study_steps[0])
+		return study_steps[0]
 
-	async def get_next_step(self, study_id: uuid.UUID, current_step_id: uuid.UUID) -> Union[StudyStepSchema, None]:
-		"""_summary_
-
-		Args:
-			study_id (uuid.UUID): _description_
-			current_step_id (uuid.UUID): _description_
-
-		Returns:
-			Union[StudyStepSchema, None]: _description_
-		"""
+	async def get_next_step(self, study_id: uuid.UUID, current_step_id: uuid.UUID) -> Optional[StudyStepSchema]:
 		study_steps = await self.study_step_repo.get_steps_by_study_id(study_id)
 
 		for i in range(len(study_steps)):
@@ -204,21 +108,13 @@ class StudyService:
 		else:
 			return None
 
-	async def get_study_steps(self, study_id: uuid.UUID) -> List[Step]:
-		"""_summary_
-
-		Args:
-			study_id (uuid.UUID): _description_
-
-		Returns:
-			List[Step]: _description_
-		"""
+	async def get_study_steps(self, study_id: uuid.UUID) -> list[Step]:
 		return await self.study_step_repo.get_steps_by_study_id(study_id)
 
-	async def get_study_conditions(self, study_id: uuid.UUID) -> List[StudyCondition]:
+	async def get_study_conditions(self, study_id: uuid.UUID) -> list[StudyCondition]:
 		return await self.condition_repo.get_all_by_field('study_id', study_id)
 
-	async def reorder_study_steps(self, study_id: uuid.UUID, steps_map: Dict[uuid.UUID, int]) -> List[Step]:
+	async def reorder_study_steps(self, study_id: uuid.UUID, steps_map: dict[uuid.UUID, int]) -> list[Step]:
 		reordered_steps = await self.study_step_repo.reorder_study_steps(study_id, steps_map)
 
 		return reordered_steps

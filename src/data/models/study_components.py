@@ -66,6 +66,8 @@ class Step(Base):
 	title: Mapped[Optional[str]] = mapped_column()
 	instructions: Mapped[Optional[str]] = mapped_column()
 
+	step_type: Mapped[Optional[str]] = mapped_column('step_type', nullable=True)
+
 	date_created: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
 	)
@@ -113,6 +115,12 @@ class Page(Base):
 	order_position: Mapped[int] = mapped_column()
 	name: Mapped[str] = mapped_column()
 	description: Mapped[Optional[str]] = mapped_column()
+
+	title: Mapped[Optional[str]] = mapped_column()
+	instructions: Mapped[Optional[str]] = mapped_column()
+
+	page_type: Mapped[Optional[str]] = mapped_column('page_type', nullable=True)
+
 	date_created: Mapped[datetime] = mapped_column(
 		DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
 	)

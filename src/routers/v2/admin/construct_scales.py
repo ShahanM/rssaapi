@@ -4,18 +4,18 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from data.schemas.base_schemas import ReorderPayloadSchema
 from data.schemas.survey_construct_schemas import (
 	ConstructScaleCreateSchema,
 	ConstructScaleDetailSchema,
 	ConstructScaleSchema,
 	ConstructScaleSummarySchema,
-	ReorderPayloadSchema,
 	ScaleLevelSchema,
 )
 from data.services import ConstructScaleService
-from data.services import get_construct_scale_service as scales_service
+from data.services.survey_dependencies import get_construct_scale_service as scales_service
 from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -28,7 +28,7 @@ router = APIRouter(
 )
 
 
-@router.get('/', response_model=List[ConstructScaleSchema])
+@router.get('/', response_model=list[ConstructScaleSchema])
 async def get_construct_scales(
 	service: Annotated[ConstructScaleService, Depends(scales_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],

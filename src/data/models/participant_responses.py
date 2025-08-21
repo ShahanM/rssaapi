@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,6 +56,8 @@ class SurveyItemResponse(Base):
 		UUID(as_uuid=True), ForeignKey('survey_construct.id'), nullable=False
 	)
 	item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('construct_item.id'), nullable=True)
+
+	scale_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('construct_scale.id'), nullable=True)
 
 	# FIXME: response should be non null but for now it is nullable because of older data and a lack of default
 	response: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey('scale_level.id'))

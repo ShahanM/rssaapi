@@ -1,5 +1,4 @@
 import uuid
-from typing import List
 
 from data.models.study_components import StudyCondition
 from data.repositories.study import StudyRepository
@@ -24,7 +23,7 @@ class StudyConditionService:
 		)
 		return await self.condition_repo.create(study_condition)
 
-	async def copy_from(self, from_study_id: uuid.UUID, to_study_id: uuid.UUID) -> List[StudyConditionSchema]:
+	async def copy_from(self, from_study_id: uuid.UUID, to_study_id: uuid.UUID) -> list[StudyConditionSchema]:
 		conditions_to_copy = await self.get_study_conditions(from_study_id)
 		new_conditions = []
 		for condition in conditions_to_copy:
@@ -36,7 +35,7 @@ class StudyConditionService:
 
 		return new_conditions
 
-	async def get_study_conditions(self, study_id: uuid.UUID) -> List[StudyCondition]:
+	async def get_study_conditions(self, study_id: uuid.UUID) -> list[StudyCondition]:
 		study_conditions = await self.condition_repo.get_conditions_by_study_id(study_id)
 
 		return list(study_conditions)

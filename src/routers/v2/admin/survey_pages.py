@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends
 
 from data.schemas.survey_construct_schemas import PageContentCreateSchema
 from data.services import SurveyService
-from data.services import get_survey_service as survey_service
+from data.services.rssa_dependencies import get_survey_service as survey_service
 from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

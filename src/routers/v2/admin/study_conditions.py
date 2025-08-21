@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
@@ -8,7 +8,7 @@ from data.schemas.study_condition_schemas import StudyConditionCreateSchema, Stu
 from data.services import StudyConditionService
 from data.services.rssa_dependencies import get_study_condition_service as conditions_service
 from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.resources.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

@@ -17,26 +17,26 @@ from middlewares.access_logger import (
 from middlewares.bad_request_logging import BadRequestLoggingMiddleware
 from middlewares.infostats import RequestHandlingStatsMiddleware
 from middlewares.logging import LoggingMiddleware
+from routers.v2.admin import auth0
+from routers.v2.admin import construct_items as items_admin
+from routers.v2.admin import construct_scales as scales_admin
+from routers.v2.admin import scale_levels as level_admin
+from routers.v2.admin import step_pages as page_admin
+from routers.v2.admin import studies as study_admin
+from routers.v2.admin import study_conditions as condition_admin
+from routers.v2.admin import study_steps as step_admin
+from routers.v2.admin import survey_constructs as construct_admin
+from routers.v2.admin import survey_pages as survey_admin
+from routers.v2.admin import users as admin_users
 from routers.v2.recommendations import alt_algo, iers, pref_comm, pref_viz
 from routers.v2.resources import (
 	feedback,
 	movies,
 	participant,
 	participant_response,
-	study,
-	survey,
+	steps,
+	studies,
 )
-from routers.v2.resources.admin import auth0
-from routers.v2.resources.admin import construct_items as items_admin
-from routers.v2.resources.admin import construct_scales as scales_admin
-from routers.v2.resources.admin import scale_levels as level_admin
-from routers.v2.resources.admin import step_pages as page_admin
-from routers.v2.resources.admin import studies as study_admin
-from routers.v2.resources.admin import study_conditions as condition_admin
-from routers.v2.resources.admin import study_steps as step_admin
-from routers.v2.resources.admin import survey_constructs as construct_admin
-from routers.v2.resources.admin import survey_pages as survey_admin
-from routers.v2.resources.admin import users as admin_users
 
 # Configure logging
 configure_logging()
@@ -117,10 +117,10 @@ app.include_router(admin_users.router)
 """
 Resources API Routers
 """
-app.include_router(study.router)
+app.include_router(studies.router)
 app.include_router(movies.router)
 app.include_router(participant.router)
-app.include_router(survey.router)
+app.include_router(steps.router)
 app.include_router(feedback.router)
 
 """
