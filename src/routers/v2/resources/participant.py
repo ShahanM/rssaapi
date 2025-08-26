@@ -1,0 +1,90 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from data.schemas.participant_schemas import (
+	DemographicsCreateSchema,
+	ParticipantCreateSchema,
+	ParticipantSchema,
+	ParticipantUpdateSchema,
+)
+from data.schemas.study_schemas import StudySchema
+from data.services import ParticipantSessionService
+from data.services.participant_service import ParticipantService
+from data.services.rssa_dependencies import get_participant_service, get_participant_session_service
+from docs.metadata import ResourceTagsEnum as Tags
+from routers.v2.resources.authorization import get_current_registered_study
+
+router = APIRouter(
+	prefix='/participants',
+	tags=[Tags.participant],
+	dependencies=[Depends(get_current_registered_study)],
+)
+
+
+@router.post('/', response_model=ParticipantSchema)
+async def create_study_participant(
+	new_participant: ParticipantCreateSchema,
+	participant_service: Annotated[ParticipantService, Depends(get_participant_service)],
+	session_service: Annotated[ParticipantSessionService, Depends(get_participant_session_service)],
+	current_study: Annotated[StudySchema, Depends(get_current_registered_study)],
+):
+	"""_summary_
+
+	Args:
+		new_participant (ParticipantCreateSchema): _description_
+		db (Annotated[AsyncSession, Depends): _description_
+
+	Returns:
+		_type_: _description_
+	"""
+
+	new_participant = await participant_service.create_study_participant(current_study.id, new_participant)
+
+	movie_subset = 'ers'  # FIXME: This should be parameter in the study that defines the segment of items to include
+	await session_service.assign_pre_shuffled_list_participant(new_participant.id, movie_subset)
+
+	return ParticipantSchema.model_validate(new_participant)
+
+
+@router.put('/', response_model=ParticipantSchema)
+async def update_participant(
+	participant_data: ParticipantUpdateSchema,
+	participant_service: Annotated[ParticipantService, Depends(get_participant_service)],
+	current_study: Annotated[StudySchema, Depends(get_current_registered_study)],
+):
+	"""_summary_
+
+	Args:
+		participant_data (ParticipantUpdateSchema): _description_
+		db (Annotated[AsyncSession, Depends): _description_
+		current_study (Annotated[StudySchema, Depends): _description_
+
+	Raises:
+		HTTPException: _description_
+
+	Returns:
+		_type_: _description_
+	"""
+	if current_study.id != participant_data.study_id:
+		raise HTTPException(
+			status_code=status.HTTP_401_UNAUTHORIZED, detail='There are no records of the participant in the study.'
+		)
+	updated = await participant_service.update_study_participant(participant_data)
+
+	return updated
+
+
+@router.post('/demographics', response_model=None)
+async def create_particpant_demographic_info(
+	demographic_data: DemographicsCreateSchema,
+	participant_service: Annotated[ParticipantService, Depends(get_participant_service)],
+):
+	"""_summary_
+
+	Args:
+		demographic_data (DemographicsCreateSchema): _description_
+		db (Annotated[AsyncSession, Depends): _description_
+	"""
+
+	await participant_service.create_or_update_demographic_info(demographic_data)

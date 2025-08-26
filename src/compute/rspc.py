@@ -5,18 +5,21 @@ This file contains the RSSA Preference Community (RSPC) algorithms.
 @Affiliation: School of Computing, Clemson University
 """
 
-import pandas as pd
-from .common import predict_discounted, get_user_feature, RSSABase, predict
 from typing import List
+
 import numpy as np
-from data.models.schemas.movieschema import RatedItemSchema
+import pandas as pd
+
+from data.schemas.preferences_schemas import RatedItemSchema
+
+from .common import RSSABase, get_user_feature_from_implicitMF
 
 
 class PreferenceCommunity(RSSABase):
-	def __init__(self, model_path:str, item_popularity, ave_item_score,  data_path: str):
+	def __init__(self, model_path: str, item_popularity, ave_item_score, data_path: str):
 		super().__init__(model_path, item_popularity, ave_item_score)
 		self.data_path = data_path
-	
+
 		# 	schema_dic = {
 		# 	'favorite_movie': int,
 		# 	'most_rated_genre': str,
@@ -24,28 +27,24 @@ class PreferenceCommunity(RSSABase):
 		# 	'least_rated_genre': str
 		# }
 
-	def get_advisors_with_profile(self, ratings: List[RatedItemSchema], \
-		user_id, num_rec=10) -> dict:
+	def get_advisors_with_profile(self, ratings: List[RatedItemSchema], user_id, num_rec=10) -> dict:
 		_ratings = pd.Series([rating.rating for rating in ratings])
 		rated_items = np.array([np.int64(rating.item_id) for rating in ratings])
 
 		umat = self.model.user_features_
 		users = self.model.user_index_
 
-		user_features = get_user_feature(self.model, _ratings)
+		user_features = get_user_feature_from_implicitMF(self.model, _ratings)
 
 		# FIXME - parameterize
 		distance_method = 'cosine'
 		numNeighbors = 200
 
 		# Returns the top 200 neighbors sorted in ascending order of distance
-		neighbors = RSSABase._find_neighbors(self, umat, users, user_features, \
-			distance_method, numNeighbors)
-		
+		neighbors = RSSABase._find_neighbors(self, umat, users, user_features, distance_method, numNeighbors)
+
 		neighbors = neighbors.head(num_rec)
 		neighbors = neighbors['user'].tolist()
-
-
 
 		advisors = {}
 		# advisor_preds = {}
@@ -54,17 +53,13 @@ class PreferenceCommunity(RSSABase):
 		# max_rated_items = [rating.item_id for rating in ratings if rating.rating == max_rated_item.rating]
 		# print('Max rated items: ', max_rated_items)
 
-
 		# mri_idx = self.item_popularity[self.item_popularity['item'].isin(max_rated_items)]
 		# mri_features = self.model.item_features_[mri_idx.index]
 
-
 		for neighbor in neighbors:
-			advisor = { 
-				'id': neighbor
-			}
+			advisor = {'id': neighbor}
 			preds = self.model.predict_for_user(neighbor, self.items)
-			
+
 			preds = preds.to_frame().reset_index()
 			preds.columns = ['item', 'score']
 
@@ -80,7 +75,7 @@ class PreferenceCommunity(RSSABase):
 			# 		itm_dist_pair.append((max_rated_items[i], preds_without_rated.iloc[j]['item'], dist))
 			advisor['profile_top'] = preds.head(num_rec)['item'].tolist()
 			advisors[neighbor] = advisor
-			
+
 			# closest = sorted(itm_dist_pair, key=lambda x: x[2])
 			# print('Closest: ', closest[:5])
 
@@ -101,13 +96,13 @@ class PreferenceCommunity(RSSABase):
 		users = set(rating_data[rating_data['movie_id'] == movie_id]['user_id'].tolist())
 
 		# Get the users who rated the movie with 5.0
-		ratings_gt5 = rating_data[rating_data['user_id'].isin(users)\
-						& (rating_data['rating'] == 5.0)
-						& (rating_data['movie_id'] != movie_id)]
-		
-		top_movies = ratings_gt5.groupby('movie_id').size()\
-						.reset_index(name='counts')\
-						.sort_values('counts', ascending=False)
+		ratings_gt5 = rating_data[
+			rating_data['user_id'].isin(users) & (rating_data['rating'] == 5.0) & (rating_data['movie_id'] != movie_id)
+		]
+
+		top_movies = (
+			ratings_gt5.groupby('movie_id').size().reset_index(name='counts').sort_values('counts', ascending=False)
+		)
 		q3 = top_movies['counts'].quantile(0.75)
 		top_movies = top_movies[top_movies['counts'] > q3]
 
@@ -118,13 +113,13 @@ class PreferenceCommunity(RSSABase):
 		# get_movies_from_database(top_movies['movie_id'].tolist())
 
 		# Get the users who rated the movie with 1.0
-		ratings_lt2 = rating_data[rating_data['user_id'].isin(users)\
-						& (rating_data['rating'] == 1.0)
-						& (rating_data['movie_id'] != movie_id)]
+		ratings_lt2 = rating_data[
+			rating_data['user_id'].isin(users) & (rating_data['rating'] == 1.0) & (rating_data['movie_id'] != movie_id)
+		]
 
-		least_movies = ratings_lt2.groupby('movie_id')\
-						.size().reset_index(name='counts')\
-						.sort_values('counts', ascending=False)
+		least_movies = (
+			ratings_lt2.groupby('movie_id').size().reset_index(name='counts').sort_values('counts', ascending=False)
+		)
 		q3 = least_movies['counts'].quantile(0.75)
 		least_movies = least_movies[least_movies['counts'] > q3]
 
@@ -138,5 +133,5 @@ class PreferenceCommunity(RSSABase):
 			'favorite_movie': fav_movie,
 			'least_favorite_movie': least_fav_movie,
 			'top_rated': top_movies['movie_id'].tolist(),
-			'least_rated': least_movies['movie_id'].tolist()
+			'least_rated': least_movies['movie_id'].tolist(),
 		}
