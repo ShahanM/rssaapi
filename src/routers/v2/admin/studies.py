@@ -16,7 +16,7 @@ from data.schemas.study_schemas import (
 from data.schemas.study_step_schemas import StudyStepSchema
 from data.services import StudyService
 from data.services.rssa_dependencies import get_study_service as study_service
-from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user, require_permissions
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -93,21 +93,13 @@ async def get_study_detail(
 	return StudyDetailSchema.model_validate(study_from_db)
 
 
-@router.post('/', status_code=201)
+@router.post('/', status_code=status.HTTP_201_CREATED)
 async def create_study(
 	new_study: StudyCreateSchema,
 	study_service: Annotated[StudyService, Depends(study_service)],
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+	user: Annotated[Auth0UserSchema, Depends(require_permissions('create:studies', 'admin:all'))],
 ):
-	has_write_access = 'admin:all' in user.permissions or 'study:create' in user.permissions
-
-	if has_write_access:
-		await study_service.create_new_study(new_study, user.sub)
-	else:
-		raise HTTPException(
-			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to do perform that action.'
-		)
-
+	await study_service.create_new_study(new_study, user.sub)
 	return {'message': 'Study created.'}
 
 
