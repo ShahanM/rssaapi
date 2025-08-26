@@ -14,7 +14,7 @@ logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2/admin/survey',
+	prefix='/admin/survey',
 	tags=[Tags.study],
 	dependencies=[Depends(get_auth0_authenticated_user)],
 )

@@ -11,7 +11,7 @@ from .auth0 import (
 )
 
 router = APIRouter(
-	prefix='/v2/admin/users',
+	prefix='/admin/users',
 	dependencies=[Depends(get_auth0_authenticated_user)],
 )
 

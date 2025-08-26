@@ -1,39 +1,53 @@
 import logging
 import time
-from typing import Union
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Request
+from fastapi.security.utils import get_authorization_scheme_param
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from config import ROOT_PATH
 from data.logger import log_access
-
-# from data.rssadb import get_db as rssadb
 from data.rssadb import RSSADatabase
+from routers.v2.admin.auth0 import validate_auth0_token
 
 access_logger = logging.getLogger('dashboard_access')
 
 
 class DashboardAccessLogMiddleware(BaseHTTPMiddleware):
 	async def dispatch(self, request: Request, call_next):
+		auth_header = request.headers.get('Authorization')
+		scheme, token = get_authorization_scheme_param(auth_header)
+
+		auth0_user = None
+		if scheme.lower() == 'bearer' and token:
+			try:
+				auth0_user = await validate_auth0_token(token)
+				request.state.user = auth0_user
+			except Exception:
+				request.state.user = None
+		else:
+			request.state.user = None
+
 		start_time = time.time()
 		response = await call_next(request)
 		process_time = time.time() - start_time
 
-		if request.url.path.startswith('/meta/'):
-			auth0_user_obj = getattr(request.state, 'auth0_user', None)
-			if auth0_user_obj:
-				auth0_user_id = auth0_user_obj.sub
-				action = request.method.lower()
-				resource = request.url.path.split('/')[2]
-				resource_id = None
-				if len(request.url.path.split('/')) > 3:
-					resource_id = request.url.path.split('/')[3]
+		current_user = getattr(request.state, 'user', None)
 
-				# async with rssadb() as db:
-				async with RSSADatabase() as db:
-					await log_access(db, auth0_user_id, action, resource, resource_id)
-			else:
-				access_logger.warning(f'No auth0_user found in request.state for path: {request.url.path}')
+		if request.url.path.startswith(f'{ROOT_PATH}/admin/') and current_user:
+			action = request.method.lower()
+			resource = request.url.path.split('?')[0]
+			resource_id = None
+			path_segments = request.url.path.split('/')
+			if len(path_segments) > 2:
+				resource_id = path_segments[2]
+			async with RSSADatabase() as db:
+				await log_access(db, current_user.sub, action, resource, resource_id)
+
+			access_logger.info(
+				f'API Access: {request.method} {request.url.path} - {response.status_code}'
+				+ f'({process_time:.4f}s) - User: {current_user.sub}'
+			)
 
 		return response
 
@@ -43,38 +57,30 @@ class APIAccessLogMiddleware(BaseHTTPMiddleware):
 		start_time = time.time()
 		response = await call_next(request)
 		process_time = time.time() - start_time
+		if (
+			not request.url.path.startswith('/docs')
+			and not request.url.path.startswith('/openapi.json')
+			and not request.url.path.startswith(f'{ROOT_PATH}/admin')
+		):
+			user_identifier = 'anonymous'
 
-		# Define which API paths you want to log (e.g., exclude health checks)
-		if not request.url.path.startswith('/docs') and not request.url.path.startswith('/openapi.json'):
-			user_identifier = 'anonymous'  # Default if no user identified
-
-			# Attempt to extract user information based on your authentication mechanism
-			# Example: Extracting from a token header
-			# token = request.headers.get("Authorization")
-			# if token and token.startswith("Bearer "):
-			#     try:
-			#         payload = decode_token(token.split(" ")[1])
-			#         user_identifier = payload.get("sub", "unknown_user")
-			#     except Exception:
-			#         access_logger.warning(f"Error decoding token for path: {request.url.path}")
-
-			# Or, if you have study context available in request.state:
 			study = getattr(request.state, 'current_study', None)
 			if study:
 				user_identifier = f'study: {study.name} ({study.id})'
 
-			action = request.method.lower()
-			resource = request.url.path.split('?')[0]  # Remove query parameters
-			resource_id = None
-			path_segments = request.url.path.split('/')
-			if len(path_segments) > 2:
-				resource_id = path_segments[2]  # Adjust based on your API structure
+			# action = request.method.lower()
+			# resource = request.url.path.split('?')[0]
+			# resource_id = None
+			# path_segments = request.url.path.split('/')
+			# if len(path_segments) > 2:
+			# resource_id = path_segments[2]
 
-			async with RSSADatabase() as db:
-				await log_access(db, user_identifier, action, resource, resource_id)
+			# async with RSSADatabase() as db:
+			# await log_access(db, user_identifier, action, resource, resource_id)
 
 			access_logger.info(
-				f'API Access: {request.method} {request.url.path} - {response.status_code} ({process_time:.4f}s) - User: {user_identifier}'
+				f'API Access: {request.method} {request.url.path} - {response.status_code}'
+				+ f'({process_time:.4f}s) - User: {user_identifier}'
 			)
 
 		return response

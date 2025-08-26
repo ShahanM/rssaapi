@@ -1,12 +1,19 @@
+import datetime
 import uuid
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class BaseDBSchema(BaseModel):
-	model_config = ConfigDict(from_attributes=True)
 	id: uuid.UUID
+
+	class Config:
+		from_attributes = True
+		json_encoders = {
+			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
+		}
 
 
 class ReorderPayloadSchema(BaseModel):

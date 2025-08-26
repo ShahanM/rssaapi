@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from data.models.movies import Movie, MovieEmotions
+from data.models.movies import Movie, MovieEmotions, MovieRecommendationText
 from data.repositories.base_repo import BaseRepository
 
 
@@ -93,3 +93,30 @@ class MovieRepository(BaseRepository[Movie]):
 		db_rows = await self.db.execute(query)
 
 		return list(db_rows.scalars().all())
+
+	async def get_paged_movies(self, limit: int, offset: int) -> list[Movie]:
+		query = select(Movie).offset(offset).limit(limit)
+
+		result = await self.db.execute(query)
+
+		return list(result.scalars().all())
+
+	async def get_paged_movies_with_details(self, limit: int, offset: int) -> list[Movie]:
+		query = (
+			select(Movie)
+			.options(selectinload(Movie.emotions), selectinload(Movie.recommendations_text))
+			.order_by(Movie.id)
+			.offset(offset)
+			.limit(limit)
+		)
+
+		result = await self.db.execute(query)
+
+		return list(result.scalars().all())
+
+	async def count_movies(self) -> int:
+		query = select(func.count()).select_from(Movie)
+
+		result = await self.db.execute(query)
+
+		return result.scalar_one()

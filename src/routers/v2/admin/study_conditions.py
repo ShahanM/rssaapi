@@ -15,7 +15,7 @@ logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2/admin/conditions',
+	prefix='/admin/conditions',
 	tags=[Tags.construct],
 	dependencies=[Depends(get_auth0_authenticated_user), Depends(conditions_service)],
 )

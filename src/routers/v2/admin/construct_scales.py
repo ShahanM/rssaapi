@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -15,16 +15,20 @@ from data.schemas.survey_construct_schemas import (
 from data.services import ConstructScaleService
 from data.services.survey_dependencies import get_construct_scale_service as scales_service
 from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user, require_permissions
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2/admin/construct-scales',
+	prefix='/admin/construct-scales',
 	tags=[Tags.construct],
-	dependencies=[Depends(get_auth0_authenticated_user), Depends(scales_service)],
+	dependencies=[
+		Depends(scales_service),
+		Depends(require_permissions('read:construct_scales')),
+		Depends(get_auth0_authenticated_user),
+	],
 )
 
 
@@ -39,27 +43,21 @@ async def get_construct_scales(
 	return converted
 
 
-@router.post('/', response_model=ConstructScaleSchema)
+@router.post('/', status_code=status.HTTP_201_CREATED)
 async def create_construct_scale(
 	create_scale: ConstructScaleCreateSchema,
 	service: Annotated[ConstructScaleService, Depends(scales_service)],
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+	user: Annotated[Auth0UserSchema, Depends(require_permissions('create:construct_scales', 'admin:all'))],
 ):
-	is_super_admin = 'admin:all' in user.permissions
-	if not is_super_admin:
-		raise HTTPException(
-			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to perform that action.'
-		)
-	new_scale_in_db = await service.create_construct_scale(create_scale, created_by=user.sub)
+	await service.create_construct_scale(create_scale, created_by=user.sub)
 
-	return ConstructScaleSchema.model_validate(new_scale_in_db)
+	return {'message': 'Construct Scale created'}
 
 
 @router.get('/{scale_id}/summary', response_model=ConstructScaleSummarySchema)
 async def get_construct_scale(
 	service: Annotated[ConstructScaleService, Depends(scales_service)],
 	scale_id: uuid.UUID,
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
 	scale_in_db = await service.get_construct_scale(scale_id)
 	if not scale_in_db:
@@ -72,7 +70,6 @@ async def get_construct_scale(
 async def get_construct_scale_detail(
 	service: Annotated[ConstructScaleService, Depends(scales_service)],
 	scale_id: uuid.UUID,
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
 	scale_in_db = await service.get_construct_scale_detail(scale_id)
 	if not scale_in_db:
@@ -81,22 +78,18 @@ async def get_construct_scale_detail(
 	return ConstructScaleDetailSchema.model_validate(scale_in_db)
 
 
-@router.delete('/{scale_id}', status_code=204)
+@router.delete('/{scale_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_construct_scale(
 	service: Annotated[ConstructScaleService, Depends(scales_service)],
 	scale_id: uuid.UUID,
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+	user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:construct_scale', 'admin:all'))],
 ):
-	is_super_admin = 'admin:all' in user.permissions
-	if not is_super_admin:
-		raise HTTPException(
-			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to perform that action.'
-		)
-
 	await service.construct_scale_repo.delete(scale_id)
 
+	return {}
 
-@router.get('/{scale_id}/levels', response_model=List[ScaleLevelSchema])
+
+@router.get('/{scale_id}/levels', response_model=list[ScaleLevelSchema])
 async def get_scale_levels(
 	scale_id: uuid.UUID,
 	service: Annotated[ConstructScaleService, Depends(scales_service)],
@@ -109,11 +102,13 @@ async def get_scale_levels(
 	return converted
 
 
-@router.put('/{scale_id}/levels/order', status_code=204)
+@router.put('/{scale_id}/levels/order', status_code=status.HTTP_204_NO_CONTENT)
 async def update_scale_levels_order(
 	scale_id: uuid.UUID,
 	service: Annotated[ConstructScaleService, Depends(scales_service)],
-	payload: List[ReorderPayloadSchema],
+	payload: list[ReorderPayloadSchema],
 ):
 	levels_map = {level.id: level.order_position for level in payload}
 	await service.reorder_scale_levels(scale_id, levels_map)
+
+	return {}

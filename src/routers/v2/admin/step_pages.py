@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 router = APIRouter(
-	prefix='/v2/admin',
+	prefix='/admin',
 	tags=[Tags.study],
 	dependencies=[Depends(get_auth0_authenticated_user), Depends(page_service)],
 )

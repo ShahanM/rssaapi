@@ -15,10 +15,14 @@ from data.services.rssa_dependencies import get_participant_service, get_partici
 from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_registered_study
 
-router = APIRouter(prefix='/v2', tags=[Tags.participant], dependencies=[Depends(get_current_registered_study)])
+router = APIRouter(
+	prefix='/participants',
+	tags=[Tags.participant],
+	dependencies=[Depends(get_current_registered_study)],
+)
 
 
-@router.post('/participants/', response_model=ParticipantSchema)
+@router.post('/', response_model=ParticipantSchema)
 async def create_study_participant(
 	new_participant: ParticipantCreateSchema,
 	participant_service: Annotated[ParticipantService, Depends(get_participant_service)],
@@ -43,7 +47,7 @@ async def create_study_participant(
 	return ParticipantSchema.model_validate(new_participant)
 
 
-@router.put('/participants/', response_model=ParticipantSchema)
+@router.put('/', response_model=ParticipantSchema)
 async def update_participant(
 	participant_data: ParticipantUpdateSchema,
 	participant_service: Annotated[ParticipantService, Depends(get_participant_service)],
@@ -71,7 +75,7 @@ async def update_participant(
 	return updated
 
 
-@router.post('/participants/demographics', response_model=None)
+@router.post('/demographics', response_model=None)
 async def create_particpant_demographic_info(
 	demographic_data: DemographicsCreateSchema,
 	participant_service: Annotated[ParticipantService, Depends(get_participant_service)],

@@ -121,13 +121,14 @@ class StudyService:
 
 	async def export_study_config(
 		self, study_id: uuid.UUID
-	) -> dict[str, Union[uuid.UUID, list[dict[str, uuid.UUID]], dict[str, uuid.UUID]]]:
+	) -> dict[str, Union[uuid.UUID, list[dict[str, Union[str, uuid.UUID]]], dict[str, uuid.UUID]]]:
 		study_details = await self.get_study_details(study_id)
 
 		study_config = {
 			'study_id': study_details.id,
 			'study_steps': [
-				{step.name: step.id} for step in sorted(study_details.steps, key=lambda s: s.order_position)
+				{'name': step.name, '_id': step.id}
+				for step in sorted(study_details.steps, key=lambda s: s.order_position)
 			],
 			'conditions': {cond.name: cond.id for cond in study_details.conditions},
 		}

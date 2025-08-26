@@ -9,6 +9,7 @@ from .scale_levels import ScaleLevelService
 from .survey_service import SurveyService
 from .step_page_service import StepPageService
 from .study_step_service import StudyStepService
+from .admin_service import AdminService
 
 __all__ = [
 	"StudyConditionService",
@@ -22,4 +23,5 @@ __all__ = [
 	"ParticipantSessionService",
 	"SurveyConstructService",
 	'StudyStepService',
+	"AdminService",
 ]

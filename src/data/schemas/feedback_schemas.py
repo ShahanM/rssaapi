@@ -3,9 +3,10 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from .base_schemas import BaseDBSchema
 
-class FeedbackSchema(BaseModel):
-	id: uuid.UUID
+
+class FeedbackSchema(BaseDBSchema):
 	participant_id: uuid.UUID
 	created_at: datetime
 	study_id: uuid.UUID

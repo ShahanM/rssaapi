@@ -10,12 +10,12 @@ from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_registered_study
 
 router = APIRouter(
-	prefix='/v2',
+	prefix='/responses',
 	tags=[Tags.response],
 )
 
 
-@router.post('/responses/survey', response_model=None)
+@router.post('/survey', response_model=None)
 async def create_survey_item_response(
 	survey_response: SurveyReponseCreateSchema,
 	db: AsyncSession = Depends(rssa_db),
@@ -54,7 +54,7 @@ async def create_survey_item_response(
 		) from e
 
 
-@router.post('/responses/text', response_model=None)
+@router.post('/text', response_model=None)
 async def create_freeform_text_response(
 	text_response: FreeformTextResponseCreateSchema,
 	db: AsyncSession = Depends(rssa_db),

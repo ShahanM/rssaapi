@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from config import ROOT_PATH
 from docs.metadata import AppMetadata as App_Meta
 from docs.metadata import tags_metadata
 from logging_config import configure_logging
@@ -20,6 +21,7 @@ from middlewares.logging import LoggingMiddleware
 from routers.v2.admin import auth0
 from routers.v2.admin import construct_items as items_admin
 from routers.v2.admin import construct_scales as scales_admin
+from routers.v2.admin import movies as movie_admin
 from routers.v2.admin import scale_levels as level_admin
 from routers.v2.admin import step_pages as page_admin
 from routers.v2.admin import studies as study_admin
@@ -47,7 +49,7 @@ FastAPI App
 """
 # TODO: Move string values to a config file
 app = FastAPI(
-	root_path='/rssa/api',
+	root_path=ROOT_PATH,
 	root_path_in_servers=False,
 	openapi_tags=tags_metadata,
 	title=App_Meta.title,
@@ -114,6 +116,7 @@ app.include_router(construct_admin.router)
 app.include_router(level_admin.router)
 app.include_router(survey_admin.router)
 app.include_router(admin_users.router)
+app.include_router(movie_admin.router)
 """
 Resources API Routers
 """

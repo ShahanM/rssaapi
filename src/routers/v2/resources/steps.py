@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 router = APIRouter(
-	prefix='/v2',
+	prefix='/steps',
 	tags=[Tags.survey],
 	dependencies=[Depends(get_current_registered_study)],
 )
 
 
 @router.get(
-	'/steps/{step_id}',
+	'/{step_id}',
 	response_model=StudyStepSchema,
 	summary='Get the step specified by an ID',
 	description="""
@@ -56,7 +56,7 @@ async def get_study_step(
 	return StudyStepSchema.model_validate(step)
 
 
-@router.get('/surveys/{step_id}/first', response_model=SurveyPageSchema)
+@router.get('/{step_id}/first', response_model=SurveyPageSchema)
 async def get_first_page_endpoint(
 	step_id: uuid.UUID,
 	service: Annotated[SurveyService, Depends(survey_service)],
@@ -83,7 +83,7 @@ async def get_first_page_endpoint(
 	return page_to_return
 
 
-@router.get('/surveys/{step_id}/pages/{current_page_id}/next', response_model=SurveyPageSchema)
+@router.get('/{step_id}/pages/{current_page_id}/next', response_model=SurveyPageSchema)
 async def get_next_page_endpoint(
 	current_page_id: uuid.UUID,
 	service: Annotated[SurveyService, Depends(survey_service)],

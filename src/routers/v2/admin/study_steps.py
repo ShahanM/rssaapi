@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 router = APIRouter(
-	prefix='/v2/admin/steps',
+	prefix='/admin/steps',
 	tags=[Tags.study_step],
 	dependencies=[Depends(get_auth0_authenticated_user), Depends(get_auth0_authenticated_user)],
 )

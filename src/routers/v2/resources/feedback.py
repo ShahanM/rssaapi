@@ -10,12 +10,12 @@ from docs.metadata import ResourceTagsEnum as Tags
 from routers.v2.resources.authorization import get_current_registered_study
 
 router = APIRouter(
-	prefix='/v2',
+	prefix='/feedbacks',
 	tags=[Tags.feedback],
 )
 
 
-@router.post('/feedbacks', response_model=None)
+@router.post('/', response_model=None)
 async def create_feedback(
 	feedback: FeedbackCreateSchema,
 	db: AsyncSession = Depends(rssa_db),

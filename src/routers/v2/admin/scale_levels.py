@@ -18,7 +18,7 @@ logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2/admin/scale-levels',
+	prefix='/admin/scale-levels',
 	tags=[Tags.construct],
 	dependencies=[Depends(get_auth0_authenticated_user), Depends(scale_level_service)],
 )

@@ -25,6 +25,7 @@ from data.repositories.rssa_dependencies import (
 	get_study_step_repository,
 )
 
+from .admin_service import AdminService
 from .participant_service import ParticipantService
 from .participant_session_service import ParticipantSessionService
 from .step_page_service import StepPageService
@@ -85,3 +86,9 @@ def get_study_step_service(
 	page_repo: Annotated[PageRepository, Depends(get_page_repository)],
 ) -> StudyStepService:
 	return StudyStepService(step_repo, page_repo)
+
+
+def get_admin_service(
+	shuffled_movie_repo: Annotated[PreShuffledMovieRepository, Depends(get_pre_shuffled_movie_repository)],
+) -> AdminService:
+	return AdminService(shuffled_movie_repo)

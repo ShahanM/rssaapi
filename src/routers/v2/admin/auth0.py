@@ -15,7 +15,6 @@ import config as cfg
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-# from data.models.schemas.studyschema import Auth0UserSchema
 
 AUTH0_DOMAIN = cfg.get_env_var('AUTH0_DOMAIN', '')
 AUTH0_MANAGEMENT_API_AUDIENCE = cfg.get_env_var('AUTH0_MANAGEMENT_API_AUDIENCE', '')
@@ -372,23 +371,13 @@ async def get_jwks_cached():
 			) from e
 
 
-async def get_auth0_authenticated_user(
-	credentials: Annotated[Union[HTTPAuthorizationCredentials, None], Security(bearer_scheme)],
-) -> Auth0UserSchema:
-	"""FastAPI dependency to authenticate a user via Auth0 JWT
-	Extracts user info and permissions from the access token.
-
-	Args:
-		credentials (Annotated[HTTPAuthorizationCredentials  |  None, Security): _description_
-
-	Returns:
-		Auth0UserSchema: _description_
+# This new function contains the core logic
+async def validate_auth0_token(token: str) -> Auth0UserSchema:
 	"""
-	if credentials is None:
-		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Bearer token missing or invalid')
-	token = credentials.credentials
+	Validates an Auth0 JWT and returns the user schema.
+	Raises exceptions on failure.
+	"""
 	jwks = await get_jwks_cached()
-
 	try:
 		unverified_header = jwt.get_unverified_header(token)
 		rsa_key = {}
@@ -399,7 +388,6 @@ async def get_auth0_authenticated_user(
 		if not rsa_key:
 			raise JWTError('Auth0: Unable to find appropriate signing key for token')
 
-		# Decode and validate the token claims
 		payload = jwt.decode(
 			token,
 			rsa_key,
@@ -408,35 +396,48 @@ async def get_auth0_authenticated_user(
 			issuer=AUTH0_ISSUER_URL,
 		)
 
-		# Basic claim validation (auth0 usually puts permissions in 'permissions' claim)
 		user_id = payload.get('sub')
-		permission = payload.get('permissions', [])
-		email = payload.get('email')
-		name = payload.get('name')
-		picture = payload.get('picture')
-
 		if not user_id:
 			raise JWTClaimsError('Auth0: Token is missing "sub" claim.')
 
-		return Auth0UserSchema(sub=user_id, permissions=permission, email=email, name=name, picture=picture)
+		return Auth0UserSchema(
+			sub=user_id,
+			permissions=payload.get('permissions', []),
+			email=payload.get('email'),
+			name=payload.get('name'),
+			picture=payload.get('picture'),
+		)
+	except (JWTError, JWTClaimsError) as e:
+		raise e
+
+
+async def get_auth0_authenticated_user(
+	request: Request,
+	credentials: Annotated[Union[HTTPAuthorizationCredentials, None], Security(bearer_scheme)],
+) -> Auth0UserSchema:
+	"""
+	FastAPI dependency that gets an authenticated user.
+	First checks if the user was already authenticated by middleware.
+	"""
+	if hasattr(request.state, 'user') and request.state.user is not None:
+		return request.state.user
+
+	if credentials is None:
+		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Bearer token missing')
+
+	token = credentials.credentials
+	try:
+		user = await validate_auth0_token(token)
+		return user
 	except JWTClaimsError as e:
-		print('RAISING CAINE')
 		raise HTTPException(
-			status_code=status.HTTP_403_FORBIDDEN,  # Forbidden if claims are invalid (e.g., wrong audience/issuer)
+			status_code=status.HTTP_403_FORBIDDEN,
 			detail=f'Auth0: Invalid token claims: {e}',
-			headers={'WWW-Authenticate': 'Bearer error="invalid_token_claims"'},
 		) from e
 	except JWTError as e:
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail=f'Auth0: Invalid token: {e}',
-			headers={'WWW-Authenticate': 'Bearer error="invalid_token"'},
-		) from e
-	except Exception as e:
-		raise HTTPException(
-			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			detail=f'Auth0: Authentication processing error: {e}',
-			headers={'WWW-Authenticate': 'Bearer'},
 		) from e
 
 

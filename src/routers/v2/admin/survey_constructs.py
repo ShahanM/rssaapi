@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2/admin/constructs',
+	prefix='/admin/constructs',
 	tags=[Tags.construct],
 	dependencies=[Depends(get_auth0_authenticated_user), Depends(construct_service)],
 )

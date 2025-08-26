@@ -101,7 +101,26 @@ class StudySummarySchema(BaseModel):
 		return self
 
 
+class StudyConfigComponentSchema(BaseModel):
+	name: str
+	id: uuid.UUID
+
+	class Config:
+		from_attributes = True
+		json_encoders = {
+			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
+		}
+
+
 class StudyConfigSchema(BaseModel):
 	study_id: uuid.UUID
-	study_steps: list[dict[str, uuid.UUID]]
-	conditions: dict[str, uuid.UUID]
+	study_steps: list[StudyConfigComponentSchema]
+	conditions: dict[uuid.UUID, str]
+
+	class Config:
+		from_attributes = True
+		json_encoders = {
+			uuid.UUID: lambda v: str(v),
+			datetime: lambda v: v.isoformat(),
+		}

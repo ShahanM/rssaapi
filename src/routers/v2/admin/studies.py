@@ -23,7 +23,7 @@ logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2/admin/studies',
+	prefix='/admin/studies',
 	tags=['Studies'],
 	dependencies=[Depends(get_auth0_authenticated_user), Depends(study_service)],
 )
@@ -93,7 +93,7 @@ async def get_study_detail(
 	return StudyDetailSchema.model_validate(study_from_db)
 
 
-@router.post('/', response_model=StudySchema)
+@router.post('/', status_code=201)
 async def create_study(
 	new_study: StudyCreateSchema,
 	study_service: Annotated[StudyService, Depends(study_service)],
@@ -102,12 +102,13 @@ async def create_study(
 	has_write_access = 'admin:all' in user.permissions or 'study:create' in user.permissions
 
 	if has_write_access:
-		created_study = await study_service.create_new_study(new_study, user.sub)
-		return created_study
+		await study_service.create_new_study(new_study, user.sub)
 	else:
 		raise HTTPException(
 			status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to do perform that action.'
 		)
+
+	return {'message': 'Study created.'}
 
 
 @router.get('/{study_id}/steps', response_model=List[StudyStepSchema])
@@ -155,6 +156,14 @@ async def export_study_config(
 	study_service: Annotated[StudyService, Depends(study_service)],
 	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-	study_config = await study_service.export_study_config(study_id)
+	study_details = await study_service.get_study_details(study_id)
+
+	study_config = {
+		'study_id': study_details.id,
+		'study_steps': [
+			{'name': step.name, 'id': step.id} for step in sorted(study_details.steps, key=lambda s: s.order_position)
+		],
+		'conditions': {cond.id: cond.name for cond in study_details.conditions},
+	}
 
 	return StudyConfigSchema.model_validate(study_config)

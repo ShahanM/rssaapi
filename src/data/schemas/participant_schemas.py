@@ -4,6 +4,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from .base_schemas import BaseDBSchema
+
 
 # TODO: Add documentation string all the schema
 class ParticipantCreateSchema(BaseModel):
@@ -24,8 +26,7 @@ class ParticipantCreateSchema(BaseModel):
 	current_page: Optional[uuid.UUID]
 
 
-class ParticipantSchema(BaseModel):
-	id: uuid.UUID
+class ParticipantSchema(BaseDBSchema):
 	participant_type: uuid.UUID = Field(examples=[uuid.UUID('149078d0-cece-4b2c-81cd-a7df4f76d15a')], description='')
 	external_id: str
 	study_id: uuid.UUID
@@ -36,16 +37,11 @@ class ParticipantSchema(BaseModel):
 	date_created: Optional[datetime]
 	date_updated: Optional[datetime]
 
-	class Config:
-		from_attributes = True
-		json_encoders = {uuid.UUID: lambda v: str(v), datetime: lambda v: v.isoformat()}
-
 	def __hash__(self):
 		return self.model_dump_json().__hash__()
 
 
-class ParticipantUpdateSchema(BaseModel):
-	id: uuid.UUID
+class ParticipantUpdateSchema(BaseDBSchema):
 	study_id: uuid.UUID
 
 	participant_type: Optional[uuid.UUID] = Field(

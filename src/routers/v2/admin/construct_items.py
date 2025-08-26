@@ -8,16 +8,20 @@ from data.schemas.survey_construct_schemas import ConstructItemCreateSchema, Con
 from data.services import ConstructItemService
 from data.services.survey_dependencies import get_construct_item_service as item_service
 from docs.metadata import AdminTagsEnum as Tags
-from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user
+from routers.v2.admin.auth0 import Auth0UserSchema, get_auth0_authenticated_user, require_permissions
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2/admin/items',
+	prefix='/admin/items',
 	tags=[Tags.construct],
-	dependencies=[Depends(get_auth0_authenticated_user), Depends(item_service)],
+	dependencies=[
+		Depends(item_service),
+		Depends(get_auth0_authenticated_user),
+		Depends(require_permissions('read:constructs')),
+	],
 )
 
 
@@ -25,25 +29,23 @@ router = APIRouter(
 async def get_item(
 	item_id: uuid.UUID,
 	service: Annotated[ConstructItemService, Depends(item_service)],
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
 	item_in_db = await service.get_construct_item(item_id)
 
 	return ConstructItemSchema.model_validate(item_in_db)
 
 
-@router.post('/', status_code=201)
+@router.post('/', status_code=status.HTTP_201_CREATED)
 async def create_construct_item(
 	new_item: ConstructItemCreateSchema,
 	service: Annotated[ConstructItemService, Depends(item_service)],
-	user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
 	await service.create_construct_item(new_item)
 
 	return {'message': 'Construct item created.'}
 
 
-@router.delete('/{item_id}', status_code=204)
+@router.delete('/{item_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_construct_item(
 	item_id: uuid.UUID,
 	service: Annotated[ConstructItemService, Depends(item_service)],
@@ -56,4 +58,4 @@ async def delete_construct_item(
 		)
 	await service.delete_construct_item(item_id)
 
-	return {'message': 'Construct item deleted.'}
+	return {}

@@ -15,18 +15,18 @@ logger.setLevel(logging.INFO)
 
 
 router = APIRouter(
-	prefix='/v2',
+	prefix='/studies',
 	tags=[Tags.study],
 	dependencies=[Depends(get_current_registered_study)],
 )
 
 
-@router.get('/studies/', response_model=StudyAuthSchema)
+@router.get('/', response_model=StudyAuthSchema)
 async def get_study(current_study: Annotated[StudySchema, Depends(get_current_registered_study)]):
 	return current_study
 
 
-@router.get('/studies/steps/first', response_model=StudyStepSchema)
+@router.get('/steps/first', response_model=StudyStepSchema)
 async def get_first_step(
 	study_service: Annotated[StudyService, Depends(study_service)],
 	current_study: Annotated[StudySchema, Depends(get_current_registered_study)],
@@ -36,7 +36,7 @@ async def get_first_step(
 	return StudyStepSchema.model_validate(study_step)
 
 
-@router.post('/studies/steps/next', response_model=StudyStepSchema)
+@router.post('/steps/next', response_model=StudyStepSchema)
 async def get_next_step(
 	step_request: NextStepRequest,
 	study_service: Annotated[StudyService, Depends(study_service)],
