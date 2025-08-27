@@ -56,7 +56,7 @@ async def get_studies(
 	Returns:
 		[]: Empty list if there are no studies to show.
 	"""
-	is_super_admin = 'admin:all' in user.permissions
+	is_super_admin = 'admin:all' in user.permissions or 'read:studies' in user.permissions
 
 	studies_from_db = []
 	if is_super_admin:
