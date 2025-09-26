@@ -6,7 +6,7 @@ fix = true
 
 [tool.ruff.lint]
 ignore = [
-	"W191",  # indentation contains tabs
+	# "W191",  # indentation contains tabs
 	"B008", # function call in default argument
 ]
 select = [
@@ -21,7 +21,11 @@ select = [
 
 [tool.ruff.format]
 quote-style = "single"
-indent-style = "tab"
+# indent-style = "tab"
+docstring-code-format = true
 
 [tool.pylint.main]
 load-plugins = ["pylint_sqlalchemy"]
+
+[tool.setuptools]
+packages = ["src"]

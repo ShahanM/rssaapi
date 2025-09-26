@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, PrimaryKeyConstraint
+from sqlalchemy import DateTime, ForeignKey, PrimaryKeyConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -9,57 +10,38 @@ from data.base import RSSADBBase as Base
 
 
 class ContentRating(Base):
-	"""
-	Stores participant ratings for various content within the study.
-	"""
+    """
+    Stores participant ratings for various content within the study.
+    """
 
-	__tablename__ = 'content_rating'
+    __tablename__ = 'content_ratings'
 
-	participant_id: Mapped[uuid.UUID] = mapped_column(
-		UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False
-	)
-	content_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-	content_type: Mapped[str] = mapped_column()
-	rating: Mapped[int] = mapped_column()
-	scale_min: Mapped[int] = mapped_column()
-	scale_max: Mapped[int] = mapped_column()
-	date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    participant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('study_participants.id'), nullable=False
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    item_table_name: Mapped[str] = mapped_column()
+    rating: Mapped[int] = mapped_column()
+    scale_min: Mapped[int] = mapped_column()
+    scale_max: Mapped[int] = mapped_column()
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
-	PrimaryKeyConstraint(participant_id, content_type, content_id)
-
-	def __init__(
-		self,
-		participant_id: uuid.UUID,
-		content_type: str,
-		content_id: uuid.UUID,
-		rating: int,
-		scale_min: int,
-		scale_max: int,
-	):
-		self.participant_id = participant_id
-		self.content_type = content_type
-		self.content_id = content_id
-		self.rating = rating
-		self.scale_min = scale_min
-		self.scale_max = scale_max
+    version: Mapped[int] = mapped_column()
 
 
 class InteractionLog(Base):
-	"""
-	Stores general participant interaction events/behaviors within the study.
-	"""
+    """
+    Stores general participant interaction events/behaviors within the study.
+    """
 
-	__tablename__ = 'interaction_log'
+    __tablename__ = 'interaction_logs'
 
-	id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-	participant_id: Mapped[uuid.UUID] = mapped_column(
-		UUID(as_uuid=True), ForeignKey('study_participant.id'), nullable=False
-	)
-	action: Mapped[str] = mapped_column()
-	action_data: Mapped[str] = mapped_column()
-	date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
-
-	def __init__(self, participant_id: uuid.UUID, action: str, action_data: str):
-		self.participant_id = participant_id
-		self.action = action
-		self.action_data = action_data
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    participant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('study_participants.id'), nullable=False
+    )
+    action: Mapped[str] = mapped_column()
+    action_data: Mapped[str] = mapped_column()
+    date_created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))

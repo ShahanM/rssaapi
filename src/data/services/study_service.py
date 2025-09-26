@@ -1,136 +1,99 @@
 import uuid
-from typing import Optional, Union
+from typing import Optional
 
-from data.models.study_components import Step, Study, StudyCondition
+from data.models.study_components import Study, User
 from data.repositories.study import StudyRepository
-from data.repositories.study_condition import StudyConditionRepository
-from data.repositories.study_step import StudyStepRepository
-from data.schemas.study_schemas import (
-	ConditionCountSchema,
-	StudyCreateSchema,
-	StudySchema,
-	StudySummarySchema,
-)
-from data.schemas.study_step_schemas import StudyStepSchema
+from data.schemas.base_schemas import PreviewSchema
+from data.schemas.study_components import ConditionCountSchema, StudySchema
 from data.utility import sa_obj_to_dict
 
 
 class StudyService:
-	def __init__(
-		self,
-		study_repo: StudyRepository,
-		step_repo: StudyStepRepository,
-		condition_repo: StudyConditionRepository,
-	):
-		self.study_repo = study_repo
-		self.study_step_repo = step_repo
-		self.condition_repo = condition_repo
+    def __init__(self, study_repo: StudyRepository):
+        self.repo = study_repo
 
-	async def create_new_study(self, study_in: StudyCreateSchema, created_by: str) -> StudySchema:
-		study = Study(name=study_in.name, description=study_in.description, created_by=created_by)
+    async def create_new_study(self, name: str, description: str, current_user: User) -> None:
+        study = Study(
+            name=name,
+            description=description,
+            created_by_id=current_user.id,
+            owner_id=current_user.id,
+        )
 
-		return await self.study_repo.create(study)
+        await self.repo.create(study)
 
-	async def get_all_studies(self) -> list[Study]:
-		# FIXME: use start index and limit to page responses
-		return await self.study_repo.get_all()
+    async def update_study(self, study_id: uuid.UUID, update_payload: dict[str, str]) -> None:
+        await self.repo.update(study_id, update_payload)
 
-	async def get_study_by_id(self, study_id: uuid.UUID) -> Study:
-		return await self.study_repo.get(study_id)
+    async def get_studies_for_user(
+        self,
+        user_id: Optional[uuid.UUID],
+        limit: int,
+        offset: int,
+        sort_by: Optional[str] = None,
+        sort_dir: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> list[PreviewSchema]:
+        studies = await self.repo.get_studies_paginated(user_id, limit, offset, sort_by, sort_dir, search)
+        study_previews = [PreviewSchema.model_validate(study) for study in studies]
+        return study_previews
 
-	async def get_studies_by_ownership(self, owner: str) -> list[Study]:
-		return await self.study_repo.get_all_by_field('owner', owner)
+    async def count_studies_for_user(self, user_id: Optional[uuid.UUID], search: Optional[str] = None) -> int:
+        return await self.repo.count_studies(user_id, search)
 
-	async def get_study_details(self, study_id: uuid.UUID) -> Study:
-		study_obj = await self.study_repo.get_detailed_study_object(study_id)
+    async def get_study_info_for_user(
+        self,
+        study_id: uuid.UUID,
+        user_id: Optional[uuid.UUID],
+        condition_counts: Optional[list[ConditionCountSchema]] = None,
+    ) -> Optional[StudySchema]:
+        study_row = None
+        if condition_counts:
+            study_row = await self.repo.get_total_participants(study_id)
+        else:
+            study_row = await self.repo.get_detailed_study_object(user_id, study_id)
 
-		return study_obj
+        if study_row is None:
+            return study_row
 
-	async def get_study_summary(self, study_id: uuid.UUID) -> Optional[StudySummarySchema]:
-		study_row = await self.study_repo.get_total_participants(study_id)
-		if not study_row:
-			return None
-		print(study_row)
-		study_obj = study_row[0]
-		total_participants_count = study_row.total_participants
+        study_obj = study_row.Study
+        owner_sub = study_row.owner_auth0_sub
+        creator_sub = study_row.creator_auth0_sub
 
-		study_data = sa_obj_to_dict(study_obj)
-		study_data['total_participants'] = total_participants_count
+        study_data = sa_obj_to_dict(study_obj)
+        study_data['owner'] = owner_sub
+        study_data['created_by'] = creator_sub
 
-		participants_by_condition_list = []
-		condition_counts_rows = await self.condition_repo.get_participant_count_by_condition(study_id)
-		for row in condition_counts_rows:
-			participants_by_condition_list.append(
-				ConditionCountSchema(
-					condition_id=row.condition_id,
-					condition_name=row.condition_name,
-					participant_count=row.participant_count,
-				).model_dump()
-			)
-		study_data['participants_by_condition'] = participants_by_condition_list
+        if condition_counts:
+            total_participants_count = study_row.total_participants
+            study_data['total_participants'] = total_participants_count
+            study_data['participants_by_condition'] = condition_counts
 
-		return StudySummarySchema.model_validate(study_data)
+        return StudySchema.model_validate(study_data)
 
-	async def duplicate_study(
-		self, study_id: uuid.UUID, created_by: str, new_study_name: Optional[str] = None
-	) -> Study:
-		original_study = await self.study_repo.get(study_id)
-		if not original_study:
-			raise ValueError('Study not found')
+    async def get_study_info(
+        self, study_id: uuid.UUID, condition_counts: Optional[list[ConditionCountSchema]] = None
+    ) -> Optional[StudySchema]:
+        return await self.get_study_info_for_user(study_id, None, condition_counts)
 
-		copy_name = new_study_name if new_study_name else f'{original_study.name} (copy)'
-		new_study = Study(name=copy_name, description=original_study.c.description, created_by=created_by)
-		new_study = await self.study_repo.create(new_study)
+    async def delete_study(self, study_id: uuid.UUID) -> None:
+        await self.repo.delete(study_id)
 
-		conditions = await self.condition_repo.get_conditions_by_study_id(study_id)
-		for condition in conditions:
-			new_condition = StudyCondition(
-				name=condition.c.name, description=condition.c.description, study_id=new_study.c.id
-			)
-			await self.condition_repo.create(new_condition)
+    # async def export_study_config(self, study_id: uuid.UUID) -> Optional[StudyConfigSchema]:
+    # 	study_details = await self.get_study_details(study_id)
 
-		return new_study
-
-	async def get_first_step(self, study_id: uuid.UUID) -> Step:
-		study_steps = await self.study_step_repo.get_steps_by_study_id(study_id)
-
-		return study_steps[0]
-
-	async def get_next_step(self, study_id: uuid.UUID, current_step_id: uuid.UUID) -> Optional[StudyStepSchema]:
-		study_steps = await self.study_step_repo.get_steps_by_study_id(study_id)
-
-		for i in range(len(study_steps)):
-			if i >= len(study_steps) - 1:
-				return None
-			study_step = study_steps[i]
-			if study_step.id == current_step_id:
-				return StudyStepSchema.model_validate(study_steps[i + 1])
-		else:
-			return None
-
-	async def get_study_steps(self, study_id: uuid.UUID) -> list[Step]:
-		return await self.study_step_repo.get_steps_by_study_id(study_id)
-
-	async def get_study_conditions(self, study_id: uuid.UUID) -> list[StudyCondition]:
-		return await self.condition_repo.get_all_by_field('study_id', study_id)
-
-	async def reorder_study_steps(self, study_id: uuid.UUID, steps_map: dict[uuid.UUID, int]) -> list[Step]:
-		reordered_steps = await self.study_step_repo.reorder_study_steps(study_id, steps_map)
-
-		return reordered_steps
-
-	async def export_study_config(
-		self, study_id: uuid.UUID
-	) -> dict[str, Union[uuid.UUID, list[dict[str, Union[str, uuid.UUID]]], dict[str, uuid.UUID]]]:
-		study_details = await self.get_study_details(study_id)
-
-		study_config = {
-			'study_id': study_details.id,
-			'study_steps': [
-				{'name': step.name, '_id': step.id}
-				for step in sorted(study_details.steps, key=lambda s: s.order_position)
-			],
-			'conditions': {cond.name: cond.id for cond in study_details.conditions},
-		}
-
-		return study_config
+    # 	if study_details:
+    # 		study_config = {
+    # 			'study_id': study_details.id,
+    # 			'study_steps': [
+    # 				{'name': step.name, '_id': step.id}
+    # 				for step in sorted(study_details.steps, key=lambda s: s.order_position)
+    # 			]
+    # 			if study_details.steps
+    # 			else [],
+    # 			'conditions': {cond.name: cond.id for cond in study_details.conditions}
+    # 			if study_details.conditions
+    # 			else None,
+    # 		}
+    # 		return StudyConfigSchema.model_validate(study_config)
+    # 	return None

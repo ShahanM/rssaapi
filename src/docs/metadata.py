@@ -11,7 +11,7 @@ class ResourceTagsEnum(Enum):
 	feedback = 'Resource: Feedback'
 
 
-class AdminTagsEnum(Enum):
+class TagsEnum(Enum):
 	movie = 'Admin: Movie'
 	study = 'Admin: Study'
 	study_step = 'Admin: Study Step'
@@ -44,19 +44,4 @@ tags_metadata: List[Dict[str, Any]] = [
 		'name': ResourceTagsEnum.participant.value,
 		'description': 'The user API is used to record study participant responses.',
 	},
-	{
-		'name': AdminTagsEnum.study.value,
-		'description': '',
-	},
 ]
-
-
-class AppMetadata:
-	title = 'RSSA Project API'
-	summary = 'API for all the RSSA projects, experiments, and alternate movie databases.'
-	description = """
-		This API is a FastAPI based API that is used to manage the RSSA project. 
-		The API is used to manage the study, the participants, the movies, 
-		the preference communities, and the preference visualizations. 
-		The API is also used to manage the metadata for the study.
-	"""

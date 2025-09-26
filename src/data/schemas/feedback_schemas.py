@@ -3,20 +3,16 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from .base_schemas import BaseDBSchema
+from .base_schemas import BaseDBMixin
 
 
-class FeedbackSchema(BaseDBSchema):
-	participant_id: uuid.UUID
-	created_at: datetime
-	study_id: uuid.UUID
-	feedback_text: str
-	feedback_type: str
-	feedback_category: str
+class FeedbackBaseSchema(BaseModel):
+    feedback_text: str
+    feedback_type: str
+    feedback_category: str
 
 
-class FeedbackCreateSchema(BaseModel):
-	participant_id: uuid.UUID
-	feedback_text: str
-	feedback_type: str
-	feedback_category: str
+class FeedbackSchema(FeedbackBaseSchema, BaseDBMixin):
+    participant_id: uuid.UUID
+    created_at: datetime
+    study_id: uuid.UUID

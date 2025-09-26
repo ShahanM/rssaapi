@@ -5,5 +5,5 @@ from data.repositories.base_repo import BaseRepository
 
 
 class FeedbackRepository(BaseRepository[Feedback]):
-	def __init__(self, db: AsyncSession):
-		super().__init__(db, Feedback)
+    def __init__(self, db: AsyncSession):
+        super().__init__(db, Feedback)

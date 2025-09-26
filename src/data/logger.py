@@ -11,7 +11,7 @@ Base = declarative_base()
 
 
 class AccessLog(Base):
-	__tablename__ = 'access_log'
+	__tablename__ = 'access_logs'
 
 	id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 	auth0_user = Column(String, nullable=False)

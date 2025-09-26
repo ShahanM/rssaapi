@@ -4,92 +4,93 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from data.schemas.base_schemas import BaseDBSchema
+from data.schemas.base_schemas import BaseDBMixin
 
 
-class EmotionsSchema(BaseDBSchema):
-	movie_id: uuid.UUID
-	movielens_id: str
-	anger: float
-	anticipation: float
-	disgust: float
-	fear: float
-	joy: float
-	surprise: float
-	sadness: float
-	trust: float
+class EmotionsSchema(BaseDBMixin):
+    movie_id: uuid.UUID
+    movielens_id: str
+    anger: float
+    anticipation: float
+    disgust: float
+    fear: float
+    joy: float
+    surprise: float
+    sadness: float
+    trust: float
 
 
-class RecommendationTextSchema(BaseDBSchema):
-	movie_id: uuid.UUID
-	formal: str
-	informal: str
-	source: Optional[str]
-	model: Optional[str]
-	created_at: datetime
-	updated_at: datetime
+class RecommendationTextSchema(BaseDBMixin):
+    movie_id: uuid.UUID
+    formal: str
+    informal: str
+    source: Optional[str]
+    model: Optional[str]
+    created_at: datetime
+    updated_at: datetime
 
 
-class MovieSchema(BaseDBSchema):
-	imdb_id: Optional[str]
-	tmdb_id: Optional[str]
-	movielens_id: str
+class MovieSchema(BaseDBMixin):
+    imdb_id: Optional[str]
+    tmdb_id: Optional[str]
+    movielens_id: str
 
-	title: str
-	year: int
-	ave_rating: float
+    title: str
+    year: int
+    ave_rating: float
 
-	imdb_avg_rating: Optional[float]
-	imdb_rate_count: Optional[int]
+    imdb_avg_rating: Optional[float]
+    imdb_rate_count: Optional[int]
 
-	tmdb_avg_rating: Optional[float]
-	tmdb_rate_count: Optional[int]
+    tmdb_avg_rating: Optional[float]
+    tmdb_rate_count: Optional[int]
 
-	genre: str
-	director: Optional[str]
-	cast: str
-	description: str
-	poster: str
-	poster_identifier: Optional[str] = ''
+    genre: str
+    director: Optional[str]
+    cast: str
+    description: str
+    poster: str
+    tmdb_poster: Optional[str] = ''
+    poster_identifier: Optional[str] = ''
 
 
 class ERSMovieSchema(MovieSchema):
-	emotions: EmotionsSchema
+    emotions: EmotionsSchema
 
 
 class MovieSearchRequest(BaseModel):
-	query: str
+    query: str
 
 
 class MovieSearchResponse(BaseModel):
-	exact_match: List[MovieSchema] = []
-	near_matches: List[MovieSchema] = []
+    exact_match: List[MovieSchema] = []
+    near_matches: List[MovieSchema] = []
 
 
 class MovieDetailSchema(MovieSchema):
-	emotions: Optional[EmotionsSchema] = None
-	recommendations_text: Optional[RecommendationTextSchema] = None
+    emotions: Optional[EmotionsSchema] = None
+    recommendations_text: Optional[RecommendationTextSchema] = None
 
-	class Config:
-		from_attributes = True
-		json_encoders = {
-			uuid.UUID: lambda v: str(v),
-			datetime: lambda v: v.isoformat(),
-		}
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            uuid.UUID: lambda v: str(v),
+            datetime: lambda v: v.isoformat(),
+        }
 
 
 class PaginatedMovieList(BaseModel):
-	data: list[MovieDetailSchema]
-	count: int
+    data: list[MovieDetailSchema]
+    count: int
 
 
 class ReviewItem(BaseModel):
-	text: str
-	helpful: int
-	unhelpful: int
-	date: str
+    text: str
+    helpful: int
+    unhelpful: int
+    date: str
 
 
 class ImdbReviewsPayloadSchema(BaseModel):
-	imdb_id: str
-	reviews: list[ReviewItem]
+    imdb_id: str
+    reviews: list[ReviewItem]

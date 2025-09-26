@@ -5,10 +5,10 @@ from fastapi import Request
 from fastapi.security.utils import get_authorization_scheme_param
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from auth.security import validate_auth0_token
 from config import ROOT_PATH
 from data.logger import log_access
 from data.rssadb import RSSADatabase
-from routers.v2.admin.auth0 import validate_auth0_token
 
 access_logger = logging.getLogger('dashboard_access')
 

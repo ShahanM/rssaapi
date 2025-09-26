@@ -2,7 +2,8 @@ import uuid
 
 from data.models.survey_constructs import ConstructItem
 from data.repositories import ConstructItemRepository
-from data.schemas.survey_construct_schemas import ConstructItemCreateSchema
+from data.schemas.base_schemas import OrderedTextListItem
+from data.schemas.survey_constructs import ConstructItemBaseSchema
 
 
 class ConstructItemService:
@@ -10,13 +11,13 @@ class ConstructItemService:
 		self,
 		item_repo: ConstructItemRepository,
 	):
-		self.item_repo = item_repo
+		self.repo = item_repo
 
 	async def get_construct_item(self, item_id: uuid.UUID) -> ConstructItem:
-		return await self.item_repo.get(item_id)
+		return await self.repo.get(item_id)
 
-	async def create_construct_item(self, new_item: ConstructItemCreateSchema) -> ConstructItem:
-		last_item = await self.item_repo.get_last_ordered_instance(new_item.construct_id)
+	async def create_construct_item(self, construct_id: uuid.UUID, new_item: ConstructItemBaseSchema) -> None:
+		last_item = await self.repo.get_last_ordered_instance(construct_id)
 		order_position = last_item.order_position + 1 if last_item else 1
 
 		item_to_create = ConstructItem(
@@ -25,9 +26,15 @@ class ConstructItemService:
 			order_position=order_position,
 		)
 
-		await self.item_repo.create(item_to_create)
-
-		return item_to_create
+		await self.repo.create(item_to_create)
 
 	async def delete_construct_item(self, item_id: uuid.UUID) -> None:
-		await self.item_repo.delete_ordered_instance(item_id)
+		await self.repo.delete_ordered_instance(item_id)
+
+	async def get_item_by_construct_id(self, construct_id: uuid.UUID) -> list[OrderedTextListItem]:
+		items = await self.repo.get_all_by_field('construct_id', construct_id)
+
+		if items is None or len(items) == 0:
+			return []
+
+		return [OrderedTextListItem.model_validate(item) for item in items]

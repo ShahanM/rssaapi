@@ -14,6 +14,11 @@ from .demographics import DemographicsRepository
 from .page_content import PageContentRepository
 from .page import PageRepository
 from .study_step import StudyStepRepository
+from .user_repo import UserRepository
+from .participant_session import ParticipantSessionRepositorty
+from .api_key_repo import ApiKeyRepository
+from .participant_response import SurveyItemResponseRepository, FreeformResponseRepository, ContentRatingRepository, InteractionLoggingRepository
+from .feedback import FeedbackRepository
 
 __all__ = [
 	"StudyRepository",
@@ -32,4 +37,12 @@ __all__ = [
 	"PreShuffledMovieRepository",
 	"ParticipantRepository",
 	"DemographicsRepository",
+	"UserRepository",
+	"ParticipantSessionRepositorty",
+	"ApiKeyRepository",
+	"SurveyItemResponseRepository",
+	"FreeformResponseRepository",
+	"ContentRatingRepository",
+	"InteractionLoggingRepository",
+	"FeedbackRepository"
 ]
