@@ -9,6 +9,6 @@ from .movie_service import MovieService
 
 
 def get_movie_service(
-	movie_repo: Annotated[MovieRepository, Depends(get_movie_repository)],
+    movie_repo: Annotated[MovieRepository, Depends(get_movie_repository)],
 ) -> MovieService:
-	return MovieService(movie_repo)
+    return MovieService(movie_repo)

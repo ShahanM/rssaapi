@@ -105,7 +105,8 @@ class StudyStepAdminSchema(StudyStepSchema, BaseAdminMixin):
     pass
 
 
-class StudyStepNavigationSchema(StudyStepSchema, OrderedNavigationMixin):
+class StudyStepNavigationSchema(StudyStepSchema):
+    next: Optional[str] = None
     pass
 
 

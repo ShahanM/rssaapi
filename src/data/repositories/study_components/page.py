@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from data.models.study_components import Page, PageContent
 from data.models.survey_constructs import ConstructScale, SurveyConstruct
 
-from .base_ordered_repo import BaseOrderedRepository
+from ..base_ordered_repo import BaseOrderedRepository
 
 
 class PageRepository(BaseOrderedRepository[Page]):
@@ -80,14 +80,13 @@ class PageRepository(BaseOrderedRepository[Page]):
                 .selectinload(SurveyConstruct.items),
                 selectinload(Page.page_contents)
                 .selectinload(PageContent.survey_construct)
-                .selectinload(SurveyConstruct.construct_scale)
                 .selectinload(ConstructScale.scale_levels),
             )
         )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_page_with_content_detail(self, page_id: uuid.UUID) -> Page:
+    async def get_page_with_content_detail(self, page_id: uuid.UUID) -> Optional[Page]:
         query = (
             select(Page)
             .where(Page.id == page_id)

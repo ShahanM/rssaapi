@@ -1,19 +1,27 @@
 import random
 import uuid
-from typing import List
 from datetime import datetime, timezone
+from typing import Any, List, Optional
+
+from async_lru import alru_cache
 from sqlalchemy import func
 
-from data.models.study_participants import Demographic, StudyParticipant
+from data.models.study_participants import Demographic, ParticipantRecommendationContext, StudyParticipant
+from data.repositories import (
+    ParticipantRecommendationContextRepository,
+    ParticipantRepository,
+    StudyConditionRepository,
+)
 from data.repositories.demographics import DemographicsRepository
-from data.repositories.participant import ParticipantRepository
-from data.repositories.study_condition import StudyConditionRepository
 from data.schemas.base_schemas import UpdatePayloadSchema
 from data.schemas.participant_schemas import (
     DemographicsBaseSchema,
+    DemographicsSchema,
     ParticipantSchema,
     ParticpantBaseSchema,
 )
+from data.schemas.preferences_schemas import RecommendationContextBaseSchema, RecommendationContextSchema
+from data.utility import convert_datetime_to_str, convert_uuids_to_str
 
 
 class ParticipantService:
@@ -22,10 +30,12 @@ class ParticipantService:
         participant_repo: ParticipantRepository,
         study_condition_repo: StudyConditionRepository,
         demographics_repo: DemographicsRepository,
+        recommendation_context_repo: ParticipantRecommendationContextRepository,
     ):
         self.repo = participant_repo
         self.study_condition_repo = study_condition_repo
         self.demographics_repo = demographics_repo
+        self.recommendation_context_repo = recommendation_context_repo
 
     async def create_study_participant(
         self, study_id: uuid.UUID, new_participant: ParticpantBaseSchema
@@ -59,32 +69,67 @@ class ParticipantService:
 
         return ParticipantSchema.model_validate(updated_participant)
 
-    async def create_or_update_demographic_info(
+    async def create_demographic_info(
         self, participant_id: uuid.UUID, demographic_data: DemographicsBaseSchema
-    ):
-        demographic_obj = await self.demographics_repo.get_by_field('participant_id', participant_id)
-        if demographic_obj:
-            update_dict = demographic_obj.model_dump()
-            update_dict['version'] = demographic_obj.version + 1
-            await self.demographics_repo.update(demographic_obj.id, update_dict)
-        else:
-            demographic_obj = Demographic(
-                participant_id=participant_id,
-                age_range=demographic_data.age_range,
-                gender=demographic_data.gender,
-                gender_other=demographic_data.gender_other,
-                race=';'.join(demographic_data.race),
-                race_other=demographic_data.race_other,
-                education=demographic_data.education,
-                country=demographic_data.country,
-                state_region=demographic_data.state_region,
-                updated_at=datetime.now(timezone.utc),
-                version=1,
-            )
-            await self.demographics_repo.create(demographic_obj)
+    ) -> DemographicsSchema:
+        demographic_obj = Demographic(
+            participant_id=participant_id,
+            age_range=demographic_data.age_range,
+            gender=demographic_data.gender,
+            gender_other=demographic_data.gender_other,
+            race=';'.join(demographic_data.race),
+            race_other=demographic_data.race_other,
+            education=demographic_data.education,
+            country=demographic_data.country,
+            state_region=demographic_data.state_region,
+            updated_at=datetime.now(timezone.utc),
+            version=1,
+        )
+        await self.demographics_repo.create(demographic_obj)
+
+        return DemographicsSchema.model_validate(demographic_obj)
+
+    async def update_demographic_info(
+        self, demographics_id: uuid.UUID, update_data: dict[str, Any], client_version: int
+    ) -> int:
+        return await self.demographics_repo.update_response(demographics_id, update_data, client_version)
 
     async def get_participants_by_study_id(self, study_id: uuid.UUID) -> List[StudyParticipant]:
         return await self.repo.get_all_by_field('study_id', study_id)
 
-    async def get_participant(self, participant_id: uuid.UUID) -> ParticipantSchema:
-        return await self.repo.get(participant_id)
+    async def get_participant(self, participant_id: uuid.UUID) -> Optional[ParticipantSchema]:
+        participant = await self.repo.get(participant_id)
+        if not participant:
+            return None
+        return ParticipantSchema.model_validate(participant)
+
+    async def create_recommendation_context(
+        self, study_id: uuid.UUID, participant_id: uuid.UUID, context_data: RecommendationContextBaseSchema
+    ) -> RecommendationContextSchema:
+        raw_dict = context_data.recommendations_json.model_dump()
+        json_safe_dict = convert_uuids_to_str(raw_dict)
+        json_safe_dict = convert_datetime_to_str(json_safe_dict)
+        rec_ctx = ParticipantRecommendationContext(
+            study_id=study_id,
+            step_id=context_data.step_id,
+            step_page_id=context_data.step_page_id,
+            participant_id=participant_id,
+            context_tag=context_data.context_tag,
+            recommendations_json=json_safe_dict,
+        )
+        await self.recommendation_context_repo.create(rec_ctx)
+
+        return RecommendationContextSchema.model_validate(rec_ctx)
+
+    @alru_cache(maxsize=128)
+    async def get_recommndation_context_by_participant_context(
+        self, study_id: uuid.UUID, participant_id: uuid.UUID, context_tag: str
+    ) -> Optional[RecommendationContextSchema]:
+        rec_ctx = await self.recommendation_context_repo.get_by_fields(
+            [('study_id', study_id), ('participant_id', participant_id), ('context_tag', context_tag)]
+        )
+
+        if not rec_ctx:
+            return None
+
+        return RecommendationContextSchema.model_validate(rec_ctx)

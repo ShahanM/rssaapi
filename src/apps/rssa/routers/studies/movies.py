@@ -3,8 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from auth.authorization import get_current_participant, validate_api_key
-from data.models.participant_movie_sequence import ParticipantMovieSession
+from auth.authorization import get_current_participant, validate_study_participant
 from data.models.study_participants import StudyParticipant
 from data.schemas.movie_schemas import (
     MovieSchema,
@@ -15,19 +14,18 @@ from data.schemas.movie_schemas import (
 from data.services import MovieService, ParticipantMovieSessionService
 from data.services.content_dependencies import get_movie_service
 from data.services.rssa_dependencies import get_participant_movie_session_service as movie_session_service
-from docs.rssa_docs import Tags
 
 router = APIRouter(
     prefix='/movies',
-    tags=[Tags.movie],
+    tags=['Movies'],
 )
 
 
 @router.get('/ers', response_model=list[MovieSchema])
 async def get_movies_with_emotions(
     movie_service: Annotated[MovieService, Depends(get_movie_service)],
-    session_service: Annotated[StudyParticipant, Depends(movie_session_service)],
-    current_participant: Annotated[ParticipantMovieSession, Depends(get_current_participant)],
+    session_service: Annotated[ParticipantMovieSessionService, Depends(movie_session_service)],
+    current_participant: Annotated[StudyParticipant, Depends(get_current_participant)],
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):
@@ -43,12 +41,11 @@ async def get_movies_with_emotions(
 async def get_movies(
     movie_service: Annotated[MovieService, Depends(get_movie_service)],
     session_service: Annotated[ParticipantMovieSessionService, Depends(movie_session_service)],
-    study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
-    participant: Annotated[StudyParticipant, Depends(get_current_participant)],
+    id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):
-    movies_to_fetch = await session_service.get_next_session_movie_ids_batch(participant.id, offset, limit)
+    movies_to_fetch = await session_service.get_next_session_movie_ids_batch(id_token['pid'], offset, limit)
     if movies_to_fetch is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Could not find a valid session.')
     movies = await movie_service.get_movies_from_ids(movies_to_fetch.movies)

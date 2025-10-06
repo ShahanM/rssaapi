@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from auth.authorization import authorize_api_key_for_study, generate_jwt_token_for_payload
 from data.schemas.participant_schemas import ParticpantBaseSchema
-from data.schemas.study_components import StudyStepNavigationSchema, StudyStepSchema
+from data.schemas.study_components import StudyStepNavigationSchema
 from data.services import (
     ParticipantMovieSessionService,
     ParticipantService,
@@ -21,16 +21,25 @@ from data.services.rssa_dependencies import get_participant_service as participa
 from data.services.rssa_dependencies import get_participant_session_service as participant_session_service
 from data.services.rssa_dependencies import get_study_condition_service as condition_service
 from data.services.rssa_dependencies import get_study_step_service as step_service
-from docs.rssa_docs import Tags
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+class ErrorResponse(BaseModel):
+    detail: str
+
+
 router = APIRouter(
     prefix='/studies',
-    tags=[Tags.study],
+    tags=['Studies'],
     dependencies=[Depends(authorize_api_key_for_study)],
+    responses={
+        status.HTTP_403_FORBIDDEN: {
+            'model': ErrorResponse,
+            'description': 'API key missing or invalid (Forbidden)',
+        }
+    },
 )
 
 STEP_TYPE_TO_COMPONENT = {
@@ -74,7 +83,23 @@ class ResumeResponseSchema(BaseModel):
         }
 
 
-@router.get('/{study_id}/steps/first', response_model=StudyStepNavigationSchema)
+@router.get(
+    '/{study_id}/steps/first',
+    status_code=status.HTTP_200_OK,
+    response_model=StudyStepNavigationSchema,
+    summary='Retrieves the first step of the study specified by the {study_id} url param.',
+    description="""This is the first call made by a registered study when a study start is initiated.
+    This is often the consent step. This endpoint expects an API Key to authorize the study, and the only endpoint
+    that does not require a authorization token for the current participant.""",
+    response_description="""Returns the a StudyStep object with the a {next_step} field with the UUID for the next
+    study step.""",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            'model': ErrorResponse,
+            'description': 'No study steps found, it is likely due to an error in the study setup.',
+        }
+    },
+)
 async def get_first_step(
     study_id: uuid.UUID,
     step_service: Annotated[StudyStepService, Depends(step_service)],
@@ -96,7 +121,15 @@ async def get_first_step(
     return StudyStepNavigationSchema.model_validate(study_step_dict)
 
 
-@router.get('/{study_id}/config', response_model=StudyConfigSchema)
+@router.get(
+    '/{study_id}/config',
+    status_code=status.HTTP_200_OK,
+    response_model=StudyConfigSchema,
+    summary='',
+    description='',
+    response_description='',
+    responses={},
+)
 async def export_study_config(
     study_id: uuid.UUID,
     step_service: Annotated[StudyStepService, Depends(step_service)],
@@ -104,7 +137,6 @@ async def export_study_config(
 ):
     steps = await step_service.get_study_steps(study_id)
     conditions = await condition_service.get_study_conditions(study_id)
-    print(steps)
     config = {
         'study_id': study_id,
         'conditions': {con.name: con.id for con in conditions},
@@ -117,12 +149,19 @@ async def export_study_config(
             for step in steps
         ],
     }
-    print(config)
 
     return config
 
 
-@router.post('/{study_id}/new-participant', response_model=dict[str, str])
+@router.post(
+    '/{study_id}/new-participant',
+    status_code=status.HTTP_201_CREATED,
+    response_model=dict[str, str],
+    summary='',
+    description='',
+    response_description='',
+    responses={},
+)
 async def create_new_participant_with_session(
     study_id: uuid.UUID,
     new_participant: ParticpantBaseSchema,
@@ -147,7 +186,15 @@ async def create_new_participant_with_session(
     return {'resume_code': session.resume_code, 'token': jwt_token}
 
 
-@router.post('/{study_id}/resume', response_model=ResumeResponseSchema)
+@router.post(
+    '/{study_id}/resume',
+    status_code=status.HTTP_200_OK,
+    response_model=ResumeResponseSchema,
+    summary='',
+    description='',
+    response_description='',
+    responses={},
+)
 async def resume_study_session(
     payload: ResumePayloadSchema,
     session_service: Annotated[ParticipantSessionService, Depends(participant_session_service)],

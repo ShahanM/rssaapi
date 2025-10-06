@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from data.models.movies import Movie, MovieEmotions, MovieRecommendationText
+from data.models.movies import Movie, MovieEmotions
 from data.repositories.base_repo import BaseRepository
 
 

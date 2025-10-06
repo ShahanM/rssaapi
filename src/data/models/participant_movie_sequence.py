@@ -46,7 +46,6 @@ class ParticipantMovieSession(Base):
 
     participant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)  # UUID PRIMARY KEY
 
-    # Foreign key to the pre_shuffled_movie_lists table
     assigned_list_id: Mapped[int] = mapped_column(
         Integer, ForeignKey('pre_shuffled_movie_lists.list_id'), nullable=False
     )
@@ -59,8 +58,6 @@ class ParticipantMovieSession(Base):
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
-    # Relationship to the PreShuffledMovieList model
-    # Use 'lazy="joined"' or similar if neeed immediate loading
     assigned_list: Mapped[PreShuffledMovieList] = relationship(PreShuffledMovieList, lazy='joined')
 
     def __repr__(self):

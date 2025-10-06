@@ -5,24 +5,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.repositories.api_key_repo import ApiKeyRepository
 from data.repositories.feedback import FeedbackRepository
-from data.repositories.participant_response import (
-    ContentRatingRepository,
+from data.repositories.participant_responses.participant_response import (
     FreeformResponseRepository,
     InteractionLoggingRepository,
+    ParticipantRatingRepository,
+    StudyInteractionResponseRepository,
     SurveyItemResponseRepository,
 )
 from data.rssadb import get_db
 
 from .demographics import DemographicsRepository
-from .page import PageRepository
-from .page_content import PageContentRepository
-from .participant import ParticipantRepository
 from .participant_movie_session import ParticipantMovieSessionRepository
 from .participant_session import ParticipantSessionRepositorty
 from .pre_shuffled_movie_list import PreShuffledMovieRepository
-from .study import StudyRepository
-from .study_condition import StudyConditionRepository
-from .study_step import StudyStepRepository
+from .study_components.page import PageRepository
+from .study_components.page_content import PageContentRepository
+from .study_components.study import StudyRepository
+from .study_components.study_condition import StudyConditionRepository
+from .study_components.study_step import StudyStepRepository
+from .study_participants.participant import ParticipantRepository
+from .study_participants.recommendation_context import ParticipantRecommendationContextRepository
 from .user_repo import UserRepository
 
 
@@ -112,8 +114,8 @@ def get_text_reponse_repository(
 
 def get_content_rating_repository(
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> ContentRatingRepository:
-    return ContentRatingRepository(db)
+) -> ParticipantRatingRepository:
+    return ParticipantRatingRepository(db)
 
 
 def get_interaction_loggin_repository(db: Annotated[AsyncSession, Depends(get_db)]) -> InteractionLoggingRepository:
@@ -122,3 +124,15 @@ def get_interaction_loggin_repository(db: Annotated[AsyncSession, Depends(get_db
 
 def get_feedback_repository(db: Annotated[AsyncSession, Depends(get_db)]) -> FeedbackRepository:
     return FeedbackRepository(db)
+
+
+def get_study_interaction_response_repository(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> StudyInteractionResponseRepository:
+    return StudyInteractionResponseRepository(db)
+
+
+def get_participant_recommendation_context_repository(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ParticipantRecommendationContextRepository:
+    return ParticipantRecommendationContextRepository(db)

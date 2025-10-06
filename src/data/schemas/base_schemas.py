@@ -74,7 +74,7 @@ class BaseOrderedMixin(BaseModel):
 
 
 class OrderedNavigationMixin(BaseOrderedMixin):
-    next: Optional[str] = None
+    next: Optional[uuid.UUID] = None
 
 
 class ReorderPayloadSchema(BaseOrderedMixin, BaseDBMixin):
@@ -94,3 +94,7 @@ class OrderedTextListItem(DisplayNameMixin, ReorderPayloadSchema):
 class UpdatePayloadSchema(BaseModel):
     parent_id: uuid.UUID
     updated_fields: dict[str, Any]
+
+
+class VersionMixin(BaseModel):
+    version: int

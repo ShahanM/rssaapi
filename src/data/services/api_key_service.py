@@ -6,9 +6,10 @@ from async_lru import alru_cache
 from cryptography.fernet import Fernet
 
 from config import get_env_var
-from data.models.study_components import ApiKey, Study
+from data.models.study_components import ApiKey
 from data.repositories import ApiKeyRepository
 from data.schemas.study_components import ApiKeySchema
+from data.utility import sa_obj_to_dict
 
 ENCRYPTION_KEY = get_env_var('RSSA_MASTER_ENCRYPTION_KEY')
 
@@ -48,9 +49,10 @@ class ApiKeyService:
         )
 
         await self.repo.create(new_api_key)
-        new_api_key.plain_text_key = _plain_key
+        api_key_dict = sa_obj_to_dict(new_api_key)
+        api_key_dict['plain_text_key'] = _plain_key
 
-        return ApiKeySchema.model_validate(new_api_key)
+        return ApiKeySchema.model_validate(api_key_dict)
 
     async def _invalidate_keys(self, api_keys: Sequence[ApiKey]) -> None:
         for api_key in api_keys:

@@ -1,19 +1,34 @@
 import uuid
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
-from data.schemas.base_schemas import BaseDBMixin
+from data.schemas.base_schemas import BaseDBMixin, VersionMixin
 
 
-class SurveyItemResponseBaseSchema(BaseModel):
+class ParticipantResponseContextMixin:
+    __abstract__ = True
+    step_id: uuid.UUID
+    step_page_id: Optional[uuid.UUID] = None
+    context_tag: str
+
+
+class SurveyItemResponseBaseSchema(BaseModel, ParticipantResponseContextMixin):
     construct_id: uuid.UUID
     item_id: uuid.UUID
     scale_id: uuid.UUID
     scale_level_id: uuid.UUID
 
 
-class TextResponseBaseSchema(BaseModel):
-    context_tag: str
+class SurveyItemResponseSchema(SurveyItemResponseBaseSchema, VersionMixin, BaseDBMixin):
+    pass
+
+
+class SurveyItemResponseUpdatePayload(BaseDBMixin, VersionMixin):
+    scale_level_id: uuid.UUID
+
+
+class TextResponseBaseSchema(BaseModel, ParticipantResponseContextMixin):
     response_text: str
 
 
@@ -30,15 +45,30 @@ class RatedItemBaseSchema(BaseModel):
     item_id: uuid.UUID
     rating: int
 
-    def __hash__(self):
-        return self.model_dump_json().__hash__()
+
+class RatedItemSchema(RatedItemBaseSchema, VersionMixin, BaseDBMixin):
+    pass
 
 
-class RatedItemSchema(RatedItemBaseSchema, BaseDBMixin):
-    def __hash__(self):
-        return self.model_dump_json().__hash__()
+class ParticipantContentRatingPayload(BaseModel, ParticipantResponseContextMixin):
+    rated_item: RatedItemBaseSchema
 
 
 class MovieLensRatingSchema(BaseModel):
     item_id: str
     rating: int
+
+
+class DynamicPaylaodSchema(BaseModel):
+    experimnet_condition: Optional[str] = None
+    extra: dict[str, Any] = {}
+
+    model_config = {'extra': 'allow'}
+
+
+class StudyInteractionResponseBaseSchema(BaseModel, ParticipantResponseContextMixin):
+    payload_json: DynamicPaylaodSchema
+
+
+class StudyInteractionResponseSchema(VersionMixin, BaseDBMixin):
+    payload_json: DynamicPaylaodSchema

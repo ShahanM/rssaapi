@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 from data.models.study_components import StudyCondition
-from data.repositories.study_condition import StudyConditionRepository
+from data.repositories.study_components.study_condition import StudyConditionRepository
 from data.schemas.study_components import ConditionCountSchema, StudyConditionBaseSchema, StudyConditionSchema
 
 

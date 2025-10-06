@@ -1,23 +1,14 @@
 import uuid
-from typing import Type, TypeVar, Union
+from typing import Optional, Type, TypeVar, Union
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column
 
-from .base_repo import BaseModelWithUUID, BaseRepository
+from data.models.rssa_base_models import DBBaseOrderedModel
 
+from .base_repo import BaseRepository
 
-class OrderedModelMixin:
-    __abstract__ = True
-    order_position: Mapped[int] = mapped_column(nullable=False, index=True)
-
-
-class BaseOrderedModelWithUUID(BaseModelWithUUID, OrderedModelMixin):
-    __abstract__ = True
-
-
-ModelType = TypeVar('ModelType', bound=BaseOrderedModelWithUUID)
+ModelType = TypeVar('ModelType', bound=DBBaseOrderedModel)
 
 
 class BaseOrderedRepository(BaseRepository[ModelType]):
@@ -36,10 +27,8 @@ class BaseOrderedRepository(BaseRepository[ModelType]):
 
         return result.scalars().first()
 
-    async def get_next_ordered_instance(
-        self, current_instance: ModelType, full_entity=False
-    ) -> Union[uuid.UUID, ModelType, None]:
-        query = select(self.model) if full_entity else select(self.model.id)
+    async def get_next_ordered_instance(self, current_instance: ModelType, full_entity=False) -> Optional[ModelType]:
+        query = select(self.model)
         query = (
             query.where(self.parent_id_column == getattr(current_instance, self.parent_id_column_name))
             .where(self.model.order_position > current_instance.order_position)

@@ -11,7 +11,7 @@ from data.services.rssa_dependencies import get_step_page_service as page_servic
 
 router = APIRouter(
     prefix='/pages',
-    tags=['Pages'],
+    tags=['Step pages'],
     dependencies=[Depends(validate_api_key)],
 )
 

@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional, Union
 
-from sqlalchemy import Row, Select, and_, func, or_, select
+from sqlalchemy import Row, Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from data.models.study_components import StudyStep
 
-from .base_ordered_repo import BaseOrderedRepository
+from ..base_ordered_repo import BaseOrderedRepository
 
 
 class StudyStepRepository(BaseOrderedRepository[StudyStep]):

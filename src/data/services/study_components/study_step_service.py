@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 from data.models.study_components import StudyStep
-from data.repositories.study_step import StudyStepRepository
+from data.repositories.study_components.study_step import StudyStepRepository
 from data.schemas.base_schemas import OrderedListItem
 from data.schemas.study_components import StudyStepBaseSchema, StudyStepNavigationSchema, StudyStepSchema
 
@@ -38,7 +38,7 @@ class StudyStepService:
         if not current_step:
             return None
 
-        next_step: StudyStep = await self.repo.get_next_ordered_instance(current_step, full_entity=True)
+        next_step = await self.repo.get_next_ordered_instance(current_step, full_entity=True)
         response_dto = StudyStepNavigationSchema.model_validate(current_step)
 
         if next_step is None:
@@ -58,7 +58,7 @@ class StudyStepService:
     async def get_study_steps(self, study_id: uuid.UUID) -> list[StudyStepSchema]:
         step_objs = await self.repo.get_all_by_field('study_id', study_id)
         if step_objs:
-            return list(step_objs)
+            return [StudyStepSchema.model_validate(step) for step in step_objs]
         return []
 
     async def get_study_steps_as_ordered_list_Items(self, study_id: uuid.UUID) -> list[OrderedListItem]:

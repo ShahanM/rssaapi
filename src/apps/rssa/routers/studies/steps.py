@@ -4,19 +4,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from auth.authorization import authorize_api_key_for_study, validate_api_key
+from auth.authorization import validate_api_key
 from data.schemas.study_components import PageNavigationSchema, StudyStepNavigationSchema
 from data.services import StepPageService, StudyStepService
 from data.services.rssa_dependencies import get_step_page_service as page_service
 from data.services.rssa_dependencies import get_study_step_service as step_service
-from docs.rssa_docs import Tags
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 router = APIRouter(
     prefix='/steps',
-    tags=[Tags.survey],
+    tags=['Study steps'],
     dependencies=[Depends(validate_api_key)],
 )
 
@@ -92,23 +91,3 @@ async def get_first_page_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Step not valid for this study.')
 
     return first_page
-
-
-# @router.get('/{step_id}/pages/{current_page_id}/next', response_model=SurveyPageSchema)
-# async def get_next_page_endpoint(
-# 	current_page_id: uuid.UUID,
-# 	service: Annotated[SurveyService, Depends(survey_service)],
-# 	current_study: Annotated[StudySchema, Depends(get_current_registered_study)],
-# ):
-# 	next_page = await service.get_next_survey_page(current_study.id, current_page_id)
-
-# 	if not next_page:
-# 		raise HTTPException(
-# 			status_code=404, detail='No next page found for this current page or page not found in study/step.'
-# 		)
-
-# 	is_last_page = await service.is_last_page_in_step(next_page)
-# 	page_to_return = SurveyPageSchema.model_validate(next_page)
-# 	page_to_return.last_page = is_last_page
-
-# 	return page_to_return

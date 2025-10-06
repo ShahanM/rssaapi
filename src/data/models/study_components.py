@@ -6,33 +6,29 @@ from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from data.base import RSSADBBase as Base
+from data.models.rssa_base_models import DBBaseModel, DBBaseOrderedModel
 from data.models.survey_constructs import ConstructScale, SurveyConstruct
 
 
-class Study(Base):
+class Study(DBBaseModel):
     __tablename__ = 'studies'
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-    name: Mapped[str] = mapped_column(nullable=False)
-    description: Mapped[Optional[str]] = mapped_column()
-
     # Metadata
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     enabled: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
-    # Foreign keys
+    name: Mapped[str] = mapped_column(nullable=False)
+    description: Mapped[Optional[str]] = mapped_column()
+
     created_by_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'))
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'))
 
-    # Foreign key relationships
     created_by: Mapped['User'] = relationship('User', back_populates='studies_created', foreign_keys=[created_by_id])
     owner: Mapped['User'] = relationship('User', back_populates='studies_owned', foreign_keys=[owner_id])
 
-    # Backlink relationships
     steps: Mapped[list['StudyStep']] = relationship(
         'StudyStep',
         back_populates='study',
@@ -46,22 +42,20 @@ class Study(Base):
     api_keys: Mapped[list['ApiKey']] = relationship('ApiKey', back_populates='study', cascade='all, delete-orphan')
 
 
-class StudyCondition(Base):
+class StudyCondition(DBBaseModel):
     __tablename__ = 'study_conditions'
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-    name: Mapped[str] = mapped_column(nullable=False)
-    description: Mapped[Optional[str]] = mapped_column()
-    recommendation_count: Mapped[int] = mapped_column(default=10)
-
     # Metadata
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     enabled: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
-    # Foreign key
+    name: Mapped[str] = mapped_column(nullable=False)
+    description: Mapped[Optional[str]] = mapped_column()
+    recommendation_count: Mapped[int] = mapped_column(default=10)
+
     study_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('studies.id'), nullable=False)
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id'))
 
@@ -69,10 +63,14 @@ class StudyCondition(Base):
     study: Mapped['Study'] = relationship('Study', back_populates='conditions')
 
 
-class StudyStep(Base):
+class StudyStep(DBBaseOrderedModel):
     __tablename__ = 'study_steps'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    enabled: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     step_type: Mapped[Optional[str]] = mapped_column(nullable=True)
 
@@ -84,13 +82,6 @@ class StudyStep(Base):
 
     path: Mapped[str] = mapped_column()
     survey_api_root: Mapped[Optional[str]] = mapped_column()
-    order_position: Mapped[int] = mapped_column()
-
-    # Metadata
-    enabled: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     # Foreign key
     study_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('studies.id'), nullable=False)
@@ -102,7 +93,6 @@ class StudyStep(Base):
         'Page', back_populates='step', uselist=True, cascade='all, delete-orphan'
     )
 
-    # Constraints
     __table_args__ = (
         UniqueConstraint(
             'study_id',
@@ -114,51 +104,46 @@ class StudyStep(Base):
     )
 
 
-class PageContent(Base):
+class PageContent(DBBaseOrderedModel):
     __tablename__ = 'page_contents'
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-    preamble: Mapped[Optional[str]] = mapped_column()
-
-    order_position: Mapped[int] = mapped_column()
 
     # Metadata
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     enabled: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id'))
 
-    # Foreign keys
+    preamble: Mapped[Optional[str]] = mapped_column()
+
     page_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('step_pages.id'), primary_key=True)
     construct_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey('survey_constructs.id'), primary_key=True
     )
     scale_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('construct_scales.id'), primary_key=True)
-    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id'))
 
-    # Foreign key relationships
     page: Mapped['Page'] = relationship('Page', back_populates='page_contents')
     survey_construct: Mapped['SurveyConstruct'] = relationship('SurveyConstruct', back_populates='page_contents')
     construct_scale: Mapped['ConstructScale'] = relationship('ConstructScale', back_populates='page_contents')
 
 
-class Page(Base):
+class Page(DBBaseOrderedModel):
     __tablename__ = 'step_pages'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    enabled: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     page_type: Mapped[Optional[str]] = mapped_column('page_type', nullable=True)
+
     name: Mapped[str] = mapped_column()
     description: Mapped[Optional[str]] = mapped_column()
 
     title: Mapped[Optional[str]] = mapped_column()
     instructions: Mapped[Optional[str]] = mapped_column()
-    order_position: Mapped[int] = mapped_column()
-
-    enabled: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     created_by_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'))
     study_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('studies.id'), nullable=False)
@@ -170,7 +155,7 @@ class Page(Base):
     )
 
 
-class ApiKey(Base):
+class ApiKey(DBBaseModel):
     __tablename__ = 'api_keys'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -188,7 +173,7 @@ class ApiKey(Base):
     user: Mapped['User'] = relationship('User', back_populates='api_keys')
 
 
-class User(Base):
+class User(DBBaseModel):
     __tablename__ = 'users'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

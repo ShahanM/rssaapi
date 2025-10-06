@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 from data.models.study_components import Study, User
-from data.repositories.study import StudyRepository
+from data.repositories.study_components.study import StudyRepository
 from data.schemas.base_schemas import PreviewSchema
 from data.schemas.study_components import ConditionCountSchema, StudySchema
 from data.utility import sa_obj_to_dict

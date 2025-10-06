@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .base_schemas import BaseDBMixin
 
@@ -43,8 +43,19 @@ class DemographicsBaseSchema(BaseModel):
     gender_other: Optional[str]
     race_other: Optional[str]
 
+    @field_validator('race', mode='before')
+    @classmethod
+    def handle_raw_data(cls, value):
+        if isinstance(value, str):
+            return [race_opt.strip() for race_opt in value.split(';')]
+        return value
+
     def model_dump(self, **kwargs):
         data = super().model_dump(**kwargs)
         data['race'] = ';'.join(self.race)
         del data['participant_id']
         return data
+
+
+class DemographicsSchema(DemographicsBaseSchema, BaseDBMixin):
+    pass

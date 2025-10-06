@@ -7,7 +7,6 @@ from sqlalchemy.orm import selectinload
 
 from data.models.study_components import PageContent
 from data.models.survey_constructs import ConstructScale, SurveyConstruct
-from data.repositories import page
 from data.repositories.base_ordered_repo import BaseOrderedRepository
 
 

@@ -24,7 +24,7 @@ FastAPI App
 """
 app = FastAPI(
     root_path=ROOT_PATH,
-    openapi_tags=tags_metadata,
+    # openapi_tags=tags_metadata,
     title='Recommender Systems for Self Actualization',
     # summary=App_Meta.summary,
     # description=App_Meta.description,

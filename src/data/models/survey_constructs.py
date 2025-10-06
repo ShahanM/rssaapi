@@ -8,9 +8,10 @@ from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from data.base import RSSADBBase as Base
+from data.models.rssa_base_models import DBBaseModel
 
 
-class ConstructItem(Base):
+class ConstructItem(DBBaseModel):
     __tablename__ = 'construct_items'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -30,7 +31,7 @@ class ConstructItem(Base):
     survey_construct: Mapped['SurveyConstruct'] = relationship('SurveyConstruct', back_populates='items')
 
 
-class SurveyConstruct(Base):
+class SurveyConstruct(DBBaseModel):
     __tablename__ = 'survey_constructs'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -55,7 +56,7 @@ class SurveyConstruct(Base):
     )
 
 
-class ConstructScale(Base):
+class ConstructScale(DBBaseModel):
     __tablename__ = 'construct_scales'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -83,7 +84,7 @@ class ConstructScale(Base):
     )
 
 
-class ScaleLevel(Base):
+class ScaleLevel(DBBaseModel):
     __tablename__ = 'scale_levels'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

@@ -7,18 +7,18 @@ from data.repositories import PreShuffledMovieRepository
 
 
 class AdminService:
-	def __init__(self, shuffled_movie_repo: PreShuffledMovieRepository):
-		self.shuffled_movie_repo = shuffled_movie_repo
+    def __init__(self, shuffled_movie_repo: PreShuffledMovieRepository):
+        self.shuffled_movie_repo = shuffled_movie_repo
 
-	async def create_pre_shuffled_movie_list(
-		self,
-		movie_ids: List[uuid.UUID],
-		subset: str,
-		seed: int = 144,
-	) -> None:
-		random.seed = seed
-		random.shuffle(movie_ids)
+    async def create_pre_shuffled_movie_list(
+        self,
+        movie_ids: List[uuid.UUID],
+        subset: str,
+        seed: int = 144,
+    ) -> None:
+        random.seed = seed
+        random.shuffle(movie_ids)
 
-		preshuffled_list = PreShuffledMovieList(movie_ids, subset, seed)
+        preshuffled_list = PreShuffledMovieList(movie_ids, subset, seed)
 
-		await self.shuffled_movie_repo.create(preshuffled_list)
+        await self.shuffled_movie_repo.create(preshuffled_list)

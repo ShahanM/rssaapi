@@ -3,7 +3,7 @@ from typing import Optional
 
 from data.models.study_components import Page
 from data.repositories import PageContentRepository, PageRepository, StudyStepRepository
-from data.schemas.study_components import PageBaseSchema, PageNavigationSchema
+from data.schemas.study_components import PageBaseSchema, PageNavigationSchema, PageSchema
 
 
 class StepPageService:
@@ -34,23 +34,23 @@ class StepPageService:
     async def get_pages_for_step(self, study_step_id: uuid.UUID) -> list[Page]:
         return await self.repo.get_all_by_field('step_id', study_step_id)
 
-    async def get_step_page(self, page_id: uuid.UUID) -> Page:
+    async def get_step_page(self, page_id: uuid.UUID) -> Optional[Page]:
         return await self.repo.get(page_id)
 
-    async def get_page_with_content_detail(self, page_id: uuid.UUID) -> Page:
+    async def get_page_with_content_detail(self, page_id: uuid.UUID) -> Optional[Page]:
         return await self.repo.get_page_with_content_detail(page_id)
 
     async def get_page_with_navigation(self, page_id: uuid.UUID) -> Optional[PageNavigationSchema]:
-        page = await self.get_page_with_content_detail(page_id)
+        page = await self.repo.get_page_with_content_detail(page_id)
         if not page:
             return None
-        next_page_id = await self.repo.get_next_ordered_instance(page)
-        if next_page_id is not None:
-            page.next = next_page_id
-        else:
-            page.next = None
+        next_page = await self.repo.get_next_ordered_instance(page)
+        page_dto = PageSchema.model_validate(page)
+        next_page_id = next_page.id if next_page else None
 
-        return PageNavigationSchema.model_validate(page)
+        final_schema = PageNavigationSchema(**page_dto.model_dump(), next=next_page_id)
+
+        return final_schema
 
     async def get_first_page_with_navitation(self, step_id: uuid.UUID) -> Optional[PageNavigationSchema]:
         page = await self.repo.get_first_ordered_instance(step_id)

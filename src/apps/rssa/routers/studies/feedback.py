@@ -14,7 +14,7 @@ from docs.rssa_docs import Tags
 
 router = APIRouter(
     prefix='/feedbacks',
-    tags=[Tags.feedback],
+    tags=['Feedbacks'],
     dependencies=[Depends(validate_api_key), Depends(get_current_participant)],
 )
 

@@ -3,15 +3,10 @@ from typing import Any, Generic, Optional, Sequence, Type, TypeVar, Union
 
 from sqlalchemy import Select, and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from data.models.rssa_base_models import DBBaseModel
 
-class BaseModelWithUUID(DeclarativeBase):
-    __abstract__ = True
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-
-
-ModelType = TypeVar('ModelType', bound=BaseModelWithUUID)
+ModelType = TypeVar('ModelType', bound=DBBaseModel)
 
 
 class BaseRepository(Generic[ModelType]):

@@ -26,7 +26,6 @@ api_key_secret = APIKeyHeader(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
 SECRET_KEY = get_env_var('RSSA_JWT_SECRET_KEY')
-print('SECRET', SECRET_KEY)
 ALGORITHM = 'HS256'
 
 
@@ -83,6 +82,15 @@ async def get_current_participant(
         raise credentials_exception
 
     return participant
+
+
+async def validate_study_participant(
+    study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
+    participant: Annotated[ParticipantSchema, Depends(get_current_participant)],
+) -> dict[str, uuid.UUID]:
+    if participant.study_id != study_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Permission denied.')
+    return {'sid': study_id, 'pid': participant.id}
 
 
 def generate_jwt_token_for_payload(payload: dict[str, str], algorithm='HS256') -> str:

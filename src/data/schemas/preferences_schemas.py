@@ -1,9 +1,13 @@
 import uuid
+from datetime import datetime
 from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel
 
-from data.schemas.participant_response_schemas import RatedItemSchema
+from data.schemas.base_schemas import BaseDBMixin
+from data.schemas.movie_schemas import MovieDetailSchema, MovieSchema
+from data.schemas.participant_response_schemas import RatedItemBaseSchema, RatedItemSchema
+from data.schemas.study_components import StudyConditionSchema
 
 
 class PrefVizItem(BaseModel):
@@ -116,48 +120,101 @@ class EmotionInputSchemaExperimental(BaseModel):
     diversity_sample_size: Optional[int]
 
 
+# class AdvisorProfileSchema(BaseModel):
+#     likes: str
+#     dislikes: str
+#     most_rated_genre: str
+#     genretopten: str
+#     genre_with_least_rating: str
+
+
+# class AdvisorSchema(BaseModel):
+#     id: int
+#     movie_id: int
+#     name: str
+#     year: int
+#     ave_rating: float
+#     genre: str
+#     director: Optional[str]
+#     cast: str
+#     description: str
+#     poster: str
+#     poster_identifier: Optional[str]
+#     profile: Optional[AdvisorProfileSchema]
+#     status: Literal['Pending', 'Accepted', 'Rejected']
+
+#     class Config:
+#         from_attributes = True
+
+
+# class AdvisorSchemaTemp(BaseModel):
+#     id: int
+#     name: str
+#     advice_preview: str
+#     advice: str
+#     profile: AdvisorProfileSchema
+#     rating: int
+#     status: Literal['Pending', 'Accepted', 'Rejected']
+
+
+# class PrefCommRatingSchema(BaseModel):
+#     user_id: str
+#     ratings: List[RatedItemSchema]
+#     user_condition: str
+#     num_rec: int = 10
+
+#     class Config:
+#         from_attributes = True
+
+
+class RecommendationRequestPayload(BaseModel):
+    step_id: uuid.UUID
+    step_page_id: Optional[uuid.UUID] = None
+    context_tag: str
+    rec_type: Literal['baseline', 'reference', 'diverse']
+
+    ratings: list[RatedItemBaseSchema]
+
+
+class Avatar(BaseModel):
+    name: str
+    alt: str
+    src: str
+
+
 class AdvisorProfileSchema(BaseModel):
-    likes: str
-    dislikes: str
-    most_rated_genre: str
-    genretopten: str
-    genre_with_least_rating: str
-
-
-class AdvisorSchema(BaseModel):
-    id: int
-    movie_id: int
-    name: str
-    year: int
-    ave_rating: float
-    genre: str
-    director: Optional[str]
-    cast: str
-    description: str
-    poster: str
-    poster_identifier: Optional[str]
-    profile: Optional[AdvisorProfileSchema]
-    status: Literal['Pending', 'Accepted', 'Rejected']
+    id: str
+    movies: List[MovieSchema]
+    recommendation: MovieDetailSchema
+    avatar: Optional[Avatar]
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            uuid.UUID: lambda v: str(v),
+            datetime: lambda v: v.isoformat(),
+        }
 
 
-class AdvisorSchemaTemp(BaseModel):
-    id: int
-    name: str
-    advice_preview: str
-    advice: str
-    profile: AdvisorProfileSchema
-    rating: int
-    status: Literal['Pending', 'Accepted', 'Rejected']
-
-
-class PrefCommRatingSchema(BaseModel):
-    user_id: str
-    ratings: List[RatedItemSchema]
-    user_condition: str
-    num_rec: int = 10
+class RecommendationJsonSchema(BaseModel):
+    condition: Optional[StudyConditionSchema] = None
+    advisors: list[AdvisorProfileSchema]
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            uuid.UUID: lambda v: str(v),
+            datetime: lambda v: v.isoformat(),
+        }
+
+
+class RecommendationContextBaseSchema(BaseModel):
+    step_id: uuid.UUID
+    step_page_id: Optional[uuid.UUID] = None
+    context_tag: str
+
+    recommendations_json: RecommendationJsonSchema
+
+
+class RecommendationContextSchema(RecommendationContextBaseSchema, BaseDBMixin):
+    pass

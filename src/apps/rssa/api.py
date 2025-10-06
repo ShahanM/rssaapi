@@ -4,14 +4,11 @@ from datetime import datetime
 
 from fastapi import FastAPI
 
-from docs.rssa_docs import tags_metadata
 from logging_config import configure_logging
-from middlewares.access_logger import (
-    APIAccessLogMiddleware,
-)
 
 from .routers.recommendations import alt_algo, iers, pref_comm, pref_viz
-from .routers.studies import feedback, movies, pages, participant, participant_response, steps, studies
+from .routers.studies import feedback, movies, pages, participant, steps, studies
+from .routers.studies.participant_responses import participant_responses
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -26,7 +23,7 @@ api = FastAPI(
 		The API is used to manage the study, the participants, the movie metadata, and
 		the specific recommendations for each of the studies.
 		""",
-    openapi_tags=tags_metadata,
+    # openapi_tags=tags_metadata,
     version='2.0.0',
     state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
     security=[{'Study ID': []}],
@@ -53,7 +50,4 @@ api.include_router(alt_algo.router)
 api.include_router(pref_viz.router)
 api.include_router(iers.router)
 api.include_router(pref_comm.router)
-api.include_router(participant_response.router)
-
-
-# api.add_middleware(APIAccessLogMiddleware)
+api.include_router(participant_responses.router)

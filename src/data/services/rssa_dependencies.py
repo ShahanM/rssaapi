@@ -3,13 +3,12 @@ from typing import Annotated
 from fastapi import Depends
 
 from data.repositories import (
-    ContentRatingRepository,
     DemographicsRepository,
     FreeformResponseRepository,
-    InteractionLoggingRepository,
     PageContentRepository,
     PageRepository,
     ParticipantMovieSessionRepository,
+    ParticipantRatingRepository,
     ParticipantRepository,
     PreShuffledMovieRepository,
     StudyConditionRepository,
@@ -20,26 +19,29 @@ from data.repositories import (
 )
 from data.repositories.api_key_repo import ApiKeyRepository
 from data.repositories.feedback import FeedbackRepository
+from data.repositories.participant_responses.participant_response import StudyInteractionResponseRepository
 from data.repositories.participant_session import ParticipantSessionRepositorty
 from data.repositories.rssa_dependencies import (
     get_api_key_repository,
     get_content_rating_repository,
     get_demographics_repository,
     get_feedback_repository,
-    get_interaction_loggin_repository,
     get_item_response_repository,
     get_page_content_repository,
     get_page_repository,
     get_participant_movie_session_repository,
+    get_participant_recommendation_context_repository,
     get_participant_repository,
     get_participant_session_repository,
     get_pre_shuffled_movie_repository,
     get_study_condition_repository,
+    get_study_interaction_response_repository,
     get_study_repository,
     get_study_step_repository,
     get_text_reponse_repository,
     get_user_repository,
 )
+from data.repositories.study_participants.recommendation_context import ParticipantRecommendationContextRepository
 from data.services.api_key_service import ApiKeyService
 from data.services.feedback_service import FeedbackService
 from data.services.response_service import ParticipantResponseService
@@ -49,10 +51,10 @@ from .page_content_service import PageContentService
 from .participant_movie_sessions import ParticipantMovieSessionService
 from .participant_service import ParticipantService
 from .participant_session import ParticipantSessionService
-from .step_page_service import StepPageService
-from .study_condition_service import StudyConditionService
-from .study_service import StudyService
-from .study_step_service import StudyStepService
+from .study_components.step_page_service import StepPageService
+from .study_components.study_condition_service import StudyConditionService
+from .study_components.study_service import StudyService
+from .study_components.study_step_service import StudyStepService
 from .survey_service import SurveyService
 from .users import UserService
 
@@ -76,8 +78,11 @@ def get_participant_service(
     participant_repo: Annotated[ParticipantRepository, Depends(get_participant_repository)],
     study_condition_repo: Annotated[StudyConditionRepository, Depends(get_study_condition_repository)],
     demographics_repo: Annotated[DemographicsRepository, Depends(get_demographics_repository)],
+    recommendation_context_repo: Annotated[
+        ParticipantRecommendationContextRepository, Depends(get_participant_recommendation_context_repository)
+    ],
 ) -> ParticipantService:
-    return ParticipantService(participant_repo, study_condition_repo, demographics_repo)
+    return ParticipantService(participant_repo, study_condition_repo, demographics_repo, recommendation_context_repo)
 
 
 def get_survey_service(
@@ -141,10 +146,10 @@ def get_api_key_service(
 def get_response_service(
     item_repo: Annotated[SurveyItemResponseRepository, Depends(get_item_response_repository)],
     text_repo: Annotated[FreeformResponseRepository, Depends(get_text_reponse_repository)],
-    rating_repo: Annotated[ContentRatingRepository, Depends(get_content_rating_repository)],
-    logging_repo: Annotated[InteractionLoggingRepository, Depends(get_interaction_loggin_repository)],
+    rating_repo: Annotated[ParticipantRatingRepository, Depends(get_content_rating_repository)],
+    interaction_repo: Annotated[StudyInteractionResponseRepository, Depends(get_study_interaction_response_repository)],
 ) -> ParticipantResponseService:
-    return ParticipantResponseService(item_repo, text_repo, rating_repo, logging_repo)
+    return ParticipantResponseService(item_repo, text_repo, rating_repo, interaction_repo)
 
 
 def get_feedback_service(
