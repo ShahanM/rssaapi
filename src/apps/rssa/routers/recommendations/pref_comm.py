@@ -116,7 +116,7 @@ async def get_advisor(
         MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
-    recs = rssa_pref_comm.get_advisors_with_profile(ratings_with_movielens_ids, str(participant.id), num_rec=7)
+    recs = rssa_pref_comm.get_advisors_with_profile(ratings_with_movielens_ids, num_rec=7)
 
     avatar_pool = list(AVATARS.keys())
     shuffle(avatar_pool)

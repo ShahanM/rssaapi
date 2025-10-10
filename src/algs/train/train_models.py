@@ -605,16 +605,27 @@ if __name__ == '__main__':
     # --ave_item_score
 
     # alt algo
-    # python algs/train/train_models.py \
-    # -d ~/zugzug/data/movies/ml-32m/ratings.csv \
-    # -o algs/models/ml32m/ \
-    # -a implicit \
-    # --item_popularity \
-    # --ave_item_score \
-    # --cluster_index \
-    # --resample_count 20
+    """
+    python algs/train/train_models.py \
+    -d ~/zugzug/data/movies/ml-32m/ratings.csv \
+    -o algs/models/ml32m/ \
+    -a implicit \
+    --item_popularity \
+    --ave_item_score \
+    --cluster_index \
+    --resample_count 20
+    """
 
     # pref viz
     # --algo 'biased'
     # --item_popularity
     # --ave_item_score
+    """
+    python algs/train/train_models.py \
+    -d ~/zugzug/data/movies/ml-32m/ratings.csv \
+    -o algs/models/ml32m-biased/ \
+    -a biased \
+    --item_popularity \
+    --ave_item_score \
+    --cluster_index
+    """
