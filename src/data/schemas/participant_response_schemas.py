@@ -55,7 +55,7 @@ class ParticipantContentRatingPayload(BaseModel, ParticipantResponseContextMixin
 
 
 class MovieLensRatingSchema(BaseModel):
-    item_id: str
+    item_id: int
     rating: int
 
 

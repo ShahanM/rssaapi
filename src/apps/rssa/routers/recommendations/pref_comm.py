@@ -1,13 +1,14 @@
 import uuid
 from random import shuffle
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, Literal
 
+import pandas as pd
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Json
+from pydantic import BaseModel
 
 from auth.authorization import get_current_participant, validate_api_key
 from compute.rspc import PreferenceCommunity
-from compute.utils import get_rating_data_path, get_rssa_ers_data, get_rssa_model_path
+from compute.utils import get_rating_data_path
 from data.models.study_participants import StudyParticipant
 from data.schemas.movie_schemas import MovieSchema
 from data.schemas.participant_response_schemas import MovieLensRatingSchema, RatedItemBaseSchema
@@ -100,23 +101,14 @@ async def get_advisor(
 
     if rec_ctx:
         return {adv.id: adv for adv in rec_ctx.recommendations_json.advisors}
-
-    # sorted_ratings = sorted(payload.ratings, key=lambda x: x.item_id)
     condition = await condition_service.get_study_condition(participant.condition_id)
 
-    # cache_key = (
-    #     participant.id,
-    #     tuple(sorted_ratings),
-    #     participant.condition_id,
-    #     study_id,
-    # )
-    # if cache_key in CACHE:
-    #     print('Found request in cache. Returning cached response.')
-    #     return CACHE[cache_key]
-
-    rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
-    rssa_model_path = get_rssa_model_path()
-    rssa_pref_comm = PreferenceCommunity(rssa_model_path, rssa_itm_pop, rssa_ave_scores, get_rating_data_path())
+    rssa_pref_comm = PreferenceCommunity(
+        'algs/models/ml32m/',
+        pd.read_csv('algs/models/ml32m/item_popularity.csv'),
+        pd.read_csv('algs/models/ml32m/averaged_item_score.csv'),
+        get_rating_data_path(),
+    )
 
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
@@ -124,7 +116,6 @@ async def get_advisor(
         MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
-
     recs = rssa_pref_comm.get_advisors_with_profile(ratings_with_movielens_ids, str(participant.id), num_rec=7)
 
     avatar_pool = list(AVATARS.keys())
@@ -150,11 +141,5 @@ async def get_advisor(
     recommendation_context = await participant_service.create_recommendation_context(
         study_id, participant.id, rec_ctx_create_req
     )
-
-    # if len(queue) >= CACHE_LIMIT:
-    #     old_key = queue.pop(0)
-    #     del CACHE[old_key]
-    # CACHE[cache_key] = advisors
-    # queue.append(cache_key)
 
     return advisors

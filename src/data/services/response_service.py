@@ -201,11 +201,9 @@ class ParticipantResponseService:
         return await self.rating_repo.update_response(rating_id, update_dict, client_version)
 
     async def get_ratings_for_participants(
-        self, step_id: uuid.UUID, study_id: uuid.UUID, participant_id: uuid.UUID
+        self, study_id: uuid.UUID, participant_id: uuid.UUID
     ) -> list[RatedItemSchema]:
-        ratings = await self.rating_repo.get_all_by_fields(
-            [('step_id', step_id), ('participant_id', participant_id), ('study_id', study_id)]
-        )
+        ratings = await self.rating_repo.get_all_by_fields([('participant_id', participant_id), ('study_id', study_id)])
         if not ratings:
             return []
 

@@ -62,16 +62,16 @@ async def update_content_rating(
 
 
 @ratings_router.get(
-    '/{step_id}',  # FIXME: This should be page_id but currently we do not support pages for non-survey steps
+    '/',  # FIXME: This should be page_id but currently we do not support pages for non-survey steps
     response_model=list[RatedItemSchema],
     summary='',
     description='',
     response_description='',
 )
 async def get_user_ratings(
-    step_id: uuid.UUID,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     service: Annotated[ParticipantResponseService, Depends(response_service)],
 ):
-    ratings = await service.get_ratings_for_participants(step_id, id_token['sid'], id_token['pid'])
+    ratings = await service.get_ratings_for_participants(id_token['sid'], id_token['pid'])
+    print(ratings)
     return ratings
