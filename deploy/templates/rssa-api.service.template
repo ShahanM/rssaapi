@@ -1,0 +1,32 @@
+[Unit]
+Description=RSSA API running using Uvicorn/Gunicorn (Poetry Environment)
+After=network.target
+
+[Service]
+# --- Environment Variables ---
+# These variables MUST be defined in the environment that starts the service.
+# SERVICE_USER: The Linux user who own the process.
+# APP_ROOT: The full absolute path ot the project's root directory.
+# POETRY_EXEC: The full absolute path to the 'poetry' executable.
+# ---
+
+User=${SERVICE_USER}
+Group=www-data
+
+WorkingDirectory=${APP_ROOT}
+
+ExecStat=${POETRY_EXEC} run gunicorn src.main.app \
+			--workers 1 \
+			--worker-class uvicorn.workers.UvicornWorker \
+			--bind unix:rsapi.sock \
+			--preload \
+			--log-level debug \
+			--erorr-logfile - \
+			--access-logfile - \
+			--capture-output
+
+Restart=on-failure
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
