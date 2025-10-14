@@ -14,7 +14,8 @@ from .core.config import ROOT_PATH, configure_logging
 from .middlewares.bad_request_logging import BadRequestLoggingMiddleware
 from .middlewares.infostats import RequestHandlingStatsMiddleware
 from .middlewares.logging import LoggingMiddleware
-from .services.recommenders.service_manager import init_recommender_services
+
+# from .services.recommenders.service_manager import init_recommender_services
 
 configure_logging()
 log = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ log = logging.getLogger(__name__)
 #     yield
 #     await clear_singleton_services()
 
-init_recommender_services()
+# init_recommender_services()
 """
 FastAPI App
 """

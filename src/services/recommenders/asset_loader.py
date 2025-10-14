@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import cast
 
 import binpickle
@@ -77,16 +78,43 @@ class ModelAssetBundle:
 
 
 # Cache: Maps model directory paths (str) to loaded AssetBundle instances
-_ASSET_CACHE: dict[str, ModelAssetBundle] = {}
+# _ASSET_CACHE: dict[str, ModelAssetBundle] = {}
 
 
-def load_or_get_asset_bundle(model_path: str) -> ModelAssetBundle:
-    """Ensures a full set of assets is loaded exactly once per unique path."""
-    if model_path in _ASSET_CACHE:
-        print(f'INFO: Asset bundle retrieved from cache: {model_path}')
-        return _ASSET_CACHE[model_path]
+# def load_or_get_asset_bundle(model_path: str) -> ModelAssetBundle:
+#     """Ensures a full set of assets is loaded exactly once per unique path."""
+#     if model_path in _ASSET_CACHE:
+#         print(f'INFO: Asset bundle retrieved from cache: {model_path}')
+#         return _ASSET_CACHE[model_path]
 
-    print(f'INFO: Loading new asset bundle (Pipeline, Annoy, History) from: {model_path}')
-    bundle = ModelAssetBundle(model_path)
-    _ASSET_CACHE[model_path] = bundle
-    return bundle
+#     print(f'INFO: Loading new asset bundle (Pipeline, Annoy, History) from: {model_path}')
+#     bundle = ModelAssetBundle(model_path)
+#     _ASSET_CACHE[model_path] = bundle
+#     return bundle
+
+
+@lru_cache(maxsize=16)  # Cache up to 16 unique model bundles in memory
+def load_and_cache_asset_bundle(model_path: str) -> ModelAssetBundle:
+    """
+    Loads all heavy assets (Pipeline, Annoy, History Map) for a given model_path.
+
+    The result is cached in memory using LRU, ensuring the heavy I/O only
+    occurs once per unique file path per worker process lifetime.
+    """
+    print(f'INFO: CACHE MISS. Loading heavy bundle from disk for: {model_path}')
+
+    # The ModelAssetBundle.__init__ contains all the binpickle.load, Annoy.load, etc.
+    # We assume ModelAssetBundle.__init__ is synchronous and handles the disk I/O.
+    return ModelAssetBundle(model_path)
+
+
+# --- The Dependency Function (The Final Injector) ---
+
+
+def get_asset_bundle_dependency(model_path: str) -> ModelAssetBundle:
+    """
+    Dependency function that looks up the Asset Bundle instance.
+    The bundle is loaded lazily and retrieved from cache on subsequent calls.
+    """
+    # Call the cached function with the unique file
+    return load_and_cache_asset_bundle(model_path)
