@@ -4,9 +4,9 @@ from datetime import datetime
 
 from fastapi import FastAPI
 
-from docs.admin_docs import tags_metadata
-from middlewares.access_logger import DashboardAccessLogMiddleware
+from src.docs.admin_docs import tags_metadata
 
+# from src.middlewares.access_logger import DashboardAccessLogMiddleware
 from .routers import construct_items as items_admin
 from .routers import construct_scales as scales_admin
 from .routers import movies as movie_admin

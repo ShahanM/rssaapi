@@ -4,13 +4,12 @@ from datetime import datetime
 
 from fastapi import FastAPI
 
-from core.config import configure_logging
-
+# from core.config import configure_logging
 from .routers import feedback, movies, pages, participant, recommendations, steps, studies
 from .routers.participant_responses import participant_responses
 
-configure_logging()
-logger = logging.getLogger(__name__)
+# configure_logging()
+# logger = logging.getLogger(__name__)
 
 """
 RSSA public API endpoints

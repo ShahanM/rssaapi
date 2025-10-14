@@ -1,14 +1,15 @@
-import logging
+# import logging
 import uuid
 from datetime import datetime
 
 from fastapi import FastAPI
 
-from apps.demo.routers import movies, recommendations
-from core.config import configure_logging
+from .routers import movies, recommendations
 
-configure_logging()
-logger = logging.getLogger(__name__)
+# from core.config import configure_logging
+
+# configure_logging()
+# logger = logging.getLogger(__name__)
 
 """
 RSSA public API endpoints
