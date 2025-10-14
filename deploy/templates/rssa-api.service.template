@@ -15,7 +15,7 @@ Group=www-data
 
 WorkingDirectory=${APP_ROOT}
 
-ExecStat=${POETRY_EXEC} run gunicorn src.main.app \
+ExecStart=${POETRY_EXEC} run gunicorn src.main:app \
 			--workers 1 \
 			--worker-class uvicorn.workers.UvicornWorker \
 			--bind unix:rsapi.sock \
