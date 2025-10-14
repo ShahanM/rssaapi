@@ -12,7 +12,7 @@ Created Date: Saturday, 11th October 2025
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Saturday, 11th October 2025 4:26:56 pm
+Last Modified: Sunday, 12th October 2025 12:48:12 am
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -72,7 +72,7 @@ def setup_logging(output_dir: str):
     log.info('Logging configured successfully. Output directed to console and file.')
 
 
-cachedir = './joblib_cache'
+cachedir = '.cache'
 if not os.path.exists(cachedir):
     os.makedirs(cachedir)
 memory = Memory(cachedir, verbose=1)
