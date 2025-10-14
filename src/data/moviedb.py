@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-import config as cfg
+import core.config as cfg
 
 dbuser = cfg.get_env_var('DB_USER')
 dbpass = cfg.get_env_var('DB_PASSWORD')
@@ -14,22 +14,22 @@ AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=a
 
 
 class MovieDatabase:
-	async def __aenter__(self):
-		self.session = AsyncSessionLocal()
-		return self.session
+    async def __aenter__(self):
+        self.session = AsyncSessionLocal()
+        return self.session
 
-	async def __aexit__(self, exc_type, exc_val, exc_tb):
-		await self.session.commit()
-		await self.session.close()
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.session.commit()
+        await self.session.close()
 
 
 async def get_db():
-	session = AsyncSessionLocal()
-	try:
-		yield session
-		await session.commit()
-	except Exception as e:
-		await session.rollback()
-		raise e
-	finally:
-		await session.close()
+    session = AsyncSessionLocal()
+    try:
+        yield session
+        await session.commit()
+    except Exception as e:
+        await session.rollback()
+        raise e
+    finally:
+        await session.close()

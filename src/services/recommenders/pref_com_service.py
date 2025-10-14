@@ -6,7 +6,7 @@ Created Date: Tuesday, 26th August 2025
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Friday, 10th October 2025 11:06:04 am
+Last Modified: Tuesday, 14th October 2025 1:16:26 am
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -14,19 +14,18 @@ License: MIT License (See LICENSE.md)
 # SPDX-License-Identifier: MIT License
 """
 
-import numpy as np
 from lenskit import score
 from lenskit.data import RecQuery
 
 from data.schemas.participant_response_schemas import MovieLensRatingSchema
+from services.recommenders.asset_loader import ModelAssetBundle
 
-from .common import RSSABase, get_user_feature_vector
+from .mf_base import RSSABase
 
 
 class PreferenceCommunity(RSSABase):
-    def __init__(self, model_path: str, item_popularity, ave_item_score, data_path: str):
-        super().__init__(model_path, item_popularity, ave_item_score)
-        self.data_path = data_path
+    def __init__(self, asset_bundle: ModelAssetBundle):
+        super().__init__(asset_bundle)
 
     def get_advisors_with_profile(self, ratings: list[MovieLensRatingSchema], num_rec=10) -> dict:
         """
@@ -40,7 +39,7 @@ class PreferenceCommunity(RSSABase):
         Returns:
             dict: A dictionary mapping advisor UUIDs to their profile and unique recommendation.
         """
-        user_features = get_user_feature_vector(self.pipeline, ratings)
+        user_features = self.get_user_feature_vector(ratings)
 
         search_space_k = 200
         all_neighbors_ids = self._find_nearest_neighbors_annoy(

@@ -5,7 +5,7 @@ from typing import Optional, Sequence
 from async_lru import alru_cache
 from cryptography.fernet import Fernet
 
-from config import get_env_var
+from core.config import get_env_var
 from data.models.study_components import ApiKey
 from data.repositories import ApiKeyRepository
 from data.schemas.study_components import ApiKeySchema

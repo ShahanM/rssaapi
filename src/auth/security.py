@@ -7,12 +7,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
 from jose.exceptions import JWTClaimsError, JWTError
 
+from core.config import AUTH0_ALGORITHMS, AUTH0_API_AUDIENCE, AUTH0_ISSUER_URL, AUTH0_JWKS_URL
 from data.models.study_components import User
 from data.schemas import Auth0UserSchema
 from data.services import UserService
 from data.services.rssa_dependencies import get_user_service as user_service
-
-from . import config as cfg
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -22,7 +21,7 @@ async def get_jwks_cached():
     """Fetches and caches Auth0 JWKS."""
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(cfg.AUTH0_JWKS_URL)
+            response = await client.get(AUTH0_JWKS_URL)
             response.raise_for_status()
             return response.json()
         except httpx.RequestError as e:
@@ -45,9 +44,9 @@ async def validate_auth0_token(token: str) -> Auth0UserSchema:
         payload = jwt.decode(
             token,
             rsa_key,
-            algorithms=cfg.AUTH0_ALGORITHMS,
-            audience=cfg.AUTH0_API_AUDIENCE,
-            issuer=cfg.AUTH0_ISSUER_URL,
+            algorithms=AUTH0_ALGORITHMS,
+            audience=AUTH0_API_AUDIENCE,
+            issuer=AUTH0_ISSUER_URL,
         )
         return Auth0UserSchema(**payload)
     except (JWTError, JWTClaimsError) as e:

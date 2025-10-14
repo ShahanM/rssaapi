@@ -5,17 +5,24 @@ import httpx
 from async_lru import alru_cache
 from fastapi import HTTPException, status
 
-from . import config as cfg
+from core.config import (
+    AUTH0_API_AUDIENCE,
+    AUTH0_CLIENT_ID,
+    AUTH0_CLIENT_SECRET,
+    AUTH0_DOMAIN,
+    AUTH0_MANAGEMENT_API_AUDIENCE,
+    RESOURCE_SERVER_URL,
+)
 
 
 @alru_cache(ttl=3600)
 async def get_management_api_token() -> str:
     """Fetches and caches the Auth0 Management API token."""
-    url = f'https://{cfg.AUTH0_DOMAIN}/oauth/token'
+    url = f'https://{AUTH0_DOMAIN}/oauth/token'
     payload = {
-        'client_id': cfg.AUTH0_CLIENT_ID,
-        'client_secret': cfg.AUTH0_CLIENT_SECRET,
-        'audience': cfg.AUTH0_MANAGEMENT_API_AUDIENCE,
+        'client_id': AUTH0_CLIENT_ID,
+        'client_secret': AUTH0_CLIENT_SECRET,
+        'audience': AUTH0_MANAGEMENT_API_AUDIENCE,
         'grant_type': 'client_credentials',
     }
     async with httpx.AsyncClient() as client:
@@ -40,7 +47,7 @@ async def get_resource_server_scopes() -> list[dict]:
     headers = {'Authorization': f'Bearer {token}'}
     async with httpx.AsyncClient(headers=headers) as client:
         try:
-            response = await client.get(cfg.RESOURCE_SERVER_URL)
+            response = await client.get(RESOURCE_SERVER_URL)
             response.raise_for_status()
             return response.json().get('scopes', [])
         except httpx.HTTPStatusError as e:
@@ -95,7 +102,7 @@ async def create_permission_scope(permission_name: str, permission_description: 
 
     async with client:
         try:
-            response = await client.patch(cfg.RESOURCE_SERVER_URL, json=payload)
+            response = await client.patch(RESOURCE_SERVER_URL, json=payload)
             response.raise_for_status()
             response_json = response.json()
             return response_json.get('scopes', [])
@@ -133,7 +140,7 @@ async def delete_permission_scope(permission_name: str) -> list[dict]:
 
     async with client:
         try:
-            response = await client.patch(cfg.RESOURCE_SERVER_URL, json=payload)
+            response = await client.patch(RESOURCE_SERVER_URL, json=payload)
             response.raise_for_status()
             response_json = response.json()
             return response_json.get('scopes', [])
@@ -167,13 +174,13 @@ async def assign_permission_to_user(user_id: str, permission_name: str):
             _type_: _description_
     """
     token = await get_management_api_token()
-    url = f'https://{cfg.AUTH0_DOMAIN}/api/v2/users/{user_id}/permissions'
+    url = f'https://{AUTH0_DOMAIN}/api/v2/users/{user_id}/permissions'
     headers = {'Authorization': f'Bearer {token}', 'content-type': 'application/json'}
     payload = {
         'permissions': [
             {
                 'permission_name': permission_name,
-                'resource_server_identifier': cfg.AUTH0_API_AUDIENCE,
+                'resource_server_identifier': AUTH0_API_AUDIENCE,
             }
         ]
     }
@@ -220,7 +227,7 @@ async def get_user_profile_by_id(user_id: str) -> Optional[dict]:
     token = await get_management_api_token()
     print('I GOT MY TOKEN')
     headers = {'Authorization': f'Bearer {token}'}
-    url = f'https://{cfg.AUTH0_DOMAIN}/api/v2/users/{user_id}'
+    url = f'https://{AUTH0_DOMAIN}/api/v2/users/{user_id}'
 
     async with httpx.AsyncClient(headers=headers) as client:
         try:
@@ -269,7 +276,7 @@ async def search_users(search_query: Optional[str] = None, page: int = 0, per_pa
     if search_query:
         params['q'] = search_query
 
-    url = f'https://{cfg.AUTH0_DOMAIN}/api/v2/users'
+    url = f'https://{AUTH0_DOMAIN}/api/v2/users'
 
     async with httpx.AsyncClient(headers=headers) as client:
         try:

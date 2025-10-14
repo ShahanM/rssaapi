@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-import config as cfg
+import core.config as cfg
 
 dbuser = cfg.get_env_var('DB_USER')
 dbpass = cfg.get_env_var('DB_PASSWORD')

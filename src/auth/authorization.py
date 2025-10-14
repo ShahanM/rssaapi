@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, Path, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from jose import JWTError, jwt
 
-from config import get_env_var
+from core.config import get_env_var
 from data.schemas.participant_schemas import ParticipantSchema
 from data.services import ApiKeyService, ParticipantService
 from data.services.rssa_dependencies import get_api_key_service as key_service
