@@ -2,32 +2,21 @@ import uuid
 from random import shuffle
 from typing import Annotated, Literal
 
-import pandas as pd
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from auth.authorization import get_current_participant, validate_api_key
-from compute.rspc import PreferenceCommunity
-from compute.utils import get_rating_data_path
-from data.models.study_participants import StudyParticipant
 from data.schemas.movie_schemas import MovieSchema
 from data.schemas.participant_response_schemas import MovieLensRatingSchema, RatedItemBaseSchema
 from data.schemas.preferences_schemas import (
     AdvisorProfileSchema,
     Avatar,
-    RecommendationContextBaseSchema,
-    RecommendationJsonSchema,
-    RecommendationRequestPayload,
 )
-from data.services import MovieService, ParticipantService, StudyConditionService
+from data.services import MovieService
 from data.services.content_dependencies import get_movie_service as movie_service
-from data.services.rssa_dependencies import (
-    get_participant_service as participant_service,
-)
-from data.services.rssa_dependencies import (
-    get_study_condition_service as study_condition_service,
-)
 from docs.metadata import RSTagsEnum as Tags
+from services.recommenders.alt_rec_service import AlternateRS
+from services.recommenders.pref_com_service import PreferenceCommunity
+from services.recommenders.service_manager import get_altrec_service, get_prefcom_service
 
 router = APIRouter(
     prefix='/recommendations',
@@ -42,10 +31,12 @@ class AdvisorIDSchema(BaseModel):
     advisor_id: int
 
 
-class TempRequestSchema(BaseModel):
+class RecommendationRequestPayload(BaseModel):
+    context_tag: str
     ratings: list[RatedItemBaseSchema]
-    rec_type: Literal['baseline', 'reference', 'diverse']
 
+
+CONDITIONS_MAP = {'topN': 0, 'controversial': 1, 'hate': 2, 'hip': 3, 'noclue': 4}
 
 AVATARS = {
     'cow': {
@@ -89,27 +80,9 @@ AVATARS = {
 @router.post('/prefcomm', response_model=dict[str, AdvisorProfileSchema])
 async def get_advisor(
     payload: RecommendationRequestPayload,
-    study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
-    participant: Annotated[StudyParticipant, Depends(get_current_participant)],
     movie_service: Annotated[MovieService, Depends(movie_service)],
-    condition_service: Annotated[StudyConditionService, Depends(study_condition_service)],
-    participant_service: Annotated[ParticipantService, Depends(participant_service)],
+    rssa_pref_comm: Annotated[PreferenceCommunity, Depends(get_prefcom_service)],
 ):
-    rec_ctx = await participant_service.get_recommndation_context_by_participant_context(
-        study_id, participant.id, payload.context_tag
-    )
-
-    if rec_ctx:
-        return {adv.id: adv for adv in rec_ctx.recommendations_json.advisors}
-    condition = await condition_service.get_study_condition(participant.condition_id)
-
-    rssa_pref_comm = PreferenceCommunity(
-        'algs/models/ml32m/',
-        pd.read_csv('algs/models/ml32m/item_popularity.csv'),
-        pd.read_csv('algs/models/ml32m/averaged_item_score.csv'),
-        get_rating_data_path(),
-    )
-
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
     ratings_with_movielens_ids = [
@@ -132,14 +105,25 @@ async def get_advisor(
             id=str(adv), movies=validated_movies, recommendation=recommendation, avatar=avatar
         )
         advisors[str(adv)] = advprofile
-    rec_ctx_create_req = RecommendationContextBaseSchema(
-        step_id=payload.step_id,
-        step_page_id=payload.step_page_id,
-        context_tag=payload.context_tag,
-        recommendations_json=RecommendationJsonSchema(condition=condition, advisors=list(advisors.values())),
-    )
-    recommendation_context = await participant_service.create_recommendation_context(
-        study_id, participant.id, rec_ctx_create_req
-    )
-
     return advisors
+
+
+@router.post('/altrecs', response_model=list[MovieSchema])
+async def get_alt_recs(
+    payload: RecommendationRequestPayload,
+    movie_service: Annotated[MovieService, Depends(movie_service)],
+    rssa_alt_recs: Annotated[AlternateRS, Depends(get_altrec_service)],
+):
+    print('HELLOW', payload)
+    rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
+    rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
+    ratings_with_movielens_ids = [
+        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        for item in rated_movies
+    ]
+    recs = rssa_alt_recs.get_condition_prediction(
+        ratings_with_movielens_ids, 'xyz', int(CONDITIONS_MAP[payload.context_tag]), 10
+    )
+    movies = await movie_service.get_movies_by_movielens_ids([str(rec) for rec in recs])
+    print('BYE', recs, movies)
+    return [MovieSchema.model_validate(movie) for movie in movies]

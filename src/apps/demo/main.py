@@ -4,11 +4,8 @@ from datetime import datetime
 
 from fastapi import FastAPI
 
-from logging_config import configure_logging
-
-from .routers.recommendations import alt_algo, iers, pref_comm, pref_viz
-from .routers.studies import feedback, movies, pages, participant, steps, studies
-from .routers.studies.participant_responses import participant_responses
+from apps.demo.routers import movies, recommendations
+from core.config import configure_logging
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -33,21 +30,5 @@ api = FastAPI(
     },
 )
 
-"""
-Resources API Routers
-"""
-api.include_router(studies.router)
-api.include_router(steps.router)
 api.include_router(movies.router)
-api.include_router(participant.router)
-api.include_router(feedback.router)
-api.include_router(pages.router)
-
-"""
-Recommender API Routers
-"""
-api.include_router(alt_algo.router)
-api.include_router(pref_viz.router)
-api.include_router(iers.router)
-api.include_router(pref_comm.router)
-api.include_router(participant_responses.router)
+api.include_router(recommendations.router)

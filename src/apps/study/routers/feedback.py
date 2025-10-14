@@ -2,15 +2,12 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from auth.authorization import get_current_participant, validate_api_key
 from data.models.study_participants import StudyParticipant
-from data.rssadb import get_db as rssa_db
 from data.schemas.feedback_schemas import FeedbackBaseSchema
 from data.services.feedback_service import FeedbackService
 from data.services.rssa_dependencies import get_feedback_service as feedback_service
-from docs.rssa_docs import Tags
 
 router = APIRouter(
     prefix='/feedbacks',
