@@ -2,6 +2,7 @@
 *.pkl
 
 *logs/
+*assets/models/
 
 __pycache__
 .~lock.*
