@@ -119,7 +119,7 @@ class MovieRepository(BaseRepository[Movie]):
         return list(db_rows.scalars().all())
 
     async def get_paged_movies(self, limit: int, offset: int) -> list[Movie]:
-        query = select(Movie).offset(offset).limit(limit)
+        query = select(Movie).where(Movie.count != -1).offset(offset).limit(limit)
 
         result = await self.db.execute(query)
 
