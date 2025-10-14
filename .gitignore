@@ -9,3 +9,8 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+
+# These are already commited in their template form and should only contain 
+# local modifications.
+deploy.sh
+.env
