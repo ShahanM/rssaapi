@@ -7,8 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from services.recommenders.service_manager import init_recommender_services
-
 from .apps.admin import main as admin
 from .apps.demo import main as demo
 from .apps.study import main as study
@@ -16,6 +14,7 @@ from .core.config import ROOT_PATH, configure_logging
 from .middlewares.bad_request_logging import BadRequestLoggingMiddleware
 from .middlewares.infostats import RequestHandlingStatsMiddleware
 from .middlewares.logging import LoggingMiddleware
+from .services.recommenders.service_manager import init_recommender_services
 
 configure_logging()
 log = logging.getLogger(__name__)
