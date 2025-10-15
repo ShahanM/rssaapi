@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 from typing import cast
 
@@ -5,13 +6,11 @@ import binpickle
 import pandas as pd
 from annoy import AnnoyIndex
 from lenskit.als import ALSBase
-from lenskit.pipeline import Pipeline
 from lenskit.pipeline.nodes import ComponentInstanceNode
 
 from core.config import MODELS_DIR
 
-# Cache: Maps model file paths (str) to loaded Pipeline objects
-_PIPELINE_CACHE: dict[str, Pipeline] = {}
+log = logging.getLogger(__name__)
 
 
 class ModelAssetBundle:
@@ -60,10 +59,8 @@ class ModelAssetBundle:
                 f'Annoy index file not found at {annoy_index_path}. Did you run training with --cluster_index?'
             ) from e
 
-        # Load User Map (Annoy ID -> user ID)
         user_map_df = pd.read_csv(user_map_path, index_col=0)
 
-        # Convert the Series/DataFrame to a fast dictionary lookup (internal ID -> external ID)
         return index, user_map_df.iloc[:, 0].to_dict()
 
     def _load_history_lookup_asset(self) -> pd.Series:
@@ -72,28 +69,10 @@ class ModelAssetBundle:
 
         history_df = pd.read_parquet(history_path)
 
-        # Convert the DataFrame back to a Series indexed by user ID for O(1) lookup speed
-        # The Series values are the list of (item_id, rating) tuples
         return history_df.set_index('user')['history_tuples']
 
 
-# Cache: Maps model directory paths (str) to loaded AssetBundle instances
-# _ASSET_CACHE: dict[str, ModelAssetBundle] = {}
-
-
-# def load_or_get_asset_bundle(model_path: str) -> ModelAssetBundle:
-#     """Ensures a full set of assets is loaded exactly once per unique path."""
-#     if model_path in _ASSET_CACHE:
-#         print(f'INFO: Asset bundle retrieved from cache: {model_path}')
-#         return _ASSET_CACHE[model_path]
-
-#     print(f'INFO: Loading new asset bundle (Pipeline, Annoy, History) from: {model_path}')
-#     bundle = ModelAssetBundle(model_path)
-#     _ASSET_CACHE[model_path] = bundle
-#     return bundle
-
-
-@lru_cache(maxsize=16)  # Cache up to 16 unique model bundles in memory
+@lru_cache(maxsize=16)
 def load_and_cache_asset_bundle(model_path: str) -> ModelAssetBundle:
     """
     Loads all heavy assets (Pipeline, Annoy, History Map) for a given model_path.
@@ -103,12 +82,7 @@ def load_and_cache_asset_bundle(model_path: str) -> ModelAssetBundle:
     """
     print(f'INFO: CACHE MISS. Loading heavy bundle from disk for: {model_path}')
 
-    # The ModelAssetBundle.__init__ contains all the binpickle.load, Annoy.load, etc.
-    # We assume ModelAssetBundle.__init__ is synchronous and handles the disk I/O.
     return ModelAssetBundle(model_path)
-
-
-# --- The Dependency Function (The Final Injector) ---
 
 
 def get_asset_bundle_dependency(model_path: str) -> ModelAssetBundle:
@@ -116,5 +90,4 @@ def get_asset_bundle_dependency(model_path: str) -> ModelAssetBundle:
     Dependency function that looks up the Asset Bundle instance.
     The bundle is loaded lazily and retrieved from cache on subsequent calls.
     """
-    # Call the cached function with the unique file
     return load_and_cache_asset_bundle(model_path)
