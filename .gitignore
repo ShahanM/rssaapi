@@ -2,9 +2,11 @@
 *.pkl
 
 *logs/
+assets/models/
 
 __pycache__
 .~lock.*
 *.pyc
 *.pyo
 *.pyd
+

@@ -7,10 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from apps.admin import api as admin
-from apps.rssa import api as rssa
+from apps.admin import main as admin
+from apps.demo import main as demo
+from apps.rssa import main as rssa
 from config import ROOT_PATH
-from docs.metadata import tags_metadata
 from logging_config import configure_logging
 from middlewares.bad_request_logging import BadRequestLoggingMiddleware
 from middlewares.infostats import RequestHandlingStatsMiddleware
@@ -70,8 +70,9 @@ origins = [
     'http://localhost:3000',
 ]
 
-app.mount('/public', rssa.api)
+app.mount('/study', rssa.api)
 app.mount('/admin', admin.api)
+app.mount('/demo', demo.api)
 
 """
 Middlewares

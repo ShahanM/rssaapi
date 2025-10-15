@@ -26,18 +26,18 @@ logger = logging.getLogger(__name__)
 Admin routes
 """
 api = FastAPI(
-	title='RSSA - Admin API',
-	summary='Protected endpoints for the RSSA Dashboard, Study Control Panel, and the Survey Construct database.',
-	description="""
+    title='RSSA - Admin API',
+    summary='Protected endpoints for the RSSA Dashboard, Study Control Panel, and the Survey Construct database.',
+    description="""
 	All endpoints in this API require authentication, and specific permissions granted to the user.
 	""",
-	openapi_tags=tags_metadata,
-	version='0.9.0',
-	state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
-	json_encoders={
-		uuid.UUID: lambda obj: str(obj),
-		datetime: lambda dt: dt.isoformat(),
-	},
+    openapi_tags=tags_metadata,
+    version='0.9.0',
+    state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
+    json_encoders={
+        uuid.UUID: lambda obj: str(obj),
+        datetime: lambda dt: dt.isoformat(),
+    },
 )
 
 
