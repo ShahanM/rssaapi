@@ -4,7 +4,7 @@ from datetime import datetime
 
 from fastapi import FastAPI
 
-from logging_config import configure_logging
+from core.config import configure_logging
 
 from .routers.recommendations import alt_algo, iers, pref_comm, pref_viz
 from .routers.studies import feedback, movies, pages, participant, steps, studies

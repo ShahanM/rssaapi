@@ -11,7 +11,7 @@ from apps.admin import main as admin
 from apps.demo import main as demo
 from apps.rssa import main as rssa
 from config import ROOT_PATH
-from logging_config import configure_logging
+from core.config import configure_logging
 from middlewares.bad_request_logging import BadRequestLoggingMiddleware
 from middlewares.infostats import RequestHandlingStatsMiddleware
 from middlewares.logging import LoggingMiddleware
@@ -68,6 +68,7 @@ origins = [
     'http://localhost:3340',
     'http://localhost:3350',
     'http://localhost:3000',
+    'http://localhost:3370',
 ]
 
 app.mount('/study', rssa.api)

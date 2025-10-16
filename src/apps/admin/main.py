@@ -16,11 +16,12 @@ from apps.admin.routers import survey_constructs as construct_admin
 from apps.admin.routers import survey_pages as survey_admin
 from apps.admin.routers import users as admin_users
 from docs.admin_docs import tags_metadata
-from logging_config import configure_logging
+
+# from logging_config import configure_logging
 from middlewares.access_logger import DashboardAccessLogMiddleware
 
-configure_logging()
-logger = logging.getLogger(__name__)
+# configure_logging()
+# logger = logging.getLogger(__name__)
 
 """
 Admin routes

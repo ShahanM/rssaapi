@@ -6,7 +6,7 @@ Created Date: Friday, 1st September 2023
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Wednesday, 15th October 2025 2:05:21 pm
+Last Modified: Wednesday, 15th October 2025 9:52:24 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -14,11 +14,11 @@ License: MIT License (See LICENSE.md)
 # SPDX-License-Identifier: MIT License
 """
 
-from typing import cast
+from typing import Optional, cast
 
 import numpy as np
 import pandas as pd
-from lenskit import als
+from lenskit.algorithms import als
 
 from data.schemas.participant_response_schemas import MovieLensRatingSchema
 from services.recommenders.asset_loader import ModelAssetBundle
@@ -26,9 +26,7 @@ from services.recommenders.asset_loader import ModelAssetBundle
 
 class RSSABase:
     def __init__(self, asset_bundle: ModelAssetBundle):
-        self.pipeline: Pipeline = asset_bundle.pipeline
-        self.scorer: ALSBase = asset_bundle.scorer
-
+        self.model = asset_bundle.model
         self.annoy_index = asset_bundle.annoy_index
         self.user_map_lookup = asset_bundle.user_map_lookup
 
@@ -89,7 +87,7 @@ class RSSABase:
             np.ndarray: The sliced Q matrix (N_target_items x F_features).
         """
 
-        item_vocab = self.scorer.items_
+        item_vocab = self.model.item_index_
 
         # This returns an array of integer indices, with -1 for Out-of-Vocabulary (OOV) items.
         item_codes_full = item_vocab.numbers(item_ids, missing='negative')
@@ -99,8 +97,8 @@ class RSSABase:
         target_item_codes = item_codes_full[valid_mask]
 
         # Access the full Item Factor Matrix (Q matrix)
-        Q_full_tensor = self.scorer.item_features_
-        Q_full_numpy = Q_full_tensor.cpu().detach().numpy()
+        Q_full_numpy = self.model.item_features_
+        # Q_full_numpy = Q_full_tensor.cpu().detach().numpy()
 
         # Subset the Q Matrix using the internal codes
         Q_target_slice = Q_full_numpy[target_item_codes, :]
@@ -122,13 +120,18 @@ class RSSABase:
         Returns:
             pd.DataFrame: DataFrame containing item and score columns.
         """
-        user_history_itemlist = self._ratings_to_item_list(ratings)
-        query = RecQuery(user_id=user_id, user_items=user_history_itemlist)
-        als_preds_il = predict(self.pipeline, query, items=self.items)
-        als_preds = als_preds_il.to_df()
+        # user_history_itemlist = self._ratings_to_item_list(ratings)
+        # query = RecQuery(user_id=user_id, user_items=user_history_itemlist)
+        # als_preds_il = predict(self.pipeline, query, items=self.items)
+        # als_preds = als_preds_il.to_df()
+        rated_items = np.array([rating.item_id for rating in ratings], dtype=np.int32)
+        new_ratings = pd.Series([rating.rating for rating in ratings], index=rated_items, dtype=np.float64)
+        itemset = self.item_popularity.item.unique()
+        als_preds = self.model.predict_for_user(user_id, itemset, new_ratings)
+        als_preds_df = als_preds.to_frame().reset_index()
+        als_preds_df.columns = ['item_id', 'score']
 
-        print('als_preds: ', als_preds, len(als_preds))
-        return als_preds
+        return als_preds_df
 
     def predict_discounted(
         self,
@@ -163,18 +166,7 @@ class RSSABase:
 
         return als_preds
 
-    def _ratings_to_item_list(self, ratings: list[MovieLensRatingSchema]) -> ItemList:
-        data = [{'item_id': r.item_id, 'rating': float(r.rating)} for r in ratings]
-        ratings_df = pd.DataFrame(data)
-        scorer = self.scorer
-        item_vocab = scorer.items_
-        item_numbers_array = item_vocab.numbers(ratings_df['item_id'].to_numpy(), missing='negative')
-        ratings_df['item_num'] = item_numbers_array
-        user_history_itemlist = ItemList.from_df(ratings_df)
-
-        return user_history_itemlist
-
-    def get_user_feature_vector(self, ratings: list[MovieLensRatingSchema]) -> np.ndarray:
+    def get_user_feature_vector(self, ratings: list[MovieLensRatingSchema]) -> Optional[np.ndarray]:
         """
         Extracts the new user's latent feature vector (q_u)
         using the Scorer's public new_user_embedding method.
@@ -186,29 +178,24 @@ class RSSABase:
         Returns:
             np.ndarray: The projected user feature vector (q_u).
         """
+        rated_items = np.array([rating.item_id for rating in ratings], dtype=np.int32)
+        new_ratings = pd.Series([rating.rating for rating in ratings], index=rated_items, dtype=np.float64)
 
-        user_history_itemlist = self._ratings_to_item_list(ratings)
-        user_vector_tuple = self.scorer.new_user_embedding(None, user_history_itemlist)
-        user_tensor = user_vector_tuple[0]
-        user_vector_numpy = user_tensor.cpu().detach().numpy()
+        ri_idxes = self.model.item_index_.get_indexer_for(new_ratings.index)
+        ri_good = ri_idxes >= 0
+        ri_it = ri_idxes[ri_good]
+        ri_val = new_ratings.values[ri_good]
 
-        return user_vector_numpy.flatten()
+        if isinstance(self.model, als.ImplicitMF):
+            self.model = cast(als.ImplicitMF, self.model)
+            ri_val *= self.model.weight
+            return als._train_implicit_row_lu(ri_it, ri_val, self.model.item_features_, self.model.OtOr_)
+        elif isinstance(self.model, als.BiasedMF):
+            self.model = cast(als.BiasedMF, self.model)
+            ureg = self.model.regularization
+            return als._train_bias_row_lu(ri_it, ri_val, self.model.item_features_, ureg)
 
-    @classmethod
-    def get_scorer_from_pipeline(cls, pipeline: Pipeline) -> ALSBase:
-        """
-        Extracts the trained Scorer instance (ALSBase) from a Pipeine.
-
-        Args:
-            pipeline (Pipeline): The trained pipeline object
-
-        Returns:
-            ALSBase: A dervative of the ALSBase class.
-        """
-        pipeline_component: ComponentInstanceNode = cast(ComponentInstanceNode, pipeline.node('scorer'))
-        scorer: ALSBase = cast(ALSBase, pipeline_component.component)
-
-        return scorer
+        return None
 
 
 def scale_value(value, new_min, new_max, cur_min, cur_max):
