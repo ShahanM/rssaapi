@@ -6,7 +6,7 @@ Created Date: Friday, 1st September 2023
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Wednesday, 15th October 2025 9:52:24 pm
+Last Modified: Wednesday, 15th October 2025 11:34:25 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -14,26 +14,53 @@ License: MIT License (See LICENSE.md)
 # SPDX-License-Identifier: MIT License
 """
 
-from typing import Optional, cast
+from typing import Optional, Union, cast
 
+import binpickle
 import numpy as np
 import pandas as pd
+from annoy import AnnoyIndex
 from lenskit.algorithms import als
+from lenskit.algorithms.mf_common import MFPredictor
 
+from core.config import MODELS_DIR
 from data.schemas.participant_response_schemas import MovieLensRatingSchema
-from services.recommenders.asset_loader import ModelAssetBundle
+
+MFModelType = Union[als.BiasedMF, als.ImplicitMF]
 
 
 class RSSABase:
-    def __init__(self, asset_bundle: ModelAssetBundle):
-        self.model = asset_bundle.model
-        self.annoy_index = asset_bundle.annoy_index
-        self.user_map_lookup = asset_bundle.user_map_lookup
+    def __init__(self, model_folder: str):
+        self.path = MODELS_DIR / model_folder
+        self.item_popularity = pd.read_csv(self.path / 'item_popularity.csv')
+        self.ave_item_score = pd.read_csv(self.path / 'averaged_item_score.csv')
 
-        self.history_lookup_map: pd.Series = asset_bundle.history_lookup_map
-        self.item_popularity: pd.DataFrame = asset_bundle.item_popularity
-        self.ave_item_score: pd.DataFrame = asset_bundle.ave_item_score
+        mf_model: MFPredictor = self._load_model_asset()
+        model_instance: Optional[MFModelType] = self._get_typed_model_instance(mf_model)
+        if model_instance is None:
+            raise RuntimeError('Model was not loaded properly.')
+        self.model: MFModelType = model_instance
+
+        # self.model = asset_bundle.model
+        # self.annoy_index = asset_bundle.annoy_index
+        # self.user_map_lookup = asset_bundle.user_map_lookup
+
+        # self.history_lookup_map: pd.Series = asset_bundle.history_lookup_map
+        # self.item_popularity: pd.DataFrame = asset_bundle.item_popularity
+        # self.ave_item_score: pd.DataFrame = asset_bundle.ave_item_score
         self.items = self.item_popularity.item.unique()
+
+    def _load_model_asset(self):
+        return binpickle.load(f'{self.path}/model.bpk')
+
+    def _get_typed_model_instance(self, model: MFPredictor) -> Optional[Union[als.BiasedMF, als.ImplicitMF]]:
+        if isinstance(model, als.BiasedMF):
+            model = cast(als.BiasedMF, model)
+        elif isinstance(model, als.ImplicitMF):
+            model = cast(als.ImplicitMF, model)
+        else:
+            return None
+        return model
 
     def _find_nearest_neighbors_annoy(self, new_user_vector: np.ndarray, num_neighbors: int) -> list[int]:
         """
@@ -46,24 +73,61 @@ class RSSABase:
         Returns:
             list[str]: A list of external ids of the K neighbors.
         """
-        internal_ids: list[int] = self.annoy_index.get_nns_by_vector(
-            new_user_vector, num_neighbors, include_distances=False
-        )
+        annoy_index, user_map_lookup = self._load_annoy_assets_asset()
+        internal_ids: list[int] = annoy_index.get_nns_by_vector(new_user_vector, num_neighbors, include_distances=False)
+        del annoy_index
 
-        external_ids: list[int] = [self.user_map_lookup[i] for i in internal_ids]
+        external_ids: list[int] = [user_map_lookup[i] for i in internal_ids]
+        del user_map_lookup
 
         return external_ids
+
+    def _load_history_lookup_asset(self) -> pd.Series:
+        """Loads the compact user history Parquet file and converts it to a dict/Series for quick lookup."""
+        history_path = f'{self.path}/user_history_lookup.parquet'
+
+        history_df = pd.read_parquet(history_path)
+
+        # Convert the DataFrame back to a Series indexed by user ID for O(1) lookup speed
+        # The Series values are the list of (item_id, rating) tuples
+        return history_df.set_index('user')['history_tuples']
+
+    def _load_annoy_assets_asset(self):
+        """Loads the pre-built Annoy index and the ID mapping table."""
+
+        annoy_index_path = f'{self.path}/annoy_index'
+        user_map_path = f'{annoy_index_path}_map.csv'
+
+        user_feature_vector = self.model.user_features_
+        if user_feature_vector is None:
+            raise RuntimeError()
+
+        dims = user_feature_vector.shape[1]
+
+        index = AnnoyIndex(dims, 'angular')
+        try:
+            index.load(annoy_index_path)
+        except Exception as e:
+            raise FileNotFoundError(
+                f'Annoy index file not found at {annoy_index_path}. Did you run training with --cluster_index?'
+            ) from e
+
+        # Load User Map (Annoy ID -> user ID)
+        user_map_df = pd.read_csv(user_map_path, index_col=0)
+
+        # Convert the Series/DataFrame to a fast dictionary lookup (internal ID -> external ID)
+        return index, user_map_df.iloc[:, 0].to_dict()
 
     def _calculate_neighborhood_average(self, neighbor_ids: list[int], target_item: int, min_ratings: int = 1):
         """
         Calculates the average observed rating for a target item among the K neighbors
         using the in-memory history map.
         """
-
+        history_lookup_map = self._load_history_lookup_asset()
         ratings = []
         for user_id in neighbor_ids:
             # Lookup the neighbor's history (O(1) operation)
-            history_tuples = self.history_lookup_map.get(user_id)
+            history_tuples = history_lookup_map.get(user_id)
 
             if history_tuples:
                 for item_id, rating in history_tuples:
@@ -73,6 +137,8 @@ class RSSABase:
 
         if len(ratings) < min_ratings:
             return None
+
+        del history_lookup_map
 
         return np.mean(ratings)
 

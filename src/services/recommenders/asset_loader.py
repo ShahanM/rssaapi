@@ -27,8 +27,8 @@ class ModelAssetBundle:
             raise RuntimeError('Model was not loaded properly.')
         self.model: MFModelType = model_instance
 
-        self.annoy_index, self.user_map_lookup = self._load_annoy_assets_asset()
-        self.history_lookup_map = self._load_history_lookup_asset()
+        # self.annoy_index, self.user_map_lookup = self._load_annoy_assets_asset()
+        # self.history_lookup_map = self._load_history_lookup_asset()
 
     def _load_model_asset(self):
         return binpickle.load(f'{self.path}/model.bpk')

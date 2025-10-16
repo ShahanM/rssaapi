@@ -6,7 +6,7 @@ Created Date: Tuesday, 26th August 2025
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Wednesday, 15th October 2025 9:05:04 pm
+Last Modified: Wednesday, 15th October 2025 11:35:31 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -21,8 +21,8 @@ from .mf_base import RSSABase
 
 
 class PreferenceCommunity(RSSABase):
-    def __init__(self, asset_bundle: ModelAssetBundle):
-        super().__init__(asset_bundle)
+    def __init__(self, model_folder: str):
+        super().__init__(model_folder)
 
     def get_advisors_with_profile(self, ratings: list[MovieLensRatingSchema], num_rec=10) -> dict:
         """

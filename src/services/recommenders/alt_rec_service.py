@@ -6,7 +6,7 @@ Created Date: Monday, 13th October 2025
 Author: Mehtab 'Shahan' Iqbal and Lijie Guo
 Affiliation: Clemson University
 ----
-Last Modified: Wednesday, 15th October 2025 9:26:03 pm
+Last Modified: Wednesday, 15th October 2025 11:37:24 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -52,8 +52,8 @@ class AlternateRS(RSSABase):
 
     # NOTE: The AlternateRS service currently uses the same IMPLICIT_MODEL_PATH
     # as the PrefComService, relying on shared asset loading.
-    def __init__(self, asset_bundle: ModelAssetBundle):
-        super().__init__(asset_bundle)
+    def __init__(self, model_folder: str):
+        super().__init__(model_folder)
 
         self.discounting_factor = self.__init_discounting_factor(self.item_popularity)
         self.discounting_coefficient = 0.5  # FIXME: Should be loaded from a configuration source
@@ -212,11 +212,12 @@ class AlternateRS(RSSABase):
         user_features = self.get_user_feature_vector(ratings)
         if user_features is None:
             return []
-
+        annoy_index, user_map_lookup = self._load_annoy_assets_asset()
         rated_items = {r.item_id for r in ratings}
-        neighborhood = self.annoy_index.get_nns_by_vector(user_features, search_space_k)
-
-        variance = self._controversial(neighborhood)
+        neighborhood = annoy_index.get_nns_by_vector(user_features, search_space_k)
+        del annoy_index
+        variance = self._controversial(neighborhood, user_map_lookup)
+        del user_map_lookup
 
         variance_wo_rated = variance[~variance['item'].isin(rated_items)]
         controversial_items = variance_wo_rated.sort_values(by='variance', ascending=False).head(numRec)
@@ -259,7 +260,7 @@ class AlternateRS(RSSABase):
 
         return all_items_std_df
 
-    def _controversial(self, neighborhood):
+    def _controversial(self, neighborhood, user_map_lookup):
         """
         Calculates the variance of predicted scores among the K nearest neighbors.
 
@@ -270,7 +271,6 @@ class AlternateRS(RSSABase):
             pd.DataFrame: Items ranked by prediction variance ('variance').
         """
         scores_df = pd.DataFrame(list(self.items), columns=['item'])
-        user_map_lookup = self.user_map_lookup
 
         # Build the Prediction Matrix (Item Rows vs. Neighbor Columns)
         for internal_id in neighborhood:

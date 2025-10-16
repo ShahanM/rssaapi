@@ -16,8 +16,9 @@ from data.services.content_dependencies import get_movie_service as movie_servic
 from docs.metadata import RSTagsEnum as Tags
 from services.recommenders.alt_rec_service import AlternateRS
 from services.recommenders.pref_com_service import PreferenceCommunity
-from services.recommenders.service_manager import get_altrec_service, get_prefcom_service
 
+IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
+# BIASED_MODEL_PATH = 'ml32m-biased'
 router = APIRouter(
     prefix='/recommendations',
     tags=[Tags.rssa],
@@ -81,7 +82,6 @@ AVATARS = {
 async def get_advisor(
     payload: RecommendationRequestPayload,
     movie_service: Annotated[MovieService, Depends(movie_service)],
-    rssa_pref_comm: Annotated[PreferenceCommunity, Depends(get_prefcom_service)],
 ):
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
@@ -89,6 +89,7 @@ async def get_advisor(
         MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
+    rssa_pref_comm = PreferenceCommunity(IMPLICIT_MODEL_PATH)
     recs = rssa_pref_comm.get_advisors_with_profile(ratings_with_movielens_ids, num_rec=7)
 
     avatar_pool = list(AVATARS.keys())
@@ -112,7 +113,6 @@ async def get_advisor(
 async def get_alt_recs(
     payload: RecommendationRequestPayload,
     movie_service: Annotated[MovieService, Depends(movie_service)],
-    rssa_alt_recs: Annotated[AlternateRS, Depends(get_altrec_service)],
 ):
     print('HELLOW', payload)
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
@@ -121,6 +121,7 @@ async def get_alt_recs(
         MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
+    rssa_alt_recs = AlternateRS(IMPLICIT_MODEL_PATH)
     recs = rssa_alt_recs.get_condition_prediction(
         ratings_with_movielens_ids, 'xyz', int(CONDITIONS_MAP[payload.context_tag]), 10
     )

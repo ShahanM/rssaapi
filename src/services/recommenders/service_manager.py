@@ -13,20 +13,20 @@ IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
 # BIASED_MODEL_PATH = 'ml32m-biased'
 
 
-def get_prefcom_service() -> PreferenceCommunity:
-    """
-    Dependency function: Retrieves the PrefCom service instance, triggering
-    the lazy loading of the shared model assets if not already cached in this process.
-    """
-    bundle = load_and_cache_asset_bundle(IMPLICIT_MODEL_PATH)
-    return PreferenceCommunity(asset_bundle=bundle)
+# def get_prefcom_service() -> PreferenceCommunity:
+#     """
+#     Dependency function: Retrieves the PrefCom service instance, triggering
+#     the lazy loading of the shared model assets if not already cached in this process.
+#     """
+#     bundle = load_and_cache_asset_bundle(IMPLICIT_MODEL_PATH)
+#     return PreferenceCommunity(asset_bundle=bundle)
 
 
-async def get_altrec_service() -> AlternateRS:
-    """
-    Dependency function: Retrieves the AltRecs service instance, triggering
-    the lazy loading of the shared model assets if not already cached in this process.
-    """
+# async def get_altrec_service() -> AlternateRS:
+#     """
+#     Dependency function: Retrieves the AltRecs service instance, triggering
+#     the lazy loading of the shared model assets if not already cached in this process.
+#     """
 
-    bundle = load_and_cache_asset_bundle(IMPLICIT_MODEL_PATH)
-    return AlternateRS(asset_bundle=bundle)
+#     bundle = load_and_cache_asset_bundle(IMPLICIT_MODEL_PATH)
+#     return AlternateRS(asset_bundle=bundle)
