@@ -12,7 +12,7 @@ Created Date: Saturday, 11th October 2025
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Tuesday, 14th October 2025 7:17:53 pm
+Last Modified: Wednesday, 15th October 2025 8:19:52 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -31,9 +31,9 @@ import numpy as np
 import pandas as pd
 from annoy import AnnoyIndex
 from joblib import Memory
-from lenskit import Pipeline, score
+from lenskit import Component, Pipeline, score
 from lenskit.als import ALSBase, BiasedMFConfig, BiasedMFScorer, ImplicitMFConfig, ImplicitMFScorer
-from lenskit.data import RecQuery, from_interactions_df
+from lenskit.data import RecQuery, from_interactions_df, load_movielens_df
 from lenskit.pipeline import predict_pipeline
 from lenskit.pipeline.nodes import ComponentInstanceNode
 from pydantic import BaseModel
@@ -143,16 +143,16 @@ def _train_mf_model(training_data: pd.DataFrame, algo: str) -> Pipeline:
     config = None
 
     if algo == 'implicit':
-        config = ImplicitMFConfig(embedding_size=20, user_embeddings=True, use_ratings=True)
+        config = ImplicitMFConfig(embedding_size=20, user_embeddings='prefer', use_ratings=True)
         scorer = ImplicitMFScorer(config=config)
     elif algo == 'biased':
-        config = BiasedMFConfig(embedding_size=20, user_embeddings=True)
+        config = BiasedMFConfig(embedding_size=20, user_embeddings='prefer')
         scorer = BiasedMFScorer(config=config)
     else:
         raise ValueError(f'Invalid algo: {algo}')
 
     pipeline = predict_pipeline(scorer=scorer, name=f'rssa-{algo}')
-    dataset = from_interactions_df(training_data, user_col='user', item_col='item', rating_col='rating')
+    dataset = from_interactions_df(training_data, user_col='user_id', item_col='item_id', rating_col='rating')
     pipeline.train(dataset)
 
     return pipeline
@@ -218,10 +218,10 @@ def _pre_aggregate_user_history(training_data: pd.DataFrame, output_path: str):
     # Group by user and aggregate item and rating columns into lists
     # This result (user_history_df) has the lists we need.
     user_history_df = (
-        training_data.groupby('user')
+        training_data.groupby('user_id')
         .agg(
             # The result columns are named 'rated_items' and 'ratings'
-            rated_items=('item', list),
+            rated_items=('item_id', list),
             ratings=('rating', list),
         )
         .reset_index()
@@ -234,13 +234,13 @@ def _pre_aggregate_user_history(training_data: pd.DataFrame, output_path: str):
         list(zip(items, ratings)) for items, ratings in zip(user_history_df['rated_items'], user_history_df['ratings'])
     ]
 
-    final_history_df = user_history_df[['user', 'history_tuples']]
+    final_history_df = user_history_df[['user_id', 'history_tuples']]
     final_history_df.to_parquet(output_path, compression='snappy')
 
     log.info(f'User history lookup table saved to: {output_path} (Compressed)')
 
 
-def _compute_ave_item_scores(pipeline: Pipeline, training_data, item_popularity, alpha=0.2):
+def _compute_ave_item_scores(pipeline: Pipeline, training_data: pd.DataFrame, item_popularity, alpha=0.2):
     """
     Computes the predicted average score for every item across the entire user population
     and calculates a corresponding popularity-discounted score.
@@ -270,40 +270,74 @@ def _compute_ave_item_scores(pipeline: Pipeline, training_data, item_popularity,
         The pipeline.score() function is used for prediction, and the process uses
         efficient running averages to avoid excessive memory usage.
     """
-    items = training_data.item.unique()
-    users = training_data.user.unique()
+    items = training_data['item_id'].unique()
+    users = training_data['user_id'].unique()
 
     discounting_factor = 10 ** len(f'{item_popularity["count"].max()}')
 
     start = time.time()
 
-    ave_scores_df = pd.DataFrame(items, columns=['item'])
+    ave_scores_df = pd.DataFrame(items, columns=['item_id'])
     ave_scores_df['ave_score'] = 0
     ave_scores_df['ave_discounted_score'] = 0
 
-    calculated_users = -1
-    for user in users:
-        calculated_users += 1
+    pipeline_component: ComponentInstanceNode = cast(ComponentInstanceNode, pipeline.node('scorer'))
+    scorer: ALSBase = cast(ALSBase, pipeline_component.component)
 
-        query = RecQuery(user_id=user)
-        user_implicit_preds = score(pipeline, query, items)
+    user_mat = scorer.user_embeddings
+    if user_mat is None:
+        return
+    mean_users_embeddings = user_mat.mean(axis=0)
+    bias = getattr(scorer, 'global_bias', 0.0)
+    all_preds = mean_users_embeddings @ scorer.item_embeddings.T + bias
 
-        user_df = user_implicit_preds.to_df().reset_index()
-        user_df.columns = ['item', 'score', 'rank']
-        user_df = pd.merge(user_df, item_popularity, how='left', on='item')
-        user_df['discounted_score'] = user_df['score'] - alpha * (user_df['count'] / discounting_factor)
+    ave_scores_df = pd.DataFrame({
+        'item_id': scorer.items,
+        'ave_score': all_preds
+    })
 
-        ave_scores_df['ave_score'] = (ave_scores_df['ave_score'] * calculated_users + user_df['score']) / (
-            calculated_users + 1
-        )
+    # 5. Calculate discounting factor (using the original logic)
+    max_count = item_popularity["count"].max()
+    # Handle case where max_count might be 0 or 1
+    num_digits = len(str(int(max_count))) if max_count > 0 else 1
+    discounting_factor = 10 ** num_digits
 
-        ave_scores_df['ave_discounted_score'] = (
-            ave_scores_df['ave_discounted_score'] * calculated_users + user_df['discounted_score']
-        ) / (calculated_users + 1)
+    # 6. Merge with popularity data
+    ave_scores_df = pd.merge(ave_scores_df, item_popularity, how='left', on='item_id')
 
-    log.info(f'Time spent:  {(time.time() - start):.2f}')
+    # 7. Calculate the final discounted score
+    ave_scores_df['ave_discounted_score'] = (
+        ave_scores_df['ave_score'] - alpha * (ave_scores_df['count'] / discounting_factor)
+    )
 
-    return ave_scores_df
+    log.info(f'Time spent (vectorized): {(time.time() - start):.4f}s. Calculated scores for {len(scorer.items)} items.')
+
+    # Ensure the output columns are correct
+    return ave_scores_df[['item_id', 'ave_score', 'ave_discounted_score']]       
+
+    # calculated_users = -1
+    # for user in users:
+    #     calculated_users += 1
+
+    #     query = RecQuery(user_id=user)
+    #     user_implicit_preds = score(pipeline, query, items)
+
+    #     user_df = user_implicit_preds.to_df().reset_index()
+    #     user_df.columns = ['item_id', 'score', 'rank']
+    #     user_df = pd.merge(user_df, item_popularity, how='left', on='item_id')
+    #     user_df['discounted_score'] = user_df['score'] - alpha * (user_df['count'] / discounting_factor)
+
+    #     ave_scores_df['ave_score'] = (ave_scores_df['ave_score'] * calculated_users + user_df['score']) / (
+    #         calculated_users + 1
+    #     )
+
+    #     ave_scores_df['ave_discounted_score'] = (
+    #         ave_scores_df['ave_discounted_score'] * calculated_users + user_df['discounted_score']
+    #     ) / (calculated_users + 1)
+
+    # log.info(f'Time spent:  {(time.time() - start):.2f}')
+
+    # return ave_scores_df
 
 
 @memory.cache
@@ -314,7 +348,7 @@ def _compute_observed_item_mean(training_data: pd.DataFrame) -> tuple[pd.DataFra
 
     Args:
         training_data (pd.DataFrame): DataFrame containing user interactions,
-                                    expected columns: ['user', 'item', 'rating'].
+                                    expected columns: ['user_id', 'item_id', 'rating'].
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame]:
@@ -322,14 +356,14 @@ def _compute_observed_item_mean(training_data: pd.DataFrame) -> tuple[pd.DataFra
             2. item_popularity (DataFrame with item and count).
     """
 
-    item_stats = training_data.groupby('item')['rating'].agg(['mean', 'count'])
+    item_stats = training_data.groupby('item_id')['rating'].agg(['mean', 'count'])
     item_stats = item_stats.reset_index()
 
     item_stats['rank_popular'] = item_stats['count'].rank(method='min', ascending=False).astype(int)
     item_stats['rank_quality'] = item_stats['mean'].rank(method='min', ascending=False).astype(int)
 
-    item_popularity = item_stats[['item', 'count', 'rank_popular', 'rank_quality']]
-    ave_scores_df = item_stats[['item', 'mean']].rename(columns={'mean': 'ave_score'})
+    item_popularity = item_stats[['item_id', 'count', 'rank_popular', 'rank_quality']]
+    ave_scores_df = item_stats[['item_id', 'mean']].rename(columns={'mean': 'ave_score'})
     ave_scores_df['ave_discounted_score'] = np.nan
 
     return ave_scores_df, item_popularity
@@ -373,16 +407,16 @@ def _discount_popular_item_ratings(
     Penalizes the popular item by discounting the popular items rating by the bias_factor
 
     Args:
-        input_data (pd.DataFrame): The training data with columsn ['user', 'item', 'rating', 'timestamp']
+        input_data (pd.DataFrame): The training data with columsn ['user_id', 'item_id', 'rating', 'timestamp']
         items_popularity (pd.DataFrame): Item ranked according to their ratings count.
         bias_factor (float): The factor used to discount the popular ratings. Default to 0.4
 
     Returns:
         pd.DataFrame: DataFrame with the rating column replaced by the discounted ratings.
     """
-    rpopularity = pd.merge(input_data, items_popularity, how='left', on='item')
+    rpopularity = pd.merge(input_data, items_popularity, how='left', on='item_id')
     rpopularity['discounted_rating'] = rpopularity['rating'] * (1 - bias_factor / (2 * rpopularity['rank_popular']))
-    rtrain = rpopularity[['user', 'item', 'discounted_rating', 'timestamp']]
+    rtrain = rpopularity[['user_id', 'item_id', 'discounted_rating', 'timestamp']]
     rtrain = rtrain.rename({'discounted_rating': 'rating'}, axis=1)
 
     return rtrain
@@ -424,7 +458,8 @@ def _get_pipeline(config: Config) -> Pipeline:
             pipeline = None
 
     if pipeline is None:
-        train_data = load_training_data(config.data_path)
+        # train_data = load_training_data(config.data_path)
+        train_data = load_movielens_df(config.data_path)
         _, items_popularity_df = _compute_observed_item_mean(train_data)
         discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
 
@@ -484,43 +519,49 @@ def _main(config: Config):
         log.error('ERROR: Could not load or train a pipeline. Skipping post-processing.')
         return
 
+    train_data = load_movielens_df(config.data_path)
+    train_data['rating'] = train_data['rating'].astype(np.float32)
+    obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
     if config.item_popularity:
-        train_data = load_training_data(config.data_path)
-        obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
+        # train_data = load_training_data(config.data_path)
+        # obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
 
         log.info('Saving the item popularity as a csv file')
         items_popularity_df.to_csv(f'{config.model_path}/item_popularity.csv', index=False)
-
+    
+    discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
     if config.resample_count > 0:
-        train_data = load_training_data(config.data_path)
+        # train_data = load_training_data(config.data_path)
         obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
-        discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
+        # discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
         _train_resampled_models(discounted_train_data, config.algo, config.resample_count, config.model_path)
 
     if config.ave_item_score:
-        train_data = load_training_data(config.data_path)
-        obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
-        discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
+        # train_data = load_training_data(config.data_path)
+        # obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
+        # discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
         log.info('Computing the average item scores')
         scores_df = _compute_ave_item_scores(pipeline, discounted_train_data, items_popularity_df)
         log.info('Saving the average model item scores as a csv file')
-        scores_df.to_csv(f'{config.model_path}/averaged_item_score.csv', index=False)
+        if scores_df is not None:
+            scores_df.to_csv(f'{config.model_path}/averaged_item_score.csv', index=False)
         log.info('Saving the average observed item scores as a csv file')
         obs_ave_scores_df.to_csv(f'{config.model_path}/obs_ave_item_score.csv', index=False)
 
     if config.cluster_index:
-        train_data = load_training_data(config.data_path)
-        obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
-        discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
+        # train_data = load_training_data(config.data_path)
+        # obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
+        # discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
 
         log.info('Building and saving the Annoy index')
         pipeline_component: ComponentInstanceNode = cast(ComponentInstanceNode, pipeline.node('scorer'))
         scorer: ALSBase = cast(ALSBase, pipeline_component.component)
 
-        user_mat_tensor = scorer.user_features_
+        user_mat_tensor = scorer.user_embeddings
         if user_mat_tensor is not None:
-            user_mat: np.ndarray = user_mat_tensor.cpu().detach().numpy()
-            user_vocab = scorer.users_
+            # user_mat: np.ndarray = user_mat_tensor.cpu().detach().numpy()
+            user_mat = user_mat_tensor
+            user_vocab = scorer.users
             if user_vocab is not None and user_vocab.size > 0:
                 external_ids_array = user_vocab.ids(None)
                 internal_codes_array = np.arange(user_vocab.size, dtype=np.int32)
@@ -532,9 +573,9 @@ def _main(config: Config):
                 _create_annoy_index(user_mat, user_map_series, f'{config.model_path}/annoy_index')
 
     if config.ratings_index:
-        train_data = load_training_data(config.data_path)
-        obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
-        discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
+        # train_data = load_training_data(config.data_path)
+        # obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
+        # discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
         _pre_aggregate_user_history(discounted_train_data, f'{config.model_path}/user_history_lookup.parquet')
 
     log.info('Done')
@@ -666,9 +707,9 @@ if __name__ == '__main__':
 
     # alt algo
     """
-    python algs/train/train_models.py \
+    python scripts/train_mf .py \
     -d ~/zugzug/data/movies/ml-32m/ratings.csv \
-    -o algs/models/ml32m/ \
+    -o assets/models/ml32m/ \
     -a implicit \
     --item_popularity \
     --ave_item_score \

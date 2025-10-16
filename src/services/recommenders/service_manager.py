@@ -8,7 +8,7 @@ from .pref_viz_service import PreferenceVisualization
 
 log = logging.getLogger(__name__)
 
-IMPLICIT_MODEL_PATH = 'ml32m'
+IMPLICIT_MODEL_PATH = 'ml32m-new'
 BIASED_MODEL_PATH = 'ml32m-biased'
 
 

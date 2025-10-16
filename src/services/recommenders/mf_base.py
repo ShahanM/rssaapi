@@ -6,7 +6,7 @@ Created Date: Friday, 1st September 2023
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Tuesday, 14th October 2025 1:39:57 pm
+Last Modified: Wednesday, 15th October 2025 8:21:51 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -39,7 +39,7 @@ class RSSABase:
         self.history_lookup_map: pd.Series = asset_bundle.history_lookup_map
         self.item_popularity: pd.DataFrame = asset_bundle.item_popularity
         self.ave_item_score: pd.DataFrame = asset_bundle.ave_item_score
-        self.items = self.item_popularity.item.unique()
+        self.items = self.item_popularity['item_id'].unique()
 
     def _find_nearest_neighbors_annoy(self, new_user_vector: np.ndarray, num_neighbors: int) -> list[int]:
         """
@@ -93,7 +93,7 @@ class RSSABase:
             np.ndarray: The sliced Q matrix (N_target_items x F_features).
         """
 
-        item_vocab = self.scorer.items_
+        item_vocab = self.scorer.items
 
         # This returns an array of integer indices, with -1 for Out-of-Vocabulary (OOV) items.
         item_codes_full = item_vocab.numbers(item_ids, missing='negative')
@@ -103,8 +103,9 @@ class RSSABase:
         target_item_codes = item_codes_full[valid_mask]
 
         # Access the full Item Factor Matrix (Q matrix)
-        Q_full_tensor = self.scorer.item_features_
-        Q_full_numpy = Q_full_tensor.cpu().detach().numpy()
+        # Q_full_tensor = self.scorer.item_embeddings
+        # Q_full_numpy = Q_full_tensor.cpu().detach().numpy()
+        Q_full_numpy = self.scorer.item_embeddings
 
         # Subset the Q Matrix using the internal codes
         Q_target_slice = Q_full_numpy[target_item_codes, :]
@@ -171,7 +172,7 @@ class RSSABase:
         data = [{'item_id': r.item_id, 'rating': float(r.rating)} for r in ratings]
         ratings_df = pd.DataFrame(data)
         scorer = self.scorer
-        item_vocab = scorer.items_
+        item_vocab = scorer.items
         item_numbers_array = item_vocab.numbers(ratings_df['item_id'].to_numpy(), missing='negative')
         ratings_df['item_num'] = item_numbers_array
         user_history_itemlist = ItemList.from_df(ratings_df)
@@ -193,8 +194,9 @@ class RSSABase:
 
         user_history_itemlist = self._ratings_to_item_list(ratings)
         user_vector_tuple = self.scorer.new_user_embedding(None, user_history_itemlist)
-        user_tensor = user_vector_tuple[0]
-        user_vector_numpy = user_tensor.cpu().detach().numpy()
+        # user_tensor = user_vector_tuple[0]
+        user_vector_numpy = user_vector_tuple[0]
+        # user_vector_numpy = user_tensor.cpu().detach().numpy()
 
         return user_vector_numpy.flatten()
 

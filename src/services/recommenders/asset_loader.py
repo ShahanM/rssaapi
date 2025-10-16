@@ -45,7 +45,7 @@ class ModelAssetBundle:
         annoy_index_path = f'{self.path}/annoy_index'
         user_map_path = f'{annoy_index_path}_map.csv'
 
-        user_feature_vector = self.scorer.user_features_
+        user_feature_vector = self.scorer.user_embeddings
         if user_feature_vector is None:
             raise RuntimeError()
 
@@ -69,10 +69,10 @@ class ModelAssetBundle:
 
         history_df = pd.read_parquet(history_path)
 
-        return history_df.set_index('user')['history_tuples']
+        return history_df.set_index('user_id')['history_tuples']
 
 
-@lru_cache(maxsize=16)
+@lru_cache(maxsize=1)
 def load_and_cache_asset_bundle(model_path: str) -> ModelAssetBundle:
     """
     Loads all heavy assets (Pipeline, Annoy, History Map) for a given model_path.
