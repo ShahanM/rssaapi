@@ -6,7 +6,7 @@ Created Date: Monday, 13th October 2025
 Author: Mehtab 'Shahan' Iqbal and Lijie Guo
 Affiliation: Clemson University
 ----
-Last Modified: Wednesday, 15th October 2025 11:37:24 pm
+Last Modified: Thursday, 16th October 2025 11:06:03 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -15,6 +15,7 @@ License: MIT License (See LICENSE.md)
 """
 
 import logging
+import time
 from typing import Literal, Union
 
 import binpickle
@@ -219,10 +220,10 @@ class AlternateRS(RSSABase):
         variance = self._controversial(neighborhood, user_map_lookup)
         del user_map_lookup
 
-        variance_wo_rated = variance[~variance['item'].isin(rated_items)]
+        variance_wo_rated = variance[~variance['item_id'].isin(rated_items)]
         controversial_items = variance_wo_rated.sort_values(by='variance', ascending=False).head(numRec)
 
-        return list(map(str, controversial_items['item']))
+        return list(map(str, controversial_items['item_id']))
 
     def _high_std(self, user_id: str, ratings: list[MovieLensRatingSchema]):
         """
@@ -260,7 +261,7 @@ class AlternateRS(RSSABase):
 
         return all_items_std_df
 
-    def _controversial(self, neighborhood, user_map_lookup):
+    def _controversial(self, neighborhood_annoy_ids: list[int], user_map_lookup: dict[int, int]):
         """
         Calculates the variance of predicted scores among the K nearest neighbors.
 
@@ -270,29 +271,38 @@ class AlternateRS(RSSABase):
         Returns:
             pd.DataFrame: Items ranked by prediction variance ('variance').
         """
-        scores_df = pd.DataFrame(list(self.items), columns=['item'])
+        start = time.time()
+        log.info(f'Starting vectorized calculation of variance for {len(neighborhood_annoy_ids)} neighbors...')
+        external_neighbor_ids = [user_map_lookup.get(aid) for aid in neighborhood_annoy_ids]
+        external_neighbor_ids = [uid for uid in external_neighbor_ids if uid is not None]
+        try:
+            internal_indices = np.arange(len(self.model.user_index_))
+            external_internal_map = pd.Series(data=internal_indices, index=self.model.user_index_)
+            internal_index_series = external_internal_map.reindex(external_neighbor_ids)
+            model_internal_indices = internal_index_series.dropna().astype(int).values.tolist()
+        except KeyError as e:
+            log.error(f'Failed to find user from neighbor index: {e}')
+            return pd.DataFrame(columns=['item_id', 'variance'])
 
-        # Build the Prediction Matrix (Item Rows vs. Neighbor Columns)
-        for internal_id in neighborhood:
-            neighbor_id = user_map_lookup.get(internal_id)
-            if neighbor_id is None:
-                continue
+        global_bias = getattr(self.model, 'global_bias', 0.0)
+        user_features = self.model.user_features_
+        item_features = self.model.item_features_
+        item_index = self.model.item_index_
 
-            # The unique ID string is used as the column header
-            col_name = str(neighbor_id)
+        if user_features is None:
+            log.error('Model does not have user_features')
+            return pd.DataFrame(columns=['item_id', 'variance'])
 
-            # Generate predictions for the specific neighbor
-            scores_itemlist = self.model.predict_for_user(neighbor_id, self.items)
+        neighbor_features = user_features[model_internal_indices, :]
+        prediction_matrix = neighbor_features @ item_features.T
+        prediction_matrix += global_bias  # implicit mf does not add the bias term so it's 0.0
+        item_variance_vector = np.nanvar(prediction_matrix, axis=0)
+        scores_df = pd.DataFrame({'item_id': item_index, 'variance': item_variance_vector})
+        scores_df = pd.merge(scores_df, self.item_popularity, how='left', left_on='item_id', right_on='item').drop(
+            columns=['item']
+        )
+        log.info(
+            f'Time spent (vectorized controversial): {(time.time() - start):.4f}s. Calculated variance for {len(item_index)} items.'
+        )
 
-            neighbor_scores_df = scores_itemlist.to_frame()
-            neighbor_scores_df = neighbor_scores_df.rename(columns={'item_id': 'item', 'score': col_name})
-            scores_df = pd.merge(scores_df, neighbor_scores_df[['item', col_name]], how='left', on='item')
-
-        # Calculate Variance (Across Neighbors)
-        # Drop the 'item' column to leave only the prediction score columns
-        scores_only_df = scores_df.drop(columns=['item']).apply(pd.to_numeric, errors='coerce')
-        scores_df['variance'] = np.nanvar(scores_only_df, axis=1)
-
-        scores_df = pd.merge(scores_df, self.item_popularity, how='left', on='item')
-
-        return scores_df
+        return scores_df[['item_id', 'variance', 'count', 'rank_popular']]
