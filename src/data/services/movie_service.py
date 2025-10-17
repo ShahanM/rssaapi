@@ -51,8 +51,8 @@ class MovieService:
         return await self.movie_repo.get_movies_with_emotions_by_movielens_ids(movielens_ids)
 
     @alru_cache(maxsize=128)
-    async def get_movies(self, limit: int, offset: int) -> list[Movie]:
-        return await self.movie_repo.get_paged_movies(limit, offset)
+    async def get_movies(self, limit: int, offset: int, ordering: str = 'none') -> list[Movie]:
+        return await self.movie_repo.get_paged_movies(limit, offset, ordering)
 
     @alru_cache(maxsize=128)
     async def get_movies_with_details(self, limit: int, offset: int) -> list[Movie]:

@@ -2,7 +2,7 @@ import uuid
 from typing import Any, Sequence, Union
 
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -118,8 +118,11 @@ class MovieRepository(BaseRepository[Movie]):
 
         return list(db_rows.scalars().all())
 
-    async def get_paged_movies(self, limit: int, offset: int) -> list[Movie]:
-        query = select(Movie).offset(offset).limit(limit)
+    async def get_paged_movies(self, limit: int, offset: int, ordering: str = 'none') -> list[Movie]:
+        query = select(Movie)
+        if ordering != 'none':
+            query = query.order_by(desc(Movie.count), desc(Movie.year), desc(Movie.ave_rating))
+        query = query.offset(offset).limit(limit)
 
         result = await self.db.execute(query)
 

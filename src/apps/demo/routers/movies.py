@@ -25,7 +25,7 @@ async def get_movies(
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):
-    movies = await movie_service.get_movies(limit, offset)
+    movies = await movie_service.get_movies(limit, offset, '')
     total_count = await movie_service.get_movie_count()
     validated_movies = []
     for movie in movies:

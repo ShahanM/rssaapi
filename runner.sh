@@ -1,4 +1,3 @@
 #!/usr/bin/bash
 
-cd src
-uvicorn app:app --reload
+uvicorn src.main:app --reload
