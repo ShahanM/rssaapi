@@ -125,7 +125,7 @@ def _train_mf_model(training_data: pd.DataFrame, algo: str) -> MFPredictor:
     model = None
     if algo == 'implicit':
         model = als.ImplicitMF(20, iterations=10, method='lu', use_ratings=True, save_user_features=True)
-    elif algo == 'explicit':
+    elif algo == 'biased':
         model = als.BiasedMF(20)
 
     if model is None:
@@ -245,19 +245,41 @@ def _compute_ave_item_scores(
         log.error('Failed to get MF model instance for vectorization.')
         return pd.DataFrame(columns=['item', 'ave_score', 'ave_discounted_score'])
 
-    global_bias = getattr(model_instance, 'bias', 0.0)
+    bias = getattr(model_instance, 'bias', None)
+
     user_features = model_instance.user_features_
     item_features = model_instance.item_features_
-    item_index = model_instance.item_index_
+    item_index = model_instance.item_index_  # Index for items (shape I)
 
     if user_features is None:
         return
+
+    # Mean user features shape (K, )
     mean_user_features = user_features.mean(axis=0)
 
+    # Core projection means shape(I, )
+    # (K, ) @ (K, I) -> (I, )
     core_projection_means = mean_user_features @ item_features.T
-    ave_scores_vector = global_bias + core_projection_means
 
-    ave_scores_df = pd.DataFrame({'item': item_index, 'ave_score': ave_scores_vector})
+    # Average scores vector shape (I, ) indexed by item_index
+    ave_scores_vector = pd.Series(core_projection_means, index=item_index)
+
+    if bias is not None:
+        # Adding the fitted mean bias (scalar)
+        ave_scores_vector += bias.mean_
+
+        # Add item offsets (vector of shape I)
+        if bias.item_offsets_ is not None:
+            # ioff shape (I, ) indexed by item_index
+            ioff = bias.item_offsets_.reindex(item_index, fill_value=0)
+            ave_scores_vector = ave_scores_vector + ioff
+
+        # Add mean user offset (scalar)
+        if bias.user_offsets_ is not None:
+            mean_user_offset = bias.user_offsets_.mean()
+            ave_scores_vector = ave_scores_vector + mean_user_offset
+
+    ave_scores_df = pd.DataFrame({'ave_score': ave_scores_vector})
 
     max_count = item_popularity['count'].max()
     num_digits = len(str(int(max_count))) if max_count > 0 else 1
@@ -581,9 +603,9 @@ if __name__ == '__main__':
 
     # alt algo
     """
-    python algs/train/train_models.py \
+    python scripts/train_mfs.py \
     -d ~/zugzug/data/movies/ml-32m/ratings.csv \
-    -o algs/models/ml32m/ \
+    -o assets/models/implicit_als_ml32m/ \
     -a implicit \
     --item_popularity \
     --ave_item_score \
@@ -596,9 +618,9 @@ if __name__ == '__main__':
     # --item_popularity
     # --ave_item_score
     """
-    python algs/train/train_models.py \
+    python scripts/train_mfs.py \
     -d ~/zugzug/data/movies/ml-32m/ratings.csv \
-    -o algs/models/ml32m-biased/ \
+    -o assets/models/biased_als_ml32m/ \
     -a biased \
     --item_popularity \
     --ave_item_score \

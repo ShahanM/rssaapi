@@ -1,3 +1,3 @@
 #!/usr/bin/bash
 
-uvicorn src.main:app --reload
+uvicorn rssa_api.main:app --reload

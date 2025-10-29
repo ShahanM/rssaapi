@@ -21,14 +21,11 @@ select = [
 
 [tool.ruff.format]
 quote-style = "single"
-# indent-style = "tab"
 docstring-code-format = true
 
 [tool.pylint.main]
 load-plugins = ["pylint_sqlalchemy"]
 
-[tool.setuptools]
-packages = ["src"]
 [project]
 name = "rssa-api"
 version = "0.6"
@@ -36,23 +33,23 @@ description = ""
 authors = [
     {name = "Shahan M Iqbal",email = "mehtabi@clemson.edu"}
 ]
-license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.9"
-# dependencies = [
-#     "lenskit (==0.14.4)",
-#     "annoy (>=1.17.3,<2.0.0)",
-#     "joblib (>=1.5.2,<2.0.0)",
-#     "pydantic (>=2.12.2,<3.0.0)",
-#     "fastapi (>=0.119.0,<0.120.0)"
-# ]
+dependencies = [
+    "annoy==1.17.3",
+    "fastapi>=0.120.0",
+    "joblib>=1.5.2",
+    "lenskit==0.14.4",
+    "networkx>=3.2.1",
+    "pydantic>=2.12.3",
+    "scikit-learn>=1.6.1",
+]
 
+[dependency-groups]
+dev = [
+    "ruff>=0.14.2",
+]
 
-# [build-system]
-# requires = ["poetry-core>=2.0.0,<3.0.0"]
-# build-backend = "poetry.core.masonry.api"
-
-# [dependency-groups]
-# dev = [
-#     "ruff (>=0.14.0,<0.15.0)"
-# ]
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["rssa_api"]
