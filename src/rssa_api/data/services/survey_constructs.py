@@ -44,7 +44,7 @@ class SurveyConstructService:
         construct_previews = [PreviewSchema.model_validate(construct) for construct in constructs]
         return construct_previews
 
-    async def get_survey_construct(self, construct_id: uuid.UUID) -> SurveyConstruct:
+    async def get_survey_construct(self, construct_id: uuid.UUID) -> Optional[SurveyConstruct]:
         return await self.repo.get(construct_id)
 
     async def get_construct_summary(self, construct_id: uuid.UUID) -> Optional[SurveyConstructSchema]:

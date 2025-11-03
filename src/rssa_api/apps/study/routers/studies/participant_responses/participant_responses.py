@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from rssa_api.apps.study.routers.studies.participant_responses import participant_text_responses
 from rssa_api.auth.authorization import get_current_participant, validate_api_key, validate_study_participant
 from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.participant_response_schemas import (
@@ -14,41 +15,17 @@ from rssa_api.data.services.rssa_dependencies import get_response_service as res
 
 from .participant_interactions import interactions_router
 from .participant_ratings import ratings_router
+from .participant_text_responses import text_response_router
 from .survey_responses import survey_router
 
 router = APIRouter(
     prefix='/responses',
-    # tags=['Participant responses'],
+    # tags=['Participant responses - text'],
     dependencies=[Depends(validate_api_key), Depends(get_current_participant)],
 )
 
 
 router.include_router(survey_router)
-
-
-@router.patch('/text', response_model=None, status_code=status.HTTP_204_NO_CONTENT)
-async def create_freeform_text_response(
-    text_response: TextResponseCreateSchema,
-    service: Annotated[ParticipantResponseService, Depends(response_service)],
-    id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
-):
-    await service.create_or_update_text_responses(id_token['sid'], id_token['pid'], text_response)
-    return {}
-
-
-@router.get('/text/{studyStep_id}', response_model=list[TextResponseSchema])
-async def get_participant_text_response(
-    studyStep_id: uuid.UUID,
-    service: Annotated[ParticipantResponseService, Depends(response_service)],
-    study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
-    participant: Annotated[StudyParticipant, Depends(get_current_participant)],
-):
-    if participant.study_id != study_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Permission denied.')
-
-    text_responses = await service.get_participant_text_responses(study_id, participant.id, studyStep_id)
-    return text_responses
-
-
+router.include_router(text_response_router)
 router.include_router(ratings_router)
 router.include_router(interactions_router)

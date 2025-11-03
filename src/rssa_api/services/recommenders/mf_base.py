@@ -6,7 +6,7 @@ Created Date: Friday, 1st September 2023
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Wednesday, 22nd October 2025 4:28:23 pm
+Last Modified: Sunday, 2nd November 2025 1:35:02 am
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -59,11 +59,11 @@ class RSSABase:
         Finds K nearest neighbors using the pre-built Annoy index over the P matrix.
 
         Args:
-            new_user_vector (np.ndarray): The projected 1D vector (q_u) of the new user.
-            num_neighbors (int): The number of neighbors (K) to retrieve.
+            new_user_vector: The projected 1D vector (q_u) of the new user.
+            num_neighbors: The number of neighbors (K) to retrieve.
 
         Returns:
-            list[str]: A list of external ids of the K neighbors.
+            A list of external ids of the K neighbors.
         """
         annoy_index, user_map_lookup = self._load_annoy_assets_asset()
         internal_ids: list[int] = annoy_index.get_nns_by_vector(new_user_vector, num_neighbors, include_distances=False)
@@ -135,8 +135,7 @@ class RSSABase:
         return np.mean(ratings)
 
     def get_target_item_factors(self, item_ids: list[int]) -> tuple[np.ndarray, list[int]]:
-        """
-        Retrieves the Q (item factor) matrix subset corresponding to the list of item UUIDs.
+        """Retrieves the Q (item factor) matrix subset corresponding to the list of item UUIDs.
 
         Args:
             item_uuids (list[str]): The list of external item IDs (UUIDs) to retrieve.
@@ -166,8 +165,7 @@ class RSSABase:
         return Q_target_slice, valid_item_ids
 
     def predict(self, user_id: str, ratings: list[MovieLensRatingSchema]) -> pd.DataFrame:
-        """
-        Generates predictions for a new (out-of-sample) user using the trained LensKit Pipeline.
+        """Generates predictions for a new (out-of-sample) user using the trained LensKit Pipeline.
 
         Args:
             model (Pipeline): The trained pipeline object loaded from disk.
@@ -182,7 +180,7 @@ class RSSABase:
         new_ratings = pd.Series([rating.rating for rating in ratings], index=rated_items, dtype=np.float64)
         itemset = self.item_popularity.item.unique()
         als_preds = self.model.predict_for_user(user_id, itemset, new_ratings)
-        print(als_preds)
+
         als_preds_df = als_preds.to_frame().reset_index()
         als_preds_df.columns = ['item_id', 'score']
 
@@ -212,7 +210,7 @@ class RSSABase:
             pd.DataFrame: ['item', 'score', 'count', 'rank', 'discounted_score']
                 The dataframe is sorted by the discounted_score in descending order.
         """
-        als_preds = self._predict(userid, ratings)
+        als_preds = self.predict(userid, ratings)
 
         als_preds = pd.merge(als_preds, self.item_popularity, left_on='item_id', right_on='item')
         als_preds['discounted_score'] = als_preds['score'] - coeff * (als_preds['count'] / factor)

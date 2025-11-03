@@ -1,43 +1,53 @@
-from typing import List
+import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from rssa_api.compute.rssa import AlternateRS
-from rssa_api.compute.utils import get_rssa_ers_data, get_rssa_model_path
-from rssa_api.data.moviedb import get_db as movie_db
+from rssa_api.auth.authorization import get_current_participant, validate_api_key
+from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.movie_schemas import MovieSchema
-from rssa_api.data.schemas.preferences_schemas import PreferenceRequestSchema
-from rssa_api.data.services.movie_service import MovieService
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
+from rssa_api.data.schemas.preferences_schemas import (
+    RecommendationRequestPayload,
+)
+from rssa_api.data.services import MovieService, ParticipantService, StudyConditionService
+from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
+from rssa_api.data.services.rssa_dependencies import (
+    get_participant_service as participant_service,
+)
+from rssa_api.data.services.rssa_dependencies import (
+    get_study_condition_service as study_condition_service,
+)
 from rssa_api.docs.metadata import RSTagsEnum as Tags
+from rssa_api.services.recommenders.alt_rec_service import AlternateRS
 
+IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
 router = APIRouter(
-    prefix='/v2',
+    prefix='/recommendations',
     tags=[Tags.rssa],
 )
 
+CONDITIONS_MAP = {'topN': 0, 'controversial': 1, 'hate': 2, 'hip': 3, 'noclue': 4}
 
-@router.post('/recommendation/', response_model=List[MovieSchema])
-async def generate_alt_recommendations(user_ratings: PreferenceRequestSchema, db: Session = Depends(movie_db)):
-    """_summary_
 
-    Args:
-            rated_movies (RatingSchemaV2): _description_
-            db (Session, optional): _description_. Defaults to Depends(movie_db).
-
-    Returns:
-            _type_: _description_
-    """
-    rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
-    rssa_model_path = get_rssa_model_path()
-    rssalgs = AlternateRS(rssa_model_path, rssa_itm_pop, rssa_ave_scores)
-    recs = rssalgs.get_condition_prediction(
-        ratings=user_ratings.ratings,
-        user_id=str(user_ratings.user_id),
-        condition=user_ratings.user_condition,
-        num_rec=user_ratings.num_rec,
+@router.post('/recommendation/', response_model=list[MovieSchema])
+async def generate_alt_recommendations(
+    payload: RecommendationRequestPayload,
+    study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
+    participant: Annotated[StudyParticipant, Depends(get_current_participant)],
+    movie_service: Annotated[MovieService, Depends(movie_service)],
+    condition_service: Annotated[StudyConditionService, Depends(study_condition_service)],
+    participant_service: Annotated[ParticipantService, Depends(participant_service)],
+):
+    rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
+    rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
+    ratings_with_movielens_ids = [
+        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        for item in rated_movies
+    ]
+    rssa_alt_recs = AlternateRS(IMPLICIT_MODEL_PATH)
+    recs = rssa_alt_recs.get_condition_prediction(
+        ratings_with_movielens_ids, 'xyz', int(CONDITIONS_MAP[payload.context_tag]), 10
     )
-
-    movies = get_ers_movies_by_movielens_ids(db, recs)
-
-    return movies
+    movies = await movie_service.get_movies_by_movielens_ids([str(rec) for rec in recs])
+    return [MovieSchema.model_validate(movie) for movie in movies]

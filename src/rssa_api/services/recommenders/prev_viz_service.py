@@ -1,12 +1,12 @@
-"""
-----
+"""Preference visualization service class.
+
 File: alt_rec_service.py
 Project: RS:SA Recommender System (Clemson University)
 Created Date: Monday, 13th October 2025
 Author: Mehtab 'Shahan' Iqbal and Lijie Guo
 Affiliation: Clemson University
 ----
-Last Modified: Thursday, 16th October 2025 11:06:03 pm
+Last Modified: Friday, 31st October 2025 5:08:30 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -32,13 +32,12 @@ log = logging.getLogger(__name__)
 
 
 class PreferenceVisualization(RSSABase):
-    """
-    Service for generating recommendations for the preference visualization based on
+    """Service for generating recommendations for preference visualization.
+
+    This service provides an interfaces to the necessary scoring and ranking
+    algorithms to facilitate the preference visualization recommendations based on
     similar user predicted scores.
     """
-
-    def __init__(self, model_folder: str):
-        super().__init__(model_folder)
 
     def get_prediction(
         self,
@@ -90,6 +89,9 @@ class PreferenceVisualization(RSSABase):
         if ave_score_type == 'nn_observed':
             # Average Neighborhood Observed Ratings
             user_features = self.get_user_feature_vector(ratings)
+            if user_features is None:
+                raise RuntimeError('User featuers not trained in the model.')
+
             search_space_k = 200
             all_neighbors_ids = self.find_nearest_neighbors_annoy(
                 new_user_vector=user_features,
@@ -107,6 +109,9 @@ class PreferenceVisualization(RSSABase):
         if ave_score_type == 'nn_predicted':
             # Average Neighborhood Predicted Ratings
             user_features = self.get_user_feature_vector(ratings)
+            if user_features is None:
+                raise RuntimeError('User featuers not trained in the model.')
+
             search_space_k = 200
 
             annoy_index, _ = self._load_annoy_assets_asset()
@@ -237,8 +242,8 @@ class PreferenceVisualization(RSSABase):
     ) -> list[PrefVizItem]:
         candidates = self.get_candidates(user_id, ratings, ave_score_type='nn_predicted')
 
-        diverse_items, _ = self.__fishingnet(candidates, init_sample_size)
-        diverse_items = self.__single_linkage_clustering(diverse_items, num_rec)
+        diverse_items = self._fishingnet(candidates, init_sample_size)
+        diverse_items = self._single_linkage_clustering(diverse_items, num_rec)
 
         scaled_items, scaled_avg_comm, scaled_avg_user = self.scale_and_label(diverse_items)
 
@@ -272,7 +277,8 @@ class PreferenceVisualization(RSSABase):
         return grid
 
     def _convexhull(self, candidates: pd.DataFrame) -> pd.DataFrame:
-        """
+        """Compute the outer boundary (Convex Hull) in the 2D space.
+
         Identifies the set of items that define the outer boundary (Convex Hull)
         in the 2D score space (user_score vs. ave_score).
 
@@ -312,7 +318,8 @@ class PreferenceVisualization(RSSABase):
         return extreme_items
 
     def _fishingnet(self, candidates: pd.DataFrame, n: int = 80) -> pd.DataFrame:
-        """
+        """Sample a maximally diverse items.
+
         Performs grid-based sampling to select N items that are maximally diverse
         in the 2D score space, ensuring the selected items cover the grid widely.
 
@@ -361,7 +368,8 @@ class PreferenceVisualization(RSSABase):
         return pd.DataFrame(selected_items_list)
 
     def _single_linkage_clustering(self, candidates: pd.DataFrame, num_clusters: int = 80) -> pd.DataFrame:
-        """
+        """Cluster the items using the minimum spanning tree cut.
+
         Performs Single Linkage Clustering (equivalent to your MST cut) on the
         2D score space (user_score, ave_score) and assigns cluster IDs.
 
@@ -411,7 +419,17 @@ class PreferenceVisualization(RSSABase):
 
         return pd.DataFrame(final_items)
 
-    def scale_and_label(self, items, new_min=1, new_max=5):
+    def scale_and_label(self, items: pd.DataFrame, new_min: int = 1, new_max: int = 5):
+        """Scale and label the items DataFrame.
+
+        Args:
+            items: _description_
+            new_min: _description_. Defaults to 1.
+            new_max: _description_. Defaults to 5.
+
+        Returns:
+            _type_: _description_
+        """
         scaled_items = items.copy()
         scaled_items.rename(columns={'ave_score': 'community', 'user_score': 'user'}, inplace=True)
         # Label the items based on the global average
@@ -423,9 +441,11 @@ class PreferenceVisualization(RSSABase):
             return row
 
         labeled_items = scaled_items.apply(label, axis=1)
-        labeled_items = labeled_items.astype(
-            {'item': 'int64', 'count': 'int64', 'community_label': 'int64', 'user_label': 'int64'}
-        )
+        labeled_items['item'] = labeled_items['item'].astype(pd.Int32Dtype)
+        labeled_items['count'] = labeled_items['count'].astype(pd.Int32Dtype)
+        labeled_items['community_label'] = labeled_items['community_label'].astype(pd.Int32Dtype)
+        labeled_items['user_label'] = labeled_items['user_label'].astype(pd.Int32Dtype)
+
         avg_comm_score = np.mean(labeled_items['community'])
         avg_user_score = np.mean(labeled_items['user'])
 

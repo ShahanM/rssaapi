@@ -6,7 +6,7 @@ fix = true
 
 [tool.ruff.lint]
 ignore = [
-	# "W191",  # indentation contains tabs
+	"W191",  # indentation contains tabs
 	"B008", # function call in default argument
 ]
 select = [
@@ -16,8 +16,12 @@ select = [
 	"I",  # isort
 	"C",  # flake8-comprehensions
 	"B",  # flake8-bugbear
-	"UP", # pyupgrade
+	"UP", # pyupgrade,
+	"D",  # pydocstyle
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "single"
@@ -47,6 +51,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pylint-sqlalchemy>=0.3.0",
     "ruff>=0.14.2",
 ]
 

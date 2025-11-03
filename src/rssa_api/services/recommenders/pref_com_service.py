@@ -1,12 +1,12 @@
-"""
-----
+"""Preference community service class.
+
 File: rspc.py
 Project: RS:SA Recommender System (Clemson University)
 Created Date: Tuesday, 26th August 2025
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Thursday, 23rd October 2025 3:45:46 pm
+Last Modified: Sunday, 2nd November 2025 7:07:05 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -20,11 +20,19 @@ from .mf_base import RSSABase
 
 
 class PreferenceCommunity(RSSABase):
-    def __init__(self, model_folder: str):
-        super().__init__(model_folder)
+    """Service for generating recommendation the preference community study.
+
+    This service provides the functionality and the reocmmender model interface
+    for the community based preference algorithms.
+
+    Attributes:
+        model_foler: A string path to the location of the trained model, and other data required for
+        the RSSA algorithms. See documentation RSSABase.
+    """
 
     def get_advisors_with_profile(self, ratings: list[MovieLensRatingSchema], num_rec=10) -> dict:
-        """
+        """Recommends a list of advisor profiles.
+
         Identifies the K nearest latent neighbors (advisors) to the new user and
         extracts a diverse recommendation and top profile from each neighbor.
 

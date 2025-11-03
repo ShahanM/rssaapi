@@ -1,12 +1,12 @@
-"""
-----
+"""Alternate recommendations service class.
+
 File: alt_rec_service.py
 Project: RS:SA Recommender System (Clemson University)
 Created Date: Monday, 13th October 2025
 Author: Mehtab 'Shahan' Iqbal and Lijie Guo
 Affiliation: Clemson University
 ----
-Last Modified: Thursday, 16th October 2025 11:06:03 pm
+Last Modified: Sunday, 2nd November 2025 2:52:01 am
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -16,47 +16,31 @@ License: MIT License (See LICENSE.md)
 
 import logging
 import time
-from typing import Literal, Union
 
 import binpickle
 import numpy as np
 import pandas as pd
 from lenskit.algorithms import als
-from pydantic.dataclasses import dataclass
 
 from rssa_api.core.config import MODELS_DIR
 from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
-from rssa_api.services.recommenders.asset_loader import ModelAssetBundle
 
 from .mf_base import RSSABase
 
 log = logging.getLogger(__name__)
 
 
-@dataclass
-class Preference:
-    """
-    Represents a predicted or actual preference. `categories`
-    is a list of classes that an item belongs to.
-    """
-
-    item_id: str
-    categories: Union[Literal['top_n'], Literal['controversial'], Literal['hate'], Literal['hip'], Literal['no_clue']]
-
-
 class AlternateRS(RSSABase):
-    """
-    Service for generating recommendations based on specific behavioral conditions
-    (e.g., controversial, hip, hate) using advanced statistical analysis
-    on model predictions.
+    """Service for generating alternate recommendations.
+
+    Thie service computed recommendations based on the alternate recommendations algorithms
+    (e.g., controversial, hip, hate) using advanced statistical analysis on model predictions.
     """
 
-    # NOTE: The AlternateRS service currently uses the same IMPLICIT_MODEL_PATH
-    # as the PrefComService, relying on shared asset loading.
     def __init__(self, model_folder: str):
         super().__init__(model_folder)
 
-        self.discounting_factor = self.__init_discounting_factor(self.item_popularity)
+        self.discounting_factor = self._init_discounting_factor(self.item_popularity)
         self.discounting_coefficient = 0.5  # FIXME: Should be loaded from a configuration source
 
         self.prediction_functions = {
@@ -67,8 +51,9 @@ class AlternateRS(RSSABase):
             4: self.predict_user_no_clue_items,
         }
 
-    def __init_discounting_factor(self, item_popularity):
-        """
+    def _init_discounting_factor(self, item_popularity):
+        """Compute the default discounting factor.
+
         Calculates the exponent factor used to scale down popularity counts.
 
         Args:
@@ -128,7 +113,7 @@ class AlternateRS(RSSABase):
             n: Number of recommendations.
 
         Returns:
-            list[int]: Top N recommended item IDs.
+            Top N recommended item IDs.
         """
         top_n_discounted = self.get_predictions(ratings, user_id).head(n)
 
@@ -144,7 +129,7 @@ class AlternateRS(RSSABase):
             n: Number of recommendations.
 
         Returns:
-            list[int]: Top N 'hate' item IDs.
+            Top N 'hate' item IDs.
         """
         preds = self.get_predictions(ratings, user_id)
 
@@ -164,7 +149,7 @@ class AlternateRS(RSSABase):
             n: Number of recommendations.
 
         Returns:
-            list[int]: Top N 'hip' item IDs.
+            Top N 'hip' item IDs.
         """
         # Search over a larger initial pool (num_bs=1000)
         num_bs = 1000
@@ -186,7 +171,7 @@ class AlternateRS(RSSABase):
             n: Number of recommendations.
 
         Returns:
-            list[int]: Top N 'no clue' item IDs.
+            Top N 'no clue' item IDs.
         """
 
         resampled_df = self._high_std(user_id, ratings)
@@ -206,7 +191,7 @@ class AlternateRS(RSSABase):
             numRec: Number of recommendations.
 
         Returns:
-            list[int]: Top N 'controversial' item IDs.
+            Top N 'controversial' item IDs.
         """
         search_space_k = 20
 
@@ -295,14 +280,17 @@ class AlternateRS(RSSABase):
 
         neighbor_features = user_features[model_internal_indices, :]
         prediction_matrix = neighbor_features @ item_features.T
-        prediction_matrix += global_bias  # implicit mf does not add the bias term so it's 0.0
+        prediction_matrix += global_bias
         item_variance_vector = np.nanvar(prediction_matrix, axis=0)
         scores_df = pd.DataFrame({'item_id': item_index, 'variance': item_variance_vector})
         scores_df = pd.merge(scores_df, self.item_popularity, how='left', left_on='item_id', right_on='item').drop(
             columns=['item']
         )
         log.info(
-            f'Time spent (vectorized controversial): {(time.time() - start):.4f}s. Calculated variance for {len(item_index)} items.'
+            (
+                'Time spent (vectorized controversial):',
+                f'{(time.time() - start):.4f}s. Calculated variance for {len(item_index)} items.',
+            )
         )
 
         return scores_df[['item_id', 'variance', 'count', 'rank_popular']]

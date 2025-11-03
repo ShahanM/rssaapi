@@ -15,9 +15,11 @@ from rssa_api.data.services import MovieService
 from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
 from rssa_api.docs.metadata import RSTagsEnum as Tags
 from rssa_api.services.recommenders.alt_rec_service import AlternateRS
+from rssa_api.services.recommenders.emotions_rs_service import EmotionsRS
 from rssa_api.services.recommenders.pref_com_service import PreferenceCommunity
 
 IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
+EMOTIONS_MODEL_PATH = 'implicit_als_ers_ml32m'
 router = APIRouter(
     prefix='/recommendations',
     tags=[Tags.rssa],
@@ -188,3 +190,83 @@ async def get_alt_rec_do_func(
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'An internal lerror occured: {e}'
             ) from e
+
+
+@router.post('/iers', response_model=list[MovieSchema])
+async def get_iers_recommendations(
+    payload: RecommendationRequestPayload,
+    movie_service: Annotated[MovieService, Depends(movie_service)],
+):
+    rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
+    rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
+    ratings_with_movielens_ids = [
+        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        for item in rated_movies
+    ]
+
+    ers_recs_service = EmotionsRS(EMOTIONS_MODEL_PATH)
+
+
+# @router.put('/experimental/recommendations/', response_model=List[ERSMovieSchema])
+# async def update_recommendations_experimental(
+#     rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(movie_db)
+# ):
+#     iers_item_pop, iersg20 = get_iers_data()
+#     iers_model_path = get_iers_model_path()
+#     iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
+#     recs = []
+#     if rated_movies.input_type == 'discrete':
+#         emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
+#         if rated_movies.condition_algo == 1:
+#             recs = iersalgs.predict_discrete_tuned_topN(
+#                 ratings=rated_movies.ratings,
+#                 user_id=str(rated_movies.user_id),
+#                 emotion_input=emo_in,
+#                 num_rec=rated_movies.num_rec,
+#                 item_pool_size=rated_movies.item_pool_size,
+#                 scale_vector=rated_movies.scale_vector,
+#                 lowval=rated_movies.low_val,
+#                 highval=rated_movies.high_val,
+#                 ranking_strategy=rated_movies.algo,
+#                 dist_method=rated_movies.dist_method,
+#             )
+#         elif rated_movies.condition_algo == 2:
+#             div_sample_size = rated_movies.diversity_sample_size
+#             assert div_sample_size is not None
+#             recs = iersalgs.predict_discrete_tuned_diverseN(
+#                 ratings=rated_movies.ratings,
+#                 user_id=str(rated_movies.user_id),
+#                 emotion_input=emo_in,
+#                 num_rec=rated_movies.num_rec,
+#                 sampling_size=div_sample_size,
+#                 item_pool_size=rated_movies.item_pool_size,
+#                 scale_vector=rated_movies.scale_vector,
+#                 lowval=rated_movies.low_val,
+#                 highval=rated_movies.high_val,
+#                 ranking_strategy=rated_movies.algo,
+#                 div_crit=rated_movies.diversity_criterion,
+#                 dist_method=rated_movies.dist_method,
+#             )
+
+#     elif rated_movies.input_type == 'continuous':
+#         # Not implemented yet
+#         emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
+#         if rated_movies.condition_algo == 1:
+#             recs = iersalgs.predict_continuous_tuned_topN(
+#                 ratings=rated_movies.ratings,
+#                 user_id=rated_movies.user_id,
+#                 emotion_input=emo_in,
+#                 num_rec=rated_movies.num_rec,
+#                 scale_vector=rated_movies.scale_vector,
+#                 algo=rated_movies.algo,
+#                 dist_method=rated_movies.dist_method,
+#                 item_pool_size=rated_movies.item_pool_size,
+#             )
+
+#     recs = [str(rec) for rec in recs if rec is not None]
+#     if len(recs) == 0:
+#         raise HTTPException(status_code=406, detail='User condition not found')
+
+#     movies = get_ers_movies_by_movielens_ids(db, recs)
+
+#     return movies

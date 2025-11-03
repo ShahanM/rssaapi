@@ -56,7 +56,7 @@ class AlternateRS(RSSABase):
         return 10 ** len(str(max_count))
 
     def get_condition_prediction(
-        self, ratings: List[RatedItemSchema], user_id: str, condition: int, num_rec: int
+        self, user_id: str, ratings: List[RatedItemSchema], condition: int, num_rec: int
     ) -> List[str]:
         """
         Parameters

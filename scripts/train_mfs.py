@@ -12,7 +12,7 @@ Created Date: Saturday, 11th October 2025
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Wednesday, 15th October 2025 2:28:32 pm
+Last Modified: Saturday, 1st November 2025 3:11:33 pm
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -45,7 +45,11 @@ except ImportError:
 
 
 def setup_logging(output_dir: str):
-    """Configures the logger to write to console and a date-stamped file."""
+    """Configures the logger to write to console and a date-stamped file.
+
+    Args:
+        output_dir: The directory where the log file will be saved.
+    """
     log.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -76,23 +80,46 @@ memory = Memory(cachedir, verbose=1)
 
 
 class Config(BaseModel):
+    """Pydantic model for holding the script's run configuration."""
+
     data_path: str
     model_path: str
     algo: str
-    item_popularity: bool
-    ave_item_score: bool
-    cluster_index: bool
-    ratings_index: bool
+    item_popularity: Optional[bool]
+    ave_item_score: Optional[bool]
+    cluster_index: Optional[bool]
+    ratings_index: Optional[bool]
     resample_count: int
+    filter_list: Optional[str]
+    emotion_index_path: Optional[str]
 
 
 def _get_model_path(model_path: str) -> str:
+    """Gets the full model file path with the correct serialization extension.
+
+    Args:
+        model_path: The base output directory for the model.
+
+    Returns:
+        The full file path (e.g., '.../model.bpk' or '.../model.pkl').
+    """
     base_file = os.path.join(model_path, 'model')
     return f'{base_file}.bpk' if binpickle else f'{base_file}.pkl'
 
 
 @memory.cache
 def load_training_data(data_path):
+    """Loads and standardizes training data from a CSV file.
+
+    Renames common column variations (e.g., 'userId', 'movieId')
+    to the script's standard ('user', 'item').
+
+    Args:
+        data_path: Path to the ratings CSV file.
+
+    Returns:
+        A DataFrame with standardized 'user', 'item', and 'rating' columns.
+    """
     ratings_train = pd.read_csv(data_path)
     col_rename_dict = {}
     if 'user_id' in ratings_train:
@@ -110,8 +137,16 @@ def load_training_data(data_path):
 
 
 def load_training_data_npz(data_path):
-    """
-    load the pre-saved npz file of the movie ratings
+    """Loads training data from a pre-saved .npz file.
+
+    Assumes the .npz file contains a 'dataset' array with columns
+    ['user', 'item', 'rating', 'timestamp'].
+
+    Args:
+        data_path: Path to the .npz file.
+
+    Returns:
+        A DataFrame with standardized columns and types.
     """
     model_loaded = np.load(data_path)
     data = model_loaded['dataset']
@@ -122,6 +157,18 @@ def load_training_data_npz(data_path):
 
 
 def _train_mf_model(training_data: pd.DataFrame, algo: str) -> MFPredictor:
+    """Trains a single LensKit matrix factorization model.
+
+    Args:
+        training_data: The training data (must have 'user', 'item', 'rating').
+        algo: The algorithm to use ('implicit' or 'biased').
+
+    Returns:
+        The fitted LensKit model.
+
+    Raises:
+        ValueError: If the specified `algo` is not 'implicit' or 'biased'.
+    """
     model = None
     if algo == 'implicit':
         model = als.ImplicitMF(20, iterations=10, method='lu', use_ratings=True, save_user_features=True)
@@ -138,6 +185,17 @@ def _train_mf_model(training_data: pd.DataFrame, algo: str) -> MFPredictor:
 def _train_resampled_models(
     training_data: pd.DataFrame, algo: str, resample_count: int, output_dir: str, alpha: float = 0.5
 ):
+    """Trains and serializes multiple models on subsets of the data.
+
+    This is used for bootstrapping or robust evaluation.
+
+    Args:
+        training_data: The full training dataset.
+        algo: The algorithm to use ('implicit' or 'biased').
+        resample_count: The number of resampled models to train.
+        output_dir: The directory to save the serialized models.
+        alpha: The fraction of the original data to sample for each model.
+    """
     sample_size = int(training_data.shape[0] * alpha)
     log.info(f'Training {resample_count} resampled models')
     start = time.time()
@@ -164,10 +222,15 @@ def _train_resampled_models(
     log.info(f'Time spent: {end:.2f}')
 
 
-def _pre_aggregate_user_history(training_data: pd.DataFrame, output_path: str):
-    """
-    Aggregates the large training data into a compact, serializable DataFrame
-    using vectorized operations for speed.
+def _pre_aggregate_user_history(training_data: pd.DataFrame, output_path: str) -> None:
+    """Aggregates user rating history into a compact lookup table.
+
+    Creates a Parquet file mapping each user ID to a list of their
+    (item, rating) history tuples for fast runtime lookup.
+
+    Args:
+        training_data: The training data.
+        output_path: Path to save the output .parquet file.
     """
     log.info('Building history look up table')
 
@@ -196,7 +259,75 @@ def _pre_aggregate_user_history(training_data: pd.DataFrame, output_path: str):
     log.info(f'User history lookup table saved to: {output_path} (Compressed)')
 
 
+def _create_item_emotion_lookup(emotion_data_path: str, output_path: str) -> None:
+    """Loads raw item emotion data and saves it as a compact lookup file.
+
+    Renames 'movie_id' to 'item', filters for known emotion tags,
+    and saves the result as an item-indexed Parquet file.
+
+    Args:
+        emotion_data_path: Path to the source emotion CSV (e.g., 'iersg20.csv').
+        output_path: Path to save the resulting .parquet file.
+    """
+    log.info(f'Building item emotion lookup table from: {emotion_data_path}')
+    try:
+        # Load the data
+        emotion_data = pd.read_csv(emotion_data_path)
+
+        # Rename as per user's logic
+        if 'movie_id' in emotion_data.columns:
+            emotion_data = emotion_data.rename({'movie_id': 'item'}, axis=1)
+        elif 'item' not in emotion_data.columns:
+            log.error(
+                f'Emotion file {emotion_data_path} must have "item" or "movie_id" column. Aborting lookup creation.'
+            )
+            return
+
+        # Define features (as per user's snippet)
+        emotion_tags = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust']
+
+        # Check if all emotion tags are present
+        available_tags = [tag for tag in emotion_tags if tag in emotion_data.columns]
+        missing_tags = [tag for tag in emotion_tags if tag not in emotion_data.columns]
+        if missing_tags:
+            log.warning(f'Emotion data is missing expected columns: {missing_tags}. Proceeding with available columns.')
+
+        if 'item' not in emotion_data.columns:
+            log.error('Logic error: "item" column not found after rename. Aborting lookup creation.')
+            return
+
+        # Final columns: item + available emotion features
+        final_columns = ['item'] + available_tags
+
+        # Filter to only the necessary columns
+        final_lookup = emotion_data[final_columns].copy()
+
+        # Set index to 'item' for fast lookup
+        final_lookup = final_lookup.set_index('item')
+
+        # Save to Parquet
+        final_lookup.to_parquet(output_path, compression='snappy')
+        log.info(f'Item emotion lookup table saved to: {output_path} (Compressed)')
+
+    except FileNotFoundError:
+        log.error(f'Emotion data file not found: {emotion_data_path}. Cannot create lookup table.')
+    except Exception as e:
+        log.error(f'Failed to create item emotion lookup: {e}')
+
+
 def _get_exact_mf_model(model: MFPredictor) -> Optional[Union[als.BiasedMF, als.ImplicitMF]]:
+    """Casts a generic MFPredictor to its specific ALS implementation.
+
+    This is used to gain access to algorithm-specific attributes like
+    'user_features_' or 'bias'.
+
+    Args:
+        model: The generic fitted model.
+
+    Returns:
+        The specific BiasedMF or ImplicitMF instance, or None if the
+        type is unknown.
+    """
     if isinstance(model, als.BiasedMF):
         model = cast(als.BiasedMF, model)
     elif isinstance(model, als.ImplicitMF):
@@ -211,31 +342,21 @@ def _get_exact_mf_model(model: MFPredictor) -> Optional[Union[als.BiasedMF, als.
 def _compute_ave_item_scores(
     model: MFPredictor, training_data: pd.DataFrame, item_popularity: pd.DataFrame, alpha: float = 0.2
 ):
-    """
-    Computes the predicted average score for every item across the entire user population
-    and calculates a corresponding popularity-discounted score.
+    """Computes model-predicted average scores and discounted scores for all items.
 
-    This function iterates through all users in the training set, uses the trained
-    MF model to generate predictions for all items, and maintains a running mean
-    of these predicted scores.
+    This function calculates a baseline score for every item by using the
+    mean user feature vector and mean bias terms. It then applies a
+    popularity-based discount to this score.
 
     Args:
-        model (MFPredictor): The trained LensKit model object (MF model).
-        training_data (pd.DataFrame): The pre-processed and discounted training data
-                                        (used only to extract the list of unique users and items).
-        item_popularity (pd.DataFrame): DataFrame containing item statistics, specifically
-                                        the 'count' and 'rank_popular' columns, used for
-                                        calculating the discounting penalty.
-        alpha (float, optional): The weighting factor used to apply the popularity penalty
-                                to the scores. Defaults to 0.2.
+        model: The trained LensKit model (must be BiasedMF or ImplicitMF).
+        item_popularity: DataFrame containing item statistics, specifically
+            the 'count' column, for calculating the discount.
+        alpha: The weighting factor for the popularity penalty. Defaults to 0.2.
 
     Returns:
-        pd.DataFrame: A DataFrame indexed by item containing two running averages:
-                    - 'ave_score': The raw average predicted rating for the item
-                                    across all users (the model-based baseline).
-                    - 'ave_discounted_score': The predicted score penalized by
-                                                item popularity.
-
+        A DataFrame with 'item', 'ave_score', and 'ave_discounted_score'.
+        Returns an empty DataFrame on failure.
     """
     start = time.time()
     log.info('Starting vectorized computation of average item scores...')
@@ -281,11 +402,20 @@ def _compute_ave_item_scores(
 
     ave_scores_df = pd.DataFrame({'ave_score': ave_scores_vector})
 
-    max_count = item_popularity['count'].max()
+    if 'item' not in item_popularity.columns:
+        item_popularity_df = item_popularity.reset_index()
+    else:
+        item_popularity_df = item_popularity
+
+    if 'item' not in ave_scores_df.columns:
+        ave_scores_df = ave_scores_df.reset_index().rename(columns={'index': 'item'})
+
+    max_count = item_popularity_df['count'].max()
     num_digits = len(str(int(max_count))) if max_count > 0 else 1
     discounting_factor = 10**num_digits
 
     ave_scores_df = pd.merge(ave_scores_df, item_popularity, how='left', on='item')
+    ave_scores_df['count'] = ave_scores_df['count'].fillna(0)
     ave_scores_df['ave_discounted_score'] = ave_scores_df['ave_score'] - alpha * (
         ave_scores_df['count'] / discounting_factor
     )
@@ -297,18 +427,19 @@ def _compute_ave_item_scores(
 
 @memory.cache
 def _compute_observed_item_mean(training_data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Computes the observed mean rating and rating count for every unique item
-    in the training data.
+    """Computes observed item rating statistics from the training data.
+
+    Calculates the mean rating, rating count, and popularity/quality
+    ranks for every item.
 
     Args:
-        training_data (pd.DataFrame): DataFrame containing user interactions,
-                                    expected columns: ['user', 'item', 'rating'].
+        training_data: The training data.
 
     Returns:
-        Tuple[pd.DataFrame, pd.DataFrame]:
-            1. ave_scores_df (DataFrame with item and ave_score).
-            2. item_popularity (DataFrame with item and count).
+        A tuple of (ave_scores_df, item_popularity_df):
+            - ave_scores_df: DataFrame with 'item' and observed 'ave_score'.
+            - item_popularity_df: DataFrame with 'item', 'count',
+              'rank_popular', and 'rank_quality'.
     """
 
     item_stats = training_data.groupby('item')['rating'].agg(['mean', 'count'])
@@ -325,14 +456,17 @@ def _compute_observed_item_mean(training_data: pd.DataFrame) -> tuple[pd.DataFra
 
 
 def _create_annoy_index(user_factors: np.ndarray, user_index: pd.Index, output_path: str, n_trees: int = 50):
-    """
-    Creates and saves an Annoy index from the user latent factor matrix.
+    """Creates and saves an Annoy index for user latent factors.
+
+    This enables fast K-Nearest-Neighbor lookups on the user feature vectors.
+    Also saves a CSV mapping internal Annoy IDs (0..N) to external user IDs.
 
     Args:
-        user_factors (np.ndarray): The User Latent Factor Matrix (P matrix).
-        user_index (pd.Index): The Pandas Index mapping internal IDs (0..N) to external user IDs.
-        output_path (str): File path to save the index.
-        n_trees (int): Number of trees to build (higher = better precision, slower build).
+        user_factors: The user latent factor matrix (P matrix).
+        user_index: Maps internal model IDs to external user IDs.
+        output_path: Base file path to save the index (.ann) and map (.csv).
+        n_trees: Number of trees for the Annoy index. More trees give
+            higher precision but take longer to build.
     """
 
     dims = user_factors.shape[1]
@@ -354,16 +488,19 @@ def _create_annoy_index(user_factors: np.ndarray, user_index: pd.Index, output_p
 def _discount_popular_item_ratings(
     input_data: pd.DataFrame, items_popularity: pd.DataFrame, bias_factor: float = 0.4
 ) -> pd.DataFrame:
-    """
-    Penalizes the popular item by discounting the popular items rating by the bias_factor
+    """Discounts ratings for popular items to reduce popularity bias.
+
+    Applies a penalty to ratings based on the item's popularity rank,
+    making very popular items' ratings slightly lower.
 
     Args:
-        input_data (pd.DataFrame): The training data with columsn ['user', 'item', 'rating', 'timestamp']
-        items_popularity (pd.DataFrame): Item ranked according to their ratings count.
-        bias_factor (float): The factor used to discount the popular ratings. Default to 0.4
+        input_data: The training data with original 'rating' column.
+        items_popularity: DataFrame with 'item' and 'rank_popular'.
+        bias_factor: The factor used to control the discount strength.
 
     Returns:
-        pd.DataFrame: DataFrame with the rating column replaced by the discounted ratings.
+        A DataFrame with the 'rating' column replaced by the
+        'discounted_rating'.
     """
     rpopularity = pd.merge(input_data, items_popularity, how='left', on='item')
     rpopularity['discounted_rating'] = rpopularity['rating'] * (1 - bias_factor / (2 * rpopularity['rank_popular']))
@@ -373,13 +510,18 @@ def _discount_popular_item_ratings(
     return rtrain
 
 
-def _get_model(config: Config) -> MFPredictor:  # Returns MFPredictor instance
-    """
-    Retrieves or trains the main Matrix Factorization model based on config flags.
+def _get_model(config: Config, train_data: pd.DataFrame) -> MFPredictor:
+    """Retrieves a pre-trained model or trains a new one.
 
-    This implements conditional loading logic to ensure efficiency. If a trained
-    model exists and retraining is not requested, the existing model is loaded.
-    Otherwise, a full training run is initiated.
+    Loads a model from disk if it exists and resampling is not requested.
+    Otherwise, it trains a new model, serializes it, and returns it.
+
+    Args:
+        config: The run configuration object.
+        train_data: The (potentially filtered) training data.
+
+    Returns:
+        The loaded or trained MFPredictor model, or None on failure.
     """
     model_file = _get_model_path(config.model_path)
     model = None
@@ -400,7 +542,7 @@ def _get_model(config: Config) -> MFPredictor:  # Returns MFPredictor instance
     if model is None:
         log.info('Model not found or load failed. Initiating full training...')
 
-        train_data = load_training_data(config.data_path)
+        # train_data = load_training_data(config.data_path)
         obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
         discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
 
@@ -413,7 +555,7 @@ def _get_model(config: Config) -> MFPredictor:  # Returns MFPredictor instance
         log.info('MF model trained.')
         log.info(f'Time spent: {end:.2f}s')
 
-        # 3. Serialize the newly trained model (only if trained)
+        # Serialize the newly trained model (only if trained)
         log.info('Serializing the trained model to disk.')
         if not os.path.exists(config.model_path):
             os.makedirs(config.model_path)
@@ -427,23 +569,79 @@ def _get_model(config: Config) -> MFPredictor:  # Returns MFPredictor instance
     return model
 
 
-def _main(config: Config):
+def _apply_item_filter(train_data: pd.DataFrame, filter_list_path: Optional[str]) -> pd.DataFrame:
+    """Filters the training data based on an item inclusion list.
+
+    If a filter path is provided, it reads the CSV, extracts the 'item'
+    column, and filters the training data to only include interactions
+    with items in that list.
+
+    Args:
+        train_data: The original, unfiltered training data.
+        filter_list_path: Path to the CSV file with an 'item' column.
+            If None, the original data is returned.
+
+    Returns:
+        The filtered DataFrame, or the original DataFrame if no
+        filter is applied or an error occurs.
     """
-    Main execution function for the Matrix Factorization (MF) training script.
+    if not filter_list_path:
+        return train_data
 
-    This function conditionally retrieves or trains the main model and then
-    executes all requested post-processing and analysis steps.
+    log.info(f'Attempting to filter training data with item list: {filter_list_path}')
+    try:
+        filter_items_df = pd.read_csv(filter_list_path)
+        # if 'item' not in filter_items_df.columns:
+        #     log.warning(f'Filter file {filter_list_path} lacks "item" column. Ignoring filter.')
+        #     return train_data
+
+        if 'movie_id' in filter_items_df.columns:
+            filter_items_df = filter_items_df.rename({'movie_id': 'item'}, axis=1)
+        elif 'item' not in filter_items_df.columns:
+            log.error(
+                f'Emotion file {filter_list_path} must have "item" or "movie_id" column. Aborting lookup creation.'
+            )
+            raise KeyError(
+                f'Emotion file {filter_list_path} must have "item" or "movie_id" column. Aborting lookup creation.'
+            )
+
+        filter_item_set = set(filter_items_df['item'])
+        original_count = len(train_data)
+        filtered_data = train_data[train_data['item'].isin(filter_item_set)].copy()
+        filtered_count = len(filtered_data)
+        log.info(f'Filtered training data from {original_count} to {filtered_count} interactions.')
+
+        return filtered_data
+
+    except FileNotFoundError:
+        log.warning(f'Filter list file not found: {filter_list_path}. Proceeding with unfiltered data.')
+    except Exception as e:
+        log.warning(f'Error processing filter list {filter_list_path}: {e}. Proceeding with unfiltered data.')
+
+    return train_data
+
+
+def _run_post_processing_tasks(
+    config: Config,
+    model: MFPredictor,
+    discounted_train_data: pd.DataFrame,
+    obs_ave_scores_df: pd.DataFrame,
+    items_popularity_df: pd.DataFrame,
+):
+    """Orchestrates all optional post-training analysis and artifact generation.
+
+    This function checks the config flags and runs the corresponding
+    helper functions to save popularity stats, train resampled models,
+    compute average scores, build Annoy indexes, and create lookup tables.
+
+    Args:
+        config: The run configuration object.
+        model: The main trained model.
+        discounted_train_data: The bias-discounted training data, used for
+            resampling and user history lookups.
+        obs_ave_scores_df: DataFrame of observed average scores, to be saved.
+        items_popularity_df: DataFrame of item popularity stats, to be saved.
     """
-    model = _get_model(config)
-
-    if model is None:
-        log.error('ERROR: Could not load or train model. Skipping post-processing.')
-        return
-
-    train_data = load_training_data(config.data_path)
-    obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
-    discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
-
     if config.item_popularity:
         log.info('Saving the item popularity as a csv file')
         items_popularity_df.to_csv(f'{config.model_path}/item_popularity.csv', index=False)
@@ -461,18 +659,54 @@ def _main(config: Config):
         log.info('Saving the average observed item scores as a csv file')
         obs_ave_scores_df.to_csv(f'{config.model_path}/obs_ave_item_score.csv', index=False)
 
-    if config.cluster_index or config.ratings_index:
+    if config.cluster_index:
         log.info('Building and saving the Annoy index')
         model_instance = _get_exact_mf_model(model)
         if model_instance is not None:
             user_mat = model_instance.user_features_
             user_index = model_instance.user_index_
-
             if user_mat is not None and user_index is not None:
                 _create_annoy_index(user_mat, user_index, f'{config.model_path}/annoy_index')
+            else:
+                log.warning('Could not build Annoy index: user features or index not found.')
+        else:
+            log.warning('Could not build Annoy index: model instance not valid.')
 
     if config.ratings_index:
         _pre_aggregate_user_history(discounted_train_data, f'{config.model_path}/user_history_lookup.parquet')
+
+    if config.emotion_index_path:
+        _create_item_emotion_lookup(config.emotion_index_path, f'{config.model_path}/item_emotion_lookup.parquet')
+
+
+def _main(config: Config):
+    """Main execution function for the training script.
+
+    Orchestrates the entire workflow:
+    1. Load and filter data.
+    2. Get or train the main model.
+    3. Compute core statistics from the data.
+    4. Run all optional post-processing tasks.
+
+    Args:
+        config: The Pydantic model containing all runtime configuration.
+    """
+    train_data = load_training_data(config.data_path)
+    train_data = _apply_item_filter(train_data, config.filter_list)
+
+    if train_data.empty:
+        log.error('Filtering resulted in 0 interactions or data is empty. Aborting.')
+        return
+
+    model = _get_model(config, train_data)
+    if model is None:
+        log.error('ERROR: Could not load or train model. Skipping post-processing.')
+        return
+
+    obs_ave_scores_df, items_popularity_df = _compute_observed_item_mean(train_data)
+    discounted_train_data = _discount_popular_item_ratings(train_data, items_popularity_df)
+
+    _run_post_processing_tasks(config, model, discounted_train_data, obs_ave_scores_df, items_popularity_df)
 
     log.info('Done')
 
@@ -500,10 +734,7 @@ if __name__ == '__main__':
         '--model_path',
         type=str,
         required=True,
-        help=(
-            'Path to the output directory where the trained pipeline, serialized model, '
-            'and analysis files will be saved.'
-        ),
+        help=('Path to the output directory where the trained model, and analysis files will be saved.'),
     )
 
     # --- Algorithm Selection ---
@@ -565,6 +796,31 @@ if __name__ == '__main__':
         ),
     )
 
+    parser.add_argument(
+        '-f',
+        '--filter_list',
+        type=str,
+        required=False,
+        default=None,
+        help=(
+            'Path to a CSV file containing a single "item" column. '
+            'If provided, the training data will be filtered to only include '
+            'interactions with items present in this list.'
+        ),
+    )
+
+    parser.add_argument(
+        '--emotion_index',
+        type=str,
+        required=False,
+        default=None,
+        help=(
+            'Path to the item emotion data file (e.g., "iersg20.csv"). '
+            'If provided, creates a compact item feature lookup table '
+            '(e.g., "item_emotion_lookup.parquet") in the model output directory.'
+        ),
+    )
+
     # --- Advanced Training Parameters ---
     parser.add_argument(
         '-r',
@@ -591,15 +847,27 @@ if __name__ == '__main__':
         cluster_index=args.cluster_index,
         ratings_index=args.ratings_index,
         resample_count=args.resample_count,
+        filter_list=args.filter_list,
+        emotion_index_path=args.emotion_index,
     )
     log.info('Starting model training script.')
     _main(run_config)
     log.info('Script execution finished.')
 
+    # Defaults for the current RSSA
     # ieRS
-    # --algo 'implicit'
-    # --item_popularity
-    # --ave_item_score
+    """
+    python scripts/train_mfs.py \
+    -d ~/zugzug/data/movies/ml-32m/ratings.csv \
+    -o assets/models/implicit_als_ers_ml32m/ \
+    -a implicit \
+    --item_popularity \
+    --ave_item_score \
+    --cluster_index \
+    --emotion_index ~/zugzug/data/movies/ieRS_emotions_g20.csv \
+    --filter_list ~/zugzug/data/movies/ieRS_emotions_g20.csv \
+    --resample_count 20
+    """
 
     # alt algo
     """

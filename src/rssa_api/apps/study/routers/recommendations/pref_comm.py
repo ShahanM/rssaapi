@@ -6,8 +6,6 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from rssa_api.auth.authorization import get_current_participant, validate_api_key
-from rssa_api.compute.rspc import PreferenceCommunity
-from rssa_api.compute.utils import get_rating_data_path, get_rssa_ers_data, get_rssa_model_path
 from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.movie_schemas import MovieSchema
 from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema, RatedItemBaseSchema
@@ -27,7 +25,9 @@ from rssa_api.data.services.rssa_dependencies import (
     get_study_condition_service as study_condition_service,
 )
 from rssa_api.docs.metadata import RSTagsEnum as Tags
+from rssa_api.services.recommenders.pref_com_service import PreferenceCommunity
 
+IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
 router = APIRouter(
     prefix='/recommendations',
     tags=[Tags.rssa],
@@ -103,9 +103,11 @@ async def get_advisor(
 
     condition = await condition_service.get_study_condition(participant.condition_id)
 
-    rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
-    rssa_model_path = get_rssa_model_path()
-    rssa_pref_comm = PreferenceCommunity(rssa_model_path, rssa_itm_pop, rssa_ave_scores, get_rating_data_path())
+    # rssa_itm_pop, rssa_ave_scores = get_rssa_ers_data()
+    # rssa_model_path = get_rssa_model_path()
+    # rssa_pref_comm = PreferenceCommunity(rssa_model_path, rssa_itm_pop, rssa_ave_scores, get_rating_data_path())
+
+    rssa_pref_comm = PreferenceCommunity(IMPLICIT_MODEL_PATH)
 
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
@@ -114,7 +116,7 @@ async def get_advisor(
         for item in rated_movies
     ]
 
-    recs = rssa_pref_comm.get_advisors_with_profile(ratings_with_movielens_ids, str(participant.id), num_rec=7)
+    recs = rssa_pref_comm.get_advisors_with_profile(ratings_with_movielens_ids, num_rec=7)
 
     avatar_pool = list(AVATARS.keys())
     shuffle(avatar_pool)

@@ -1,30 +1,33 @@
-from typing import Annotated, List
+import uuid
+from typing import Annotated, Union
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from rssa_api.compute.iers import EmotionsRS
-from rssa_api.compute.utils import get_iers_data, get_iers_model_path
-from rssa_api.data.moviedb import get_db as movie_db
-from rssa_api.data.schemas.movie_schemas import ERSMovieSchema, MovieSchema
+from rssa_api.auth.authorization import get_current_participant, validate_api_key
+from rssa_api.data.models.study_participants import StudyParticipant
+from rssa_api.data.schemas.movie_schemas import MovieDetailSchema
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
 from rssa_api.data.schemas.preferences_schemas import (
     EmotionContinuousInputSchema,
     EmotionDiscreteInputSchema,
-    EmotionInputSchema,
-    EmotionInputSchemaExperimental,
-    PreferenceRequestSchema,
-    RatedItemSchema,
+    RecommendationRequestPayload,
 )
-from rssa_api.data.services import MovieService, StudyConditionService
-from rssa_api.data.services.content_dependencies import get_movie_service
-from rssa_api.data.services.rssa_dependencies import get_study_condition_service as study_condition_service
+from rssa_api.data.services import MovieService, ParticipantService, StudyConditionService
+from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
+from rssa_api.data.services.rssa_dependencies import (
+    get_participant_service as participant_service,
+)
+from rssa_api.data.services.rssa_dependencies import (
+    get_study_condition_service as study_condition_service,
+)
 from rssa_api.docs.metadata import RSTagsEnum as Tags
+from rssa_api.services.recommenders.emotions_rs_service import EmotionsRS
 
+EMOTIONS_MODEL_PATH = 'implicit_als_ers_ml32m'
 router = APIRouter(
-    prefix='/v2',
+    prefix='/recommendations',
     tags=[Tags.rssa],
 )
-
 # TODO: Move to config file
 TOP_N_TUNING_PARAMS = {
     'item_pool_size': 200,
@@ -48,48 +51,51 @@ DIVERSE_N_TUNING_PARAMS = {
 }
 
 
-@router.post('/recommendations/ers', response_model=List[ERSMovieSchema])
+@router.post('/ers', response_model=list[MovieDetailSchema])
 async def generation_emotions_recommendation(
-    request_model: PreferenceRequestSchema,
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
+    payload: RecommendationRequestPayload,
+    study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
+    participant: Annotated[StudyParticipant, Depends(get_current_participant)],
+    movie_service: Annotated[MovieService, Depends(movie_service)],
     condition_service: Annotated[StudyConditionService, Depends(study_condition_service)],
+    participant_service: Annotated[ParticipantService, Depends(participant_service)],
 ):
-    """_summary_
+    """Generate recommendationtions for the emotions recommender system study.
 
     Args:
-            rated_movies (NewRatingSchema): _description_
-            db (Session, optional): _description_. Defaults to Depends(movie_db).
+        rated_movies: _description_
 
-    Raises:
-            HTTPException: _description_
-
-    Returns:
-            _type_: _description_
+    Returna:
+        list
     """
-    iers_item_pop, iersg20 = get_iers_data()
-    iers_model_path = get_iers_model_path()
-    iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
+    rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
+    rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
+    ratings_with_movielens_ids = [
+        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        for item in rated_movies
+    ]
 
-    study_condition = await condition_service.get_study_condition(request_model.user_condition)
+    ers_recs_service = EmotionsRS(EMOTIONS_MODEL_PATH)
+
+    condition = await condition_service.get_study_condition(participant.condition_id)
     # recs: List[int] = []
-    user_condition = 5
+    # user_condition = 5
     # ratins = {rat.item_id: rat.rating for rat in user_ratings.ratings}
     # movies = await movie_service.get_movies_from_ids(list(ratins.keys()))
     # movies = get_ers_movies_by_ids_v2(db, list(ratins.keys()))
     # newratins = [RatedItemSchema(item_id=int(m.movielens_id), rating=ratins[m.id]) for m in movies]
-    if user_condition in [1, 2, 3, 4]:
-        recs = iersalgs.predict_topN(
-            request_model.ratings,
-            str(request_model.user_id),
-            study_condition.recommendation_count,
+    recs = []
+    if condition in [1, 2, 3, 4]:
+        recs = ers_recs_service.predict_topN(
+            str(participant.id),
+            ratings_with_movielens_ids,
+            condition.recommendation_count,
         )
-    elif user_condition in [5, 6, 7, 8]:
-        recs = iersalgs.predict_diverseN(
-            ratings=request_model.ratings,
-            user_id=str(request_model.user_id),
-            num_rec=study_condition.recommendation_count,
-            dist_method=DIVERSE_N_TUNING_PARAMS['distance_method'],
-            weight_sigma=0.0,
+    elif condition in [5, 6, 7, 8]:
+        recs = ers_recs_service.predict_diverseN(
+            str(participant.id),
+            ratings_with_movielens_ids,
+            condition.recommendation_count,
             item_pool_size=DIVERSE_N_TUNING_PARAMS['item_pool_size'],
             sampling_size=DIVERSE_N_TUNING_PARAMS['diversity_sample_size'],
         )
@@ -101,31 +107,50 @@ async def generation_emotions_recommendation(
     return movies
 
 
-@router.post('/recommendations/ers/update', response_model=List[ERSMovieSchema])
-async def update_recommendations(
-    request_model: EmotionInputSchema,
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
-    condition_service: Annotated[StudyConditionService, Depends(study_condition_service)],
-):
-    iers_item_pop, iersg20 = get_iers_data()
-    iers_model_path = get_iers_model_path()
-    iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
-    recs = []
+ERSControlType = Union[EmotionDiscreteInputSchema, EmotionContinuousInputSchema]
 
-    study_condition = await condition_service.get_study_condition(request_model.user_condition)
-    user_condition = 5
+
+class ERSUpdateRequestPayload(RecommendationRequestPayload):
+    emotion_input: list[ERSControlType]
+
+
+@router.post('/ers/update', response_model=list[MovieDetailSchema])
+async def update_recommendations(
+    payload: ERSUpdateRequestPayload,
+    study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
+    participant: Annotated[StudyParticipant, Depends(get_current_participant)],
+    movie_service: Annotated[MovieService, Depends(movie_service)],
+    condition_service: Annotated[StudyConditionService, Depends(study_condition_service)],
+    participant_service: Annotated[ParticipantService, Depends(participant_service)],
+):
+    rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
+    rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
+    ratings_with_movielens_ids = [
+        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        for item in rated_movies
+    ]
+
+    ers_recs_service = EmotionsRS(EMOTIONS_MODEL_PATH)
+
+    condition = await condition_service.get_study_condition(participant.condition_id)
+    if condition is None:
+        raise HTTPException(
+            status_code=status.HTTP_412_PRECONDITION_FAILED, detail='Something is not right with the participant data.'
+        )
     # ratins = {rat.item_id: rat.rating for rat in rated_movies.ratings}
     # movies = get_ers_movies_by_ids_v2(db, list(ratins.keys()))
     # newratins = [RatedItemSchema(item_id=int(m.movielens_id), rating=ratins[m.id]) for m in movies]
-
-    if request_model.input_type == 'discrete':
-        emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin in request_model.emotion_input]
-        if user_condition in [1, 2, 3, 4]:
-            recs = iersalgs.predict_discrete_tuned_topN(
-                ratings=request_model.ratings,
-                user_id=str(request_model.user_id),
+    ers_control_input = payload.emotion_input
+    recs = []
+    # FIXME the frontend should call the correct endpoint based on the condition. Current method is not RESTful.
+    if isinstance(ers_control_input[0], EmotionDiscreteInputSchema):
+        emo_in = [EmotionDiscreteInputSchema.model_validate(emoin) for emoin in ers_control_input]
+        if condition in [1, 2, 3, 4]:
+            recs = ers_recs_service.predict_discrete_tuned_topN(
+                user_id=str(participant.id),
+                ratings=ratings_with_movielens_ids,
                 emotion_input=emo_in,
-                num_rec=study_condition.recommendation_count,
+                num_rec=condition.recommendation_count,
                 item_pool_size=TOP_N_TUNING_PARAMS['item_pool_size'],
                 scale_vector=TOP_N_TUNING_PARAMS['scale_vector'],
                 lowval=TOP_N_TUNING_PARAMS['low_val'],
@@ -133,14 +158,14 @@ async def update_recommendations(
                 ranking_strategy=TOP_N_TUNING_PARAMS['ranking_strategy'],
                 dist_method=TOP_N_TUNING_PARAMS['distance_method'],
             )
-        elif user_condition in [5, 6, 7, 8]:
+        elif condition in [5, 6, 7, 8]:
             div_sample_size = DIVERSE_N_TUNING_PARAMS['diversity_sample_size']
             assert div_sample_size is not None
-            recs = iersalgs.predict_discrete_tuned_diverseN(
-                ratings=request_model.ratings,
-                user_id=str(request_model.user_id),
+            recs = ers_recs_service.predict_discrete_tuned_diverseN(
+                user_id=str(participant.id),
+                ratings=ratings_with_movielens_ids,
                 emotion_input=emo_in,
-                num_rec=study_condition.recommendation_count,
+                num_rec=condition.recommendation_count,
                 sampling_size=div_sample_size,
                 item_pool_size=DIVERSE_N_TUNING_PARAMS['diversity_sample_size'],
                 scale_vector=DIVERSE_N_TUNING_PARAMS['scale_vector'],
@@ -148,17 +173,17 @@ async def update_recommendations(
                 highval=DIVERSE_N_TUNING_PARAMS['high_val'],
                 ranking_strategy=DIVERSE_N_TUNING_PARAMS['ranking_strategy'],
                 div_crit=DIVERSE_N_TUNING_PARAMS['diversity_criteria'],
-                dist_method=DIVERSE_N_TUNING_PARAMS['distance_method'],
+                # dist_method=DIVERSE_N_TUNING_PARAMS['distance_method'],
             )
 
-    elif request_model.input_type == 'continuous':
-        emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin in request_model.emotion_input]
-        if user_condition in [1, 2, 3, 4]:
-            recs = iersalgs.predict_continuous_tuned_topN(
-                ratings=request_model.ratings,
-                user_id=request_model.user_id,
+    elif isinstance(ers_control_input[0], EmotionContinuousInputSchema):
+        emo_in = [EmotionContinuousInputSchema.model_validate(emoin) for emoin in ers_control_input]
+        if condition in [1, 2, 3, 4]:
+            recs = ers_recs_service.predict_continuous_tuned_topN(
+                user_id=str(participant.id),
+                ratings=ratings_with_movielens_ids,
                 emotion_input=emo_in,
-                num_rec=study_condition.recommendation_count,
+                num_rec=condition.recommendation_count,
                 item_pool_size=TOP_N_TUNING_PARAMS['item_pool_size'],
                 scale_vector=TOP_N_TUNING_PARAMS['scale_vector'],
                 algo=TOP_N_TUNING_PARAMS['ranking_strategy'],
@@ -170,69 +195,4 @@ async def update_recommendations(
 
     movies = await movie_service.get_movies_with_emotions_by_movielens_ids(recs)
     print('MOVIE ', movies[0].__dict__)
-    return [ERSMovieSchema.model_validate(movie) for movie in movies]
-
-
-@router.put('/experimental/recommendations/', response_model=List[ERSMovieSchema])
-async def update_recommendations_experimental(
-    rated_movies: EmotionInputSchemaExperimental, db: Session = Depends(movie_db)
-):
-    iers_item_pop, iersg20 = get_iers_data()
-    iers_model_path = get_iers_model_path()
-    iersalgs = EmotionsRS(iers_model_path, iers_item_pop, iersg20)
-    recs = []
-    if rated_movies.input_type == 'discrete':
-        emo_in = [EmotionDiscreteInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
-        if rated_movies.condition_algo == 1:
-            recs = iersalgs.predict_discrete_tuned_topN(
-                ratings=rated_movies.ratings,
-                user_id=str(rated_movies.user_id),
-                emotion_input=emo_in,
-                num_rec=rated_movies.num_rec,
-                item_pool_size=rated_movies.item_pool_size,
-                scale_vector=rated_movies.scale_vector,
-                lowval=rated_movies.low_val,
-                highval=rated_movies.high_val,
-                ranking_strategy=rated_movies.algo,
-                dist_method=rated_movies.dist_method,
-            )
-        elif rated_movies.condition_algo == 2:
-            div_sample_size = rated_movies.diversity_sample_size
-            assert div_sample_size is not None
-            recs = iersalgs.predict_discrete_tuned_diverseN(
-                ratings=rated_movies.ratings,
-                user_id=str(rated_movies.user_id),
-                emotion_input=emo_in,
-                num_rec=rated_movies.num_rec,
-                sampling_size=div_sample_size,
-                item_pool_size=rated_movies.item_pool_size,
-                scale_vector=rated_movies.scale_vector,
-                lowval=rated_movies.low_val,
-                highval=rated_movies.high_val,
-                ranking_strategy=rated_movies.algo,
-                div_crit=rated_movies.diversity_criterion,
-                dist_method=rated_movies.dist_method,
-            )
-
-    elif rated_movies.input_type == 'continuous':
-        # Not implemented yet
-        emo_in = [EmotionContinuousInputSchema(**emoin.dict()) for emoin in rated_movies.emotion_input]
-        if rated_movies.condition_algo == 1:
-            recs = iersalgs.predict_continuous_tuned_topN(
-                ratings=rated_movies.ratings,
-                user_id=rated_movies.user_id,
-                emotion_input=emo_in,
-                num_rec=rated_movies.num_rec,
-                scale_vector=rated_movies.scale_vector,
-                algo=rated_movies.algo,
-                dist_method=rated_movies.dist_method,
-                item_pool_size=rated_movies.item_pool_size,
-            )
-
-    recs = [str(rec) for rec in recs if rec is not None]
-    if len(recs) == 0:
-        raise HTTPException(status_code=406, detail='User condition not found')
-
-    movies = get_ers_movies_by_movielens_ids(db, recs)
-
-    return movies
+    return [MovieDetailSchema.model_validate(movie) for movie in movies]
