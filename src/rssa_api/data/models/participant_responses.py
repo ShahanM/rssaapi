@@ -1,3 +1,9 @@
+"""Models for participant responses within studies.
+
+This file included feedback, survey item responses,
+freeform responses, ratings, and interaction logs.
+"""
+
 import uuid
 from typing import Optional
 
@@ -13,6 +19,14 @@ from rssa_api.data.models.survey_constructs import ScaleLevel
 
 
 class Feedback(BaseModelMixin, DBBaseParticipantResponseModel):
+    """Stores participant feedback for a study.
+
+    Attributes:
+        feedback_text (str): The text of the feedback provided by the participant.
+        feedback_type (str): The type/category of feedback (e.g., bug report, suggestion).
+        feedback_category (str): The broader category of feedback (e.g., usability, content).
+    """
+
     __tablename__ = 'feedbacks'
 
     feedback_text: Mapped[str] = mapped_column(nullable=False)
@@ -22,10 +36,7 @@ class Feedback(BaseModelMixin, DBBaseParticipantResponseModel):
 
 
 class SurveyItemResponse(BaseModelMixin, DBBaseParticipantResponseModel):
-    """
-    Stores participant responses to specific, structured survey items.
-    Replaces ParticipantSurveyResponse.
-    """
+    """Stores participant responses to specific survey items within the context of a survey construct."""
 
     __tablename__ = 'survey_item_responses'
 
@@ -40,11 +51,7 @@ class SurveyItemResponse(BaseModelMixin, DBBaseParticipantResponseModel):
 
 
 class FreeformResponse(BaseModelMixin, DBBaseParticipantResponseModel):
-    """
-    Stores participant's freeform text responses or comments provided
-    within the context of a survey, step, or specific item (if applicable).
-    This handles cases where construct_id/item_id might be null.
-    """
+    """Stores participant freeform text responses within the study context."""
 
     __tablename__ = 'freeform_responses'
 
@@ -55,9 +62,7 @@ class FreeformResponse(BaseModelMixin, DBBaseParticipantResponseModel):
 
 
 class ParticipantRating(BaseModelMixin, DBBaseParticipantResponseModel):
-    """
-    Stores participant ratings for various content within the study.
-    """
+    """Stores participant ratings for various content within the study."""
 
     __tablename__ = 'participant_ratings'
 
@@ -71,9 +76,7 @@ class ParticipantRating(BaseModelMixin, DBBaseParticipantResponseModel):
 
 
 class ParticipantInteractionLog(BaseModelMixin, DBBaseParticipantResponseModel):
-    """
-    Stores general participant interaction events/behaviors within the study.
-    """
+    """Stores general participant interaction events/behaviors within the study."""
 
     __tablename__ = 'participant_interaction_logs'
 
@@ -83,6 +86,8 @@ class ParticipantInteractionLog(BaseModelMixin, DBBaseParticipantResponseModel):
 
 
 class StudyInteractionResponse(BaseModelMixin, DBBaseParticipantResponseModel):
+    """Stores participant responses to study interaction prompts."""
+
     __tablename__ = 'study_interaction_responses'
 
     payload_json: Mapped[dict] = mapped_column(JSONB, nullable=False)

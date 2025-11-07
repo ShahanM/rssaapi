@@ -1,24 +1,34 @@
+"""SQLAlchemy models for study components in the RSSA API."""
+
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from rssa_api.data.models.rssa_base_models import DBBaseModel, DBBaseOrderedModel
+from rssa_api.data.models.rssa_base_models import BaseModelMixin, DBBaseModel, DBBaseOrderedModel
 from rssa_api.data.models.survey_constructs import ConstructScale, SurveyConstruct
 
 
-class Study(DBBaseModel):
+class Study(DBBaseModel, BaseModelMixin):
+    """SQLAlchemy model for the 'studies' table.
+
+    Attributes:
+        enabled (bool): Indicates if the study is active.
+        deleted_at (Optional[datetime]): Timestamp of deletion for soft deletes.
+        name (str): Name of the study.
+        description (Optional[str]): Description of the study.
+        created_by_id (uuid.UUID): Foreign key to the user who created the study.
+        owner_id (uuid.UUID): Foreign key to the owner of the study.
+    """
+
     __tablename__ = 'studies'
 
     # Metadata
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     enabled: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column()
@@ -42,15 +52,24 @@ class Study(DBBaseModel):
     api_keys: Mapped[list['ApiKey']] = relationship('ApiKey', back_populates='study', cascade='all, delete-orphan')
 
 
-class StudyCondition(DBBaseModel):
+class StudyCondition(DBBaseModel, BaseModelMixin):
+    """SQLAlchemy model for the 'study_conditions' table.
+
+    Attributes:
+        enabled (bool): Indicates if the condition is active.
+        deleted_at (Optional[datetime]): Timestamp of deletion for soft deletes.
+        name (str): Name of the study condition.
+        description (Optional[str]): Description of the study condition.
+        recommendation_count (int): Number of recommendations associated with the condition.
+        study_id (uuid.UUID): Foreign key to the associated study.
+        created_by_id (uuid.UUID): Foreign key to the user who created the condition.
+    """
+
     __tablename__ = 'study_conditions'
 
     # Metadata
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     enabled: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column()
@@ -63,14 +82,27 @@ class StudyCondition(DBBaseModel):
     study: Mapped['Study'] = relationship('Study', back_populates='conditions')
 
 
-class StudyStep(DBBaseOrderedModel):
+class StudyStep(DBBaseOrderedModel, BaseModelMixin):
+    """SQLAlchemy model for the 'study_steps' table.
+
+    Attributes:
+        enabled (bool): Indicates if the study step is active.
+        deleted_at (Optional[datetime]): Timestamp of deletion for soft deletes.
+        step_type (Optional[str]): Type of the study step.
+        name (str): Name of the study step.
+        description (Optional[str]): Description of the study step.
+        title (Optional[str]): Title of the study step.
+        instructions (Optional[str]): Instructions for the study step.
+        path (str): Path associated with the study step.
+        survey_api_root (Optional[str]): API root for surveys in the study step.
+        study_id (uuid.UUID): Foreign key to the associated study.
+        created_by_id (uuid.UUID): Foreign key to the user who created the step.
+    """
+
     __tablename__ = 'study_steps'
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     enabled: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     step_type: Mapped[Optional[str]] = mapped_column(nullable=True)
 
@@ -104,15 +136,25 @@ class StudyStep(DBBaseOrderedModel):
     )
 
 
-class PageContent(DBBaseOrderedModel):
+class PageContent(DBBaseOrderedModel, BaseModelMixin):
+    """SQLAlchemy model for the 'page_contents' table.
+
+    Attributes:
+        enabled (bool): Indicates if the page content is active.
+        deleted_at (Optional[datetime]): Timestamp of deletion for soft deletes.
+        created_by_id (uuid.UUID): Foreign key to the user who created the content.
+        preamble (Optional[str]): Preamble text for the page content.
+        page_id (uuid.UUID): Foreign key to the associated page.
+        construct_id (uuid.UUID): Foreign key to the associated survey construct.
+        scale_id (uuid.UUID): Foreign key to the associated construct scale.
+    """
+
     __tablename__ = 'page_contents'
 
     # Metadata
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     enabled: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
+
     created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id'))
 
     preamble: Mapped[Optional[str]] = mapped_column()
@@ -128,14 +170,26 @@ class PageContent(DBBaseOrderedModel):
     construct_scale: Mapped['ConstructScale'] = relationship('ConstructScale', back_populates='page_contents')
 
 
-class Page(DBBaseOrderedModel):
+class Page(DBBaseOrderedModel, BaseModelMixin):
+    """SQLAlchemy model for the 'step_pages' table.
+
+    Attributes:
+        enabled (bool): Indicates if the page is active.
+        deleted_at (Optional[datetime]): Timestamp of deletion for soft deletes.
+        page_type (Optional[str]): Type of the page.
+        name (str): Name of the page.
+        description (Optional[str]): Description of the page.
+        title (Optional[str]): Title of the page.
+        instructions (Optional[str]): Instructions for the page.
+        created_by_id (uuid.UUID): Foreign key to the user who created the page.
+        study_id (uuid.UUID): Foreign key to the associated study.
+        step_id (uuid.UUID): Foreign key to the associated study step.
+    """
+
     __tablename__ = 'step_pages'
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     enabled: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     page_type: Mapped[Optional[str]] = mapped_column('page_type', nullable=True)
 
@@ -156,9 +210,20 @@ class Page(DBBaseOrderedModel):
 
 
 class ApiKey(DBBaseModel):
+    """SQLAlchemy model for the 'api_keys' table.
+
+    Attributes:
+        key_hash (str): Hashed value of the API key.
+        description (str): Description of the API key.
+        study_id (uuid.UUID): Foreign key to the associated study.
+        user_id (Optional[uuid.UUID]): Foreign key to the associated user.
+        is_active (bool): Indicates if the API key is active.
+        created_at (datetime): Timestamp of creation.
+        last_used_at (Optional[datetime]): Timestamp of last usage.
+    """
+
     __tablename__ = 'api_keys'
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     key_hash: Mapped[str] = mapped_column(index=True)
     description: Mapped[str] = mapped_column(nullable=False)
 
@@ -174,9 +239,18 @@ class ApiKey(DBBaseModel):
 
 
 class User(DBBaseModel):
+    """SQLAlchemy model for the 'users' table.
+
+    Attributes:
+        auth0_sub (str): Unique Auth0 subject identifier.
+        created_at (datetime): Timestamp of creation.
+        studies_owned (list[Study]): List of studies owned by the user.
+        studies_created (list[Study]): List of studies created by the user.
+        api_keys (list[ApiKey]): List of API keys associated with the user.
+    """
+
     __tablename__ = 'users'
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     auth0_sub: Mapped[str] = mapped_column(unique=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(

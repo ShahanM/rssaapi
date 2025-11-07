@@ -1,3 +1,5 @@
+"""SQLAlchemy models for movies in the RSSA API."""
+
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -10,6 +12,43 @@ from rssa_api.data.base import MOVIEDBBase as Base
 
 
 class Movie(Base):
+    """SQLAlchemy model for the 'movies' table.
+
+    Attributes:
+        id (uuid.UUID): Primary key.
+        movielens_id (str): Unique MovieLens identifier.
+        tmdb_id (str): TMDB identifier.
+        imdb_id (str): IMDB identifier.
+        title (str): Title of the movie.
+        year (int): Release year of the movie.
+        runtime (int): Runtime of the movie in minutes.
+        genre (str): Genre(s) of the movie.
+        imdb_genres (str): Genres from IMDB.
+        tmdb_genres (str): Genres from TMDB.
+        ave_rating (float): Average rating across sources.
+        imdb_avg_rating (float): Average rating from IMDB.
+        imdb_rate_count (int): Number of ratings from IMDB.
+        tmdb_avg_rating (float): Average rating from TMDB.
+        tmdb_rate_count (int): Number of ratings from TMDB.
+        movielens_avg_rating (float): Average rating from MovieLens.
+        movielens_rate_count (int): Number of ratings from MovieLens.
+        origin_country (str): Country of origin.
+        parental_guide (str): Parental guidance information.
+        movie_lens_dataset (str): Dataset source from MovieLens.
+        last_updated (datetime): Timestamp of last update.
+        director (str): Director(s) of the movie.
+        writer (str): Writer(s) of the movie.
+        description (str): Description or synopsis of the movie.
+        cast (str): Cast members of the movie.
+        poster (str): URL or path to the movie poster.
+        tmdb_poster (str): TMDB poster URL or path.
+        count (int): Count metric (context-specific).
+        rank (int): Rank metric (context-specific).
+        imdb_popularity (float): Popularity score from IMDB.
+        tmdb_popularity (float): Popularity score from TMDB.
+        poster_identifier (str): Identifier for the poster image.
+    """
+
     __tablename__ = 'movies'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -71,6 +110,24 @@ class Movie(Base):
 
 
 class MovieEmotions(Base):
+    """SQLAlchemy model for the 'movie_emotions' table.
+
+    Attributes:
+        id (uuid.UUID): Primary key.
+        movie_id (uuid.UUID): Foreign key to the movie.
+        movielens_id (str): Unique MovieLens identifier.
+        anger (float): Anger emotion score.
+        anticipation (float): Anticipation emotion score.
+        disgust (float): Disgust emotion score.
+        fear (float): Fear emotion score.
+        joy (float): Joy emotion score.
+        surprise (float): Surprise emotion score.
+        sadness (float): Sadness emotion score.
+        trust (float): Trust emotion score.
+        iers_count (int): IERS count metric.
+        iers_rank (int): IERS rank metric.
+    """
+
     __tablename__ = 'movie_emotions'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -92,6 +149,17 @@ class MovieEmotions(Base):
 
 
 class MovieRecommendationText(Base):
+    """SQLAlchemy model for the 'movie_recommendation_text' table.
+
+    Attributes:
+        id (uuid.UUID): Primary key.
+        movie_id (uuid.UUID): Foreign key to the movie.
+        formal (str): Formal recommendation text.
+        informal (str): Informal recommendation text.
+        source (str): Source of the recommendation.
+        model (str): Model used for generating the recommendation.
+    """
+
     __tablename__ = 'movie_recommendation_text'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

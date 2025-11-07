@@ -1,3 +1,5 @@
+"""SQLAlchemy models for participant movie sequences in the RSSA API."""
+
 import uuid
 from datetime import datetime, timezone
 from typing import List
@@ -10,9 +12,16 @@ from rssa_api.data.base import RSSADBBase as Base
 
 
 class PreShuffledMovieList(Base):
-    """
-    SQLAlchemy model for the 'pre_shuffled_movie_lists' table.
+    """SQLAlchemy model for the 'pre_shuffled_movie_lists' table.
+
     Stores pre-generated, fully shuffled lists of movie UUIDs.
+
+    Attributes:
+        list_id (int): Primary key, auto-incremented.
+        movie_ids (List[uuid.UUID]): Ordered list of movie UUIDs.
+        subset_desc (str): Description of the movie subset.
+        seed (int): Seed used for shuffling.
+        created_at (datetime): Timestamp of creation.
     """
 
     __tablename__ = 'pre_shuffled_movie_lists'
@@ -26,20 +35,23 @@ class PreShuffledMovieList(Base):
     )
 
     def __repr__(self):
+        """String representation of PreShuffledMovieList."""
         return (
             f'<PreShuffledMovieList(list_id={self.list_id}, num_movies={len(self.movie_ids) if self.movie_ids else 0})>'
         )
 
-    def __init__(self, movie_ids: List[uuid.UUID], subset_desc: str, seed: int):
-        self.movie_ids = movie_ids
-        self.subset_desc = subset_desc
-        self.seed = seed
-
 
 class ParticipantMovieSession(Base):
-    """
-    SQLAlchemy model for the 'participant_movie_sessions' table.
+    """SQLAlchemy model for the 'participant_movie_sessions' table.
+
     Tracks each participant's assigned movie list and their current progress.
+
+    Attributes:
+        participant_id (uuid.UUID): Primary key, references the participant.
+        assigned_list_id (int): Foreign key to the assigned pre-shuffled movie list.
+        current_offset (int): Current position in the movie list.
+        created_at (datetime): Timestamp of session creation.
+        last_accessed_at (datetime): Timestamp of last access to the session.
     """
 
     __tablename__ = 'participant_movie_sessions'
@@ -61,11 +73,8 @@ class ParticipantMovieSession(Base):
     assigned_list: Mapped[PreShuffledMovieList] = relationship(PreShuffledMovieList, lazy='joined')
 
     def __repr__(self):
+        """String representation of ParticipantMovieSession."""
         return (
             f'<ParticipantMovieSession(participant_id={self.participant_id}, '
             f'assigned_list_id={self.assigned_list_id}, offset={self.current_offset})>'
         )
-
-    def __init__(self, participant_id: uuid.UUID, assigned_list_id: int):
-        self.participant_id = participant_id
-        self.assigned_list_id = assigned_list_id
