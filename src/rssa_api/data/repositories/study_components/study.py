@@ -1,3 +1,5 @@
+"""Repository for managing Study entities in the database."""
+
 import uuid
 from typing import Optional, Union
 
@@ -11,7 +13,19 @@ from rssa_api.data.repositories.base_repo import BaseRepository
 
 
 class StudyRepository(BaseRepository[Study]):
+    """Repository for Study model.
+
+    Attributes:
+        db: The database session.
+        model: The Study model class.
+    """
+
     def __init__(self, db: AsyncSession):
+        """Initialize the StudyRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, Study)
 
     async def get_detailed_study_object(
@@ -19,6 +33,15 @@ class StudyRepository(BaseRepository[Study]):
         user_id: Optional[uuid.UUID],
         study_id: uuid.UUID,
     ) -> Optional[Row]:
+        """Get a detailed Study object by its ID, including owner and creator info.
+
+        Args:
+            user_id: The UUID of the user requesting the study (for access control).
+            study_id: The UUID of the study.
+
+        Returns:
+            A Row containing the Study instance and related owner/creator info if found, else None.
+        """
         Owner = aliased(User, name='owner')
         Creator = aliased(User, name='creator')
 
@@ -51,6 +74,19 @@ class StudyRepository(BaseRepository[Study]):
         sort_dir: Optional[str],
         search: Optional[str],
     ) -> list[Row]:
+        """Get a paginated list of studies with optional filtering and sorting.
+
+        Args:
+            user_id: The UUID of the user requesting the studies (for access control).
+            limit: The maximum number of studies to return.
+            offset: The number of studies to skip.
+            sort_by: The column to sort by.
+            sort_dir: The direction to sort (asc or desc).
+            search: A search string to filter studies by name or description.
+
+        Returns:
+            A list of Rows containing Study instances.
+        """
         query = select(Study.id, Study.name, Study.created_at, Study.updated_at, Study.created_by_id)
 
         query = self._add_user_filter(query, user_id)
@@ -63,6 +99,15 @@ class StudyRepository(BaseRepository[Study]):
         return result.all()  # type: ignore
 
     async def count_studies(self, user_id: Optional[uuid.UUID], search: Union[str, None]) -> int:
+        """Count the total number of studies with optional filtering.
+
+        Args:
+            user_id: The UUID of the user requesting the count (for access control).
+            search: A search string to filter studies by name or description.
+
+        Returns:
+            The total count of studies.
+        """
         query = select(func.count()).select_from(Study)
         query = self._add_user_filter(query, user_id)
         query = self._add_search_filter(query, search, ['name', 'description'])
@@ -74,6 +119,15 @@ class StudyRepository(BaseRepository[Study]):
         self,
         study_id: uuid.UUID,
     ) -> Optional[Row]:
+        """Get the total number of participants for a specific study, along with owner and creator info.
+
+        Args:
+            study_id: The UUID of the study.
+
+        Returns:
+            A Row containing the Study instance, total participant count, and related owner/creator info if found,
+            else None.
+        """
         Owner = aliased(User, name='owner')
         Creator = aliased(User, name='creator')
 

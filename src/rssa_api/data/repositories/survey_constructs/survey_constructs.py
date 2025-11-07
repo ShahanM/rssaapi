@@ -1,8 +1,9 @@
-import uuid
-from operator import attrgetter
-from typing import Optional, Union
+"""Repository for SurveyConstruct and related models."""
 
-from sqlalchemy import Row, Select, func, or_, select, update
+import uuid
+from typing import Optional
+
+from sqlalchemy import Row, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,7 +13,19 @@ from rssa_api.data.repositories.base_repo import BaseRepository
 
 
 class SurveyConstructRepository(BaseRepository[SurveyConstruct]):
+    """Repository for SurveyConstruct model.
+
+    Attributes:
+        db: The database session.
+        model: The SurveyConstruct model class.
+    """
+
     def __init__(self, db: AsyncSession):
+        """Initialize the SurveyConstructRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, SurveyConstruct)
 
     async def get_constructs_paginated(
@@ -23,6 +36,18 @@ class SurveyConstructRepository(BaseRepository[SurveyConstruct]):
         sort_dir: Optional[str],
         search: Optional[str],
     ) -> list[Row]:
+        """Get paginated survey constructs with optional sorting and searching.
+
+        Args:
+            limit: The maximum number of constructs to return.
+            offset: The number of constructs to skip.
+            sort_by: The column to sort by.
+            sort_dir: The direction of sorting ('asc' or 'desc').
+            search: A search string to filter constructs by name or description.
+
+        Returns:
+            A list of rows containing construct details.
+        """
         query = select(
             SurveyConstruct.id,
             SurveyConstruct.name,
@@ -46,7 +71,15 @@ class SurveyConstructRepository(BaseRepository[SurveyConstruct]):
 
         return result.all()  # type: ignore
 
-    async def get_detailed_construct_object(self, construct_id: uuid.UUID) -> SurveyConstruct:
+    async def get_detailed_construct_object(self, construct_id: uuid.UUID) -> Optional[SurveyConstruct]:
+        """Get a SurveyConstruct with its associated ConstructItems.
+
+        Args:
+            construct_id: The UUID of the survey construct.
+
+        Returns:
+            The SurveyConstruct instance with its items loaded.
+        """
         query = (
             select(SurveyConstruct)
             .where(SurveyConstruct.id == construct_id)
@@ -59,6 +92,14 @@ class SurveyConstructRepository(BaseRepository[SurveyConstruct]):
         return result.scalar_one_or_none()
 
     async def count_total_constructs(self, search: Optional[str]) -> int:
+        """Count total survey constructs with optional searching.
+
+        Args:
+            search: A search string to filter constructs by name or description.
+
+        Returns:
+            The total number of survey constructs.
+        """
         query = select(func.count()).select_from(SurveyConstruct)
         query = self._add_search_filter(query, search, ['name', 'description'])
         result = await self.db.execute(query)
@@ -66,10 +107,25 @@ class SurveyConstructRepository(BaseRepository[SurveyConstruct]):
 
 
 class ConstructScaleRepository(BaseRepository[ConstructScale]):
+    """Repository for ConstructScale model."""
+
     def __init__(self, db: AsyncSession):
+        """Initialize the ConstructScaleRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, ConstructScale)
 
-    async def get_details(self, scale_id: uuid.UUID) -> ConstructScale:
+    async def get_details(self, scale_id: uuid.UUID) -> Optional[ConstructScale]:
+        """Get a ConstructScale with its associated ScaleLevels.
+
+        Args:
+            scale_id: The UUID of the construct scale.
+
+        Returns:
+            The ConstructScale instance with its scale levels loaded.
+        """
         query = (
             select(ConstructScale)
             .where(ConstructScale.id == scale_id)
@@ -87,6 +143,18 @@ class ConstructScaleRepository(BaseRepository[ConstructScale]):
         sort_dir: Optional[str],
         search: Optional[str],
     ) -> list[Row]:
+        """Get paginated construct scales with optional sorting and searching.
+
+        Args:
+            limit: The maximum number of scales to return.
+            offset: The number of scales to skip.
+            sort_by: The column to sort by.
+            sort_dir: The direction of sorting ('asc' or 'desc').
+            search: A search string to filter scales by name or description.
+
+        Returns:
+            A list of rows containing construct scale details.
+        """
         query = select(
             ConstructScale.id,
             ConstructScale.name,
@@ -103,6 +171,14 @@ class ConstructScaleRepository(BaseRepository[ConstructScale]):
         return result.all()  # type: ignore
 
     async def count_total_scales(self, search: Optional[str]) -> int:
+        """Count total construct scales with optional searching.
+
+        Args:
+            search: A search string to filter scales by name or description.
+
+        Returns:
+            The total number of construct scales.
+        """
         query = select(func.count()).select_from(ConstructScale)
         query = self._add_search_filter(query, search, ['name', 'description'])
         result = await self.db.execute(query)
@@ -110,10 +186,24 @@ class ConstructScaleRepository(BaseRepository[ConstructScale]):
 
 
 class ConstructItemRepository(BaseOrderedRepository[ConstructItem]):
+    """Repository for ConstructItem model."""
+
     def __init__(self, db: AsyncSession):
+        """Initialize the ConstructItemRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, ConstructItem, parent_id_column_name='construct_id')
 
 
 class ScaleLevelRepository(BaseOrderedRepository[ScaleLevel]):
+    """Repository for ScaleLevel model."""
+
     def __init__(self, db: AsyncSession):
+        """Initialize the ScaleLevelRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, ScaleLevel, parent_id_column_name='scale_id')

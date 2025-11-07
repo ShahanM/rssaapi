@@ -1,3 +1,5 @@
+"""Base repository for ordered models."""
+
 import uuid
 from typing import Optional, Type, TypeVar, Union
 
@@ -12,7 +14,16 @@ ModelType = TypeVar('ModelType', bound=DBBaseOrderedModel)
 
 
 class BaseOrderedRepository(BaseRepository[ModelType]):
+    """Base repository for ordered models."""
+
     def __init__(self, db: AsyncSession, model: Type[ModelType], parent_id_column_name: str):
+        """Initialize the BaseOrderedRepository.
+
+        Args:
+            db: The database session.
+            model: The model class.
+            parent_id_column_name: The name of the parent ID column in the model.
+        """
         super().__init__(db, model)
         self.parent_id_column_name = parent_id_column_name
         self.parent_id_column = getattr(self.model, parent_id_column_name, None)
@@ -22,12 +33,29 @@ class BaseOrderedRepository(BaseRepository[ModelType]):
             )
 
     async def get_first_ordered_instance(self, parent_id: uuid.UUID) -> Union[ModelType, None]:
+        """Get the first ordered instance for a given parent ID.
+
+        Args:
+            parent_id: The parent ID.
+
+        Returns:
+            The first ordered instance or None if not found.
+        """
         query = select(self.model).where(self.parent_id_column == parent_id).order_by(self.model.order_position)
         result = await self.db.execute(query)
 
         return result.scalars().first()
 
     async def get_next_ordered_instance(self, current_instance: ModelType, full_entity=False) -> Optional[ModelType]:
+        """Get the next ordered instance after the current instance.
+
+        Args:
+            current_instance: The current ordered instance.
+            full_entity: Whether to return the full entity or just the ID.
+
+        Returns:
+            The next ordered instance or None if not found.
+        """
         query = select(self.model)
         query = (
             query.where(self.parent_id_column == getattr(current_instance, self.parent_id_column_name))
@@ -39,12 +67,28 @@ class BaseOrderedRepository(BaseRepository[ModelType]):
         return result.scalar_one_or_none()
 
     async def get_last_ordered_instance(self, parent_id: uuid.UUID) -> Union[ModelType, None]:
+        """Get the last ordered instance for a given parent ID.
+
+        Args:
+            parent_id: The parent ID.
+
+        Returns:
+            The last ordered instance or None if not found.
+        """
         query = select(self.model).where(self.parent_id_column == parent_id).order_by(self.model.order_position.desc())
         result = await self.db.execute(query)
 
         return result.scalars().first()
 
     async def delete_ordered_instance(self, instance_id: uuid.UUID) -> None:
+        """Delete ordered instance and update order positions of subsequent instances.
+
+        Args:
+            instance_id: The ID of the instance to delete.
+
+        Returns:
+            None
+        """
         instance = await self.get(instance_id)
 
         if instance:
@@ -63,6 +107,14 @@ class BaseOrderedRepository(BaseRepository[ModelType]):
             await self.db.flush()
 
     async def purge_ordered_instance(self, instance_id: uuid.UUID) -> None:
+        """Purge ordered instance from the database (non-reversible).
+
+        Args:
+            instance_id: The ID of the instance to purge.
+
+        Returns:
+            None
+        """
         instance = await self.get(instance_id)
 
         if instance:
@@ -81,6 +133,15 @@ class BaseOrderedRepository(BaseRepository[ModelType]):
             await self.db.flush()
 
     async def reorder_ordered_instances(self, parent_id: uuid.UUID, instances_map: dict[uuid.UUID, int]) -> None:
+        """Reorder ordered instances based on the provided mapping.
+
+        Args:
+            parent_id: The parent ID.
+            instances_map: A mapping of instance IDs to their new order positions.
+
+        Returns:
+            None
+        """
         for instance_id, new_position in instances_map.items():
             stmt = (
                 update(self.model)

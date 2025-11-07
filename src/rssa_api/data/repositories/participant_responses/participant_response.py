@@ -1,7 +1,5 @@
-import uuid
-from typing import Any
+"""Repositories for participant responses."""
 
-from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rssa_api.data.models.participant_responses import (
@@ -11,47 +9,67 @@ from rssa_api.data.models.participant_responses import (
     StudyInteractionResponse,
     SurveyItemResponse,
 )
-from rssa_api.data.repositories.base_participant_response_repo import BaseParticipantResponseRepository
 from rssa_api.data.repositories.base_repo import BaseRepository
+from rssa_api.data.repositories.participant_responses.base_participant_response_repo import (
+    BaseParticipantResponseRepository,
+)
 
 
 class SurveyItemResponseRepository(BaseParticipantResponseRepository[SurveyItemResponse]):
+    """Repository for SurveyItemResponse model."""
+
     def __init__(self, db: AsyncSession):
+        """Initialize the SurveyItemResponseRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, SurveyItemResponse)
 
-    # async def update_response(self, item_id: uuid.UUID, update_payload: dict[str, Any], client_version: int) -> bool:
-    #     update_fields = {**update_payload, 'version': client_version + 1}
-    #     update_stmt = (
-    #         update(SurveyItemResponse)
-    #         .where(SurveyItemResponse.id == item_id, SurveyItemResponse.version == client_version)
-    #         .values(**update_fields)
-    #     )
 
-    #     result = await self.db.execute(update_stmt)
+class FreeformResponseRepository(BaseParticipantResponseRepository[FreeformResponse]):
+    """Repository for FreeformResponse model."""
 
-    #     if result.rowcount == 1:
-    #         await self.db.commit()
-    #         return True
-    #     else:
-    #         await self.db.rollback()
-    #         return False
-
-
-class FreeformResponseRepository(BaseRepository[FreeformResponse]):
     def __init__(self, db: AsyncSession):
+        """Initialize the FreeformResponseRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, FreeformResponse)
 
 
 class ParticipantRatingRepository(BaseParticipantResponseRepository[ParticipantRating]):
+    """Repository for ParticipantRating model."""
+
     def __init__(self, db: AsyncSession):
+        """Initialize the ParticipantRatingRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, ParticipantRating)
 
 
 class InteractionLoggingRepository(BaseRepository[ParticipantInteractionLog]):
+    """Repository for ParticipantInteractionLog model."""
+
     def __init__(self, db: AsyncSession):
+        """Initialize the InteractionLoggingRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, ParticipantInteractionLog)
 
 
 class StudyInteractionResponseRepository(BaseParticipantResponseRepository[StudyInteractionResponse]):
+    """Repository for StudyInteractionResponse model."""
+
     def __init__(self, db: AsyncSession):
+        """Initialize the StudyInteractionResponseRepository.
+
+        Args:
+            db: The database session.
+        """
         super().__init__(db, StudyInteractionResponse)
