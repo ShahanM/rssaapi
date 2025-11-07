@@ -6,12 +6,10 @@ from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from rssa_api.data.base import MOVIEDBBase as Base
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-class Movie(Base):
+class Movie(DeclarativeBase):
     """SQLAlchemy model for the 'movies' table.
 
     Attributes:
@@ -109,7 +107,7 @@ class Movie(Base):
     )
 
 
-class MovieEmotions(Base):
+class MovieEmotions(DeclarativeBase):
     """SQLAlchemy model for the 'movie_emotions' table.
 
     Attributes:
@@ -148,7 +146,7 @@ class MovieEmotions(Base):
     movie = relationship('Movie', back_populates='emotions')
 
 
-class MovieRecommendationText(Base):
+class MovieRecommendationText(DeclarativeBase):
     """SQLAlchemy model for the 'movie_recommendation_text' table.
 
     Attributes:

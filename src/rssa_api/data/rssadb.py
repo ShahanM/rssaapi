@@ -1,3 +1,5 @@
+"""Asynchronous database session management for the RSSA Database."""
+
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import rssa_api.config as cfg
@@ -14,16 +16,33 @@ AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=a
 
 
 class RSSADatabase:
+    """Asynchronous context manager for RSSA Database sessions.
+
+    Usage:
+        async with RSSADatabase() as session:
+            # Use the session here
+
+    Attributes:
+        session (AsyncSession): The asynchronous database session.
+    """
+
     async def __aenter__(self):
+        """Enter the asynchronous context manager."""
         self.session = AsyncSessionLocal()
         return self.session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit the asynchronous context manager."""
         await self.session.commit()
         await self.session.close()
 
 
 async def get_db():
+    """Asynchronous generator to yield a database session.
+
+    Yields:
+        AsyncSession: An asynchronous database session.
+    """
     session = AsyncSessionLocal()
     try:
         yield session

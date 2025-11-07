@@ -2,16 +2,15 @@
 
 import uuid
 from datetime import datetime, timezone
-from typing import List
 
 from sqlalchemy import DateTime, ForeignKey, Integer, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from rssa_api.data.base import RSSADBBase as Base
+from rssa_api.data.models.rssa_base_models import DBBaseModel
 
 
-class PreShuffledMovieList(Base):
+class PreShuffledMovieList(DBBaseModel):
     """SQLAlchemy model for the 'pre_shuffled_movie_lists' table.
 
     Stores pre-generated, fully shuffled lists of movie UUIDs.
@@ -26,8 +25,7 @@ class PreShuffledMovieList(Base):
 
     __tablename__ = 'pre_shuffled_movie_lists'
 
-    list_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)  # SERIAL PRIMARY KEY
-    movie_ids: Mapped[List[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
+    movie_ids: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), nullable=False)
     subset_desc: Mapped[str] = mapped_column()
     seed: Mapped[int] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(
@@ -36,12 +34,10 @@ class PreShuffledMovieList(Base):
 
     def __repr__(self):
         """String representation of PreShuffledMovieList."""
-        return (
-            f'<PreShuffledMovieList(list_id={self.list_id}, num_movies={len(self.movie_ids) if self.movie_ids else 0})>'
-        )
+        return f'<PreShuffledMovieList(list_id={self.id}, num_movies={len(self.movie_ids) if self.movie_ids else 0})>'
 
 
-class ParticipantMovieSession(Base):
+class ParticipantMovieSession(DBBaseModel):
     """SQLAlchemy model for the 'participant_movie_sessions' table.
 
     Tracks each participant's assigned movie list and their current progress.
@@ -56,12 +52,12 @@ class ParticipantMovieSession(Base):
 
     __tablename__ = 'participant_movie_sessions'
 
-    participant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)  # UUID PRIMARY KEY
-
-    assigned_list_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey('pre_shuffled_movie_lists.list_id'), nullable=False
+    participant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('study_participants.id'), nullable=False
     )
-
+    assigned_list_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey('pre_shuffled_movie_lists.id'), nullable=False
+    )
     current_offset: Mapped[int] = mapped_column(Integer, server_default=text('0'), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
