@@ -7,17 +7,19 @@ from starlette.types import ASGIApp
 from rssa_api.middlewares.access_logger import DashboardAccessLogMiddleware
 
 from .docs import admin_tags_metadata
-from .routers import construct_items as items_admin
-from .routers import construct_scales as scales_admin
 from .routers import movies as movie_admin
-from .routers import scale_levels as level_admin
-from .routers import step_pages as page_admin
-from .routers import studies as study_admin
-from .routers import study_conditions as condition_admin
-from .routers import study_steps as step_admin
-from .routers import survey_constructs as construct_admin
-from .routers import survey_pages as survey_admin
 from .routers import users as admin_users
+from .routers.study_componenets import studies as study_admin
+from .routers.study_componenets import study_conditions as condition_admin
+from .routers.study_componenets import study_step_page_contents as survey_admin
+from .routers.study_componenets import study_step_pages as page_admin
+from .routers.study_componenets import study_steps as step_admin
+from .routers.survey_constructs import (
+    survey_constructs_router,
+    survey_items_router,
+    survey_scale_levels_router,
+    survey_scales_router,
+)
 
 """
 Admin routes
@@ -45,12 +47,14 @@ api.include_router(study_admin.router)
 api.include_router(step_admin.router)
 api.include_router(page_admin.router)
 api.include_router(condition_admin.router)
-api.include_router(items_admin.router)
-api.include_router(scales_admin.router)
-api.include_router(construct_admin.router)
-api.include_router(level_admin.router)
 api.include_router(survey_admin.router)
 api.include_router(admin_users.router)
 api.include_router(movie_admin.router)
+
+# Survey construct routers
+api.include_router(survey_constructs_router)
+api.include_router(survey_items_router)
+api.include_router(survey_scales_router)
+api.include_router(survey_scale_levels_router)
 
 # api.add_middleware(DashboardAccessLogMiddleware)

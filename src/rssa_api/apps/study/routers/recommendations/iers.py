@@ -12,14 +12,7 @@ from rssa_api.data.schemas.preferences_schemas import (
     EmotionDiscreteInputSchema,
     RecommendationRequestPayload,
 )
-from rssa_api.data.services import MovieService, ParticipantService, StudyConditionService
-from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
-from rssa_api.data.services.rssa_dependencies import (
-    get_participant_service as participant_service,
-)
-from rssa_api.data.services.rssa_dependencies import (
-    get_study_condition_service as study_condition_service,
-)
+from rssa_api.data.services import MovieServiceDep, StudyConditionServiceDep, StudyParticipantServiceDep
 from rssa_api.docs.metadata import RSTagsEnum as Tags
 from rssa_api.services.recommenders.emotions_rs_service import EmotionsRS
 
@@ -52,13 +45,13 @@ DIVERSE_N_TUNING_PARAMS = {
 
 
 @router.post('/ers', response_model=list[MovieDetailSchema])
-async def generation_emotions_recommendation(
+async def generate_emotions_recommendation(
     payload: RecommendationRequestPayload,
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
     participant: Annotated[StudyParticipant, Depends(get_current_participant)],
-    movie_service: Annotated[MovieService, Depends(movie_service)],
-    condition_service: Annotated[StudyConditionService, Depends(study_condition_service)],
-    participant_service: Annotated[ParticipantService, Depends(participant_service)],
+    movie_service: MovieServiceDep,
+    condition_service: StudyConditionServiceDep,
+    participant_service: StudyParticipantServiceDep,
 ):
     """Generate recommendationtions for the emotions recommender system study.
 
@@ -119,9 +112,9 @@ async def update_recommendations(
     payload: ERSUpdateRequestPayload,
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
     participant: Annotated[StudyParticipant, Depends(get_current_participant)],
-    movie_service: Annotated[MovieService, Depends(movie_service)],
-    condition_service: Annotated[StudyConditionService, Depends(study_condition_service)],
-    participant_service: Annotated[ParticipantService, Depends(participant_service)],
+    movie_service: MovieServiceDep,
+    condition_service: StudyConditionServiceDep,
+    participant_service: StudyParticipantServiceDep,
 ):
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))

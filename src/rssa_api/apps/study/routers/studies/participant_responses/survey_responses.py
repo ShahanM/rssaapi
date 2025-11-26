@@ -9,8 +9,7 @@ from rssa_api.data.schemas.participant_response_schemas import (
     SurveyItemResponseSchema,
     SurveyItemResponseUpdatePayload,
 )
-from rssa_api.data.services.response_service import ParticipantResponseService
-from rssa_api.data.services.rssa_dependencies import get_response_service as response_service
+from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
 
 survey_router = APIRouter(
     prefix='/survey',
@@ -29,10 +28,12 @@ survey_router = APIRouter(
 )
 async def create_survey_item_response(
     item_response: SurveyItemResponseBaseSchema,
-    service: Annotated[ParticipantResponseService, Depends(response_service)],
+    service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
-    new_response = await service.create_item_response(id_token['sid'], id_token['pid'], item_response)
+    new_response = await service.create_response(
+        ResponseType.SURVEY_ITEM, id_token['sid'], id_token['pid'], item_response
+    )
 
     return new_response
 
@@ -48,12 +49,12 @@ async def create_survey_item_response(
 async def update_survey_item_response(
     response_item_id: uuid.UUID,
     item_response: SurveyItemResponseUpdatePayload,
-    service: Annotated[ParticipantResponseService, Depends(response_service)],
+    service: ParticipantResponseServiceDep,
     _: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
     client_version = item_response.version
-    update_successful = await service.update_item_response(
-        response_item_id, item_response.model_dump(exclude={'version'}), client_version
+    update_successful = await service.update_response(
+        ResponseType.SURVEY_ITEM, response_item_id, item_response.model_dump(exclude={'version'}), client_version
     )
 
     if not update_successful:
@@ -73,8 +74,10 @@ async def update_survey_item_response(
 )
 async def get_survey_item_response(
     survey_page_id: uuid.UUID,
-    service: Annotated[ParticipantResponseService, Depends(response_service)],
+    service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
-    item_responses = await service.get_survey_page_response(id_token['sid'], id_token['pid'], survey_page_id)
+    item_responses = await service.get_response_for_page(
+        ResponseType.SURVEY_ITEM, id_token['sid'], id_token['pid'], survey_page_id
+    )
     return item_responses

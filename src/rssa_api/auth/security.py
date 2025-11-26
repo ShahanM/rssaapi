@@ -9,8 +9,8 @@ from jose.exceptions import JWTClaimsError, JWTError
 
 from rssa_api.data.models.study_components import User
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.services import UserService
-from rssa_api.data.services.rssa_dependencies import get_user_service as user_service
+from rssa_api.data.services.dependencies import get_user_service
+from rssa_api.data.services.study_admin import UserService
 
 from . import config as cfg
 
@@ -67,7 +67,7 @@ async def get_auth0_authenticated_user(
 
 async def get_current_user(
     token_user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
-    user_service: Annotated[UserService, Depends(user_service)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> User:
     """Dependency that takes the validated Auth0 user and returns the local database user."""
     db_user = await user_service.get_user_by_auth0_sub(token_user.sub)

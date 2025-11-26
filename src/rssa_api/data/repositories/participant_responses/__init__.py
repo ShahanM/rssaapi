@@ -1,15 +1,17 @@
 from .participant_response import (
-	SurveyItemResponseRepository,
-	FreeformResponseRepository,
+	ParticipantSurveyResponseRepository,
+	ParticipantFreeformResponseRepository,
 	ParticipantRatingRepository,
-	InteractionLoggingRepository,
-	StudyInteractionResponseRepository,
+	ParticipantInteractionLogRepository,
+	ParticipantStudyInteractionResponseRepository,
 )
+from ..study_components.feedback import FeedbackRepository
 
 __all__ = [
-	'SurveyItemResponseRepository',
-	'FreeformResponseRepository',
+	'ParticipantSurveyResponseRepository',
+	'ParticipantFreeformResponseRepository',
 	'ParticipantRatingRepository',
-	'InteractionLoggingRepository',
-	'StudyInteractionResponseRepository',
+	'ParticipantInteractionLogRepository',
+	'ParticipantStudyInteractionResponseRepository',
+	'FeedbackRepository',
 ]

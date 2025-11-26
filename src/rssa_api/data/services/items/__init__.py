@@ -1,0 +1,1 @@
+from .movie_service import MovieService

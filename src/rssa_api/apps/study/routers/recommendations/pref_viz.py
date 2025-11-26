@@ -18,13 +18,7 @@ from rssa_api.data.schemas.preferences_schemas import (
     RecommendationJsonPrefVizSchema,
     RecommendationRequestPayload,
 )
-from rssa_api.data.services import MovieService, StudyConditionService
-from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
-from rssa_api.data.services.participant_service import ParticipantService
-from rssa_api.data.services.rssa_dependencies import (
-    get_participant_service as participant_service,
-)
-from rssa_api.data.services.rssa_dependencies import get_study_condition_service as study_condition_service
+from rssa_api.data.services import MovieServiceDep, StudyConditionServiceDep, StudyParticipantServiceDep
 from rssa_api.docs.metadata import RSTagsEnum as Tags
 from rssa_api.services.recommenders.prev_viz_service import PreferenceVisualization
 
@@ -40,10 +34,23 @@ async def recommend_for_study_condition(
     payload: RecommendationRequestPayload,
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
     participant: Annotated[StudyParticipant, Depends(get_current_participant)],
-    movie_service: Annotated[MovieService, Depends(movie_service)],
-    condition_service: Annotated[StudyConditionService, Depends(study_condition_service)],
-    participant_service: Annotated[ParticipantService, Depends(participant_service)],
+    movie_service: MovieServiceDep,
+    condition_service: StudyConditionServiceDep,
+    participant_service: StudyParticipantServiceDep,
 ):
+    """Generate preference visualization recommendations for a study participant.
+
+    Args:
+        payload: Recommendation request payload containing ratings and context.
+        study_id: Study identifier extracted from API key.
+        participant: Current study participant.
+        movie_service: Service for accessing movie data.
+        condition_service: Service for accessing study condition data.
+        participant_service: Service for accessing participant data.
+
+    Returns:
+        A dictionary mapping movie IDs to recommended preference visualization items.
+    """
     rec_ctx = await participant_service.get_recommndation_context_by_participant_context(
         study_id, participant.id, payload.context_tag
     )

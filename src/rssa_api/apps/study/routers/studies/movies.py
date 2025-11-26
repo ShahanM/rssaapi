@@ -11,9 +11,8 @@ from rssa_api.data.schemas.movie_schemas import (
     MovieSearchResponse,
     PaginatedMovieList,
 )
-from rssa_api.data.services import MovieService, ParticipantMovieSessionService
+from rssa_api.data.services import MovieServiceDep, StudyParticipantMovieSessionServiceDep
 from rssa_api.data.services.content_dependencies import get_movie_service
-from rssa_api.data.services.rssa_dependencies import get_participant_movie_session_service as movie_session_service
 
 router = APIRouter(
     prefix='/movies',
@@ -23,8 +22,8 @@ router = APIRouter(
 
 @router.get('/ers', response_model=list[MovieSchema])
 async def get_movies_with_emotions(
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
-    session_service: Annotated[ParticipantMovieSessionService, Depends(movie_session_service)],
+    movie_service: MovieServiceDep,
+    session_service: StudyParticipantMovieSessionServiceDep,
     current_participant: Annotated[StudyParticipant, Depends(get_current_participant)],
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
@@ -39,8 +38,8 @@ async def get_movies_with_emotions(
 
 @router.get('/', response_model=PaginatedMovieList)
 async def get_movies(
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
-    session_service: Annotated[ParticipantMovieSessionService, Depends(movie_session_service)],
+    movie_service: MovieServiceDep,
+    session_service: StudyParticipantMovieSessionServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
@@ -57,7 +56,7 @@ async def get_movies(
 @router.post('/search', response_model=list[MovieSchema])
 async def search_movie(
     request: MovieSearchRequest,
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
+    movie_service: MovieServiceDep,
 ):
     query = request.query.strip().lower()
     exact_match = []

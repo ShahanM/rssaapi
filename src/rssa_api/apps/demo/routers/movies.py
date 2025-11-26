@@ -9,7 +9,7 @@ from rssa_api.data.schemas.movie_schemas import (
     MovieSearchResponse,
     PaginatedMovieList,
 )
-from rssa_api.data.services import MovieService
+from rssa_api.data.services import MovieServiceDep
 from rssa_api.data.services.content_dependencies import get_movie_service
 from rssa_api.data.utility import sa_obj_to_dict
 
@@ -21,7 +21,7 @@ router = APIRouter(
 
 @router.get('/', response_model=PaginatedMovieList)
 async def get_movies(
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
+    movie_service: MovieServiceDep,
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):

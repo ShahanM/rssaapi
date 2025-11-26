@@ -14,10 +14,11 @@ class UserRepository(BaseRepository[User]):
         model: The User model class.
     """
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the UserRepository.
+    pass
+    # def __init__(self, db: AsyncSession):
+    #     """Initialize the UserRepository.
 
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, User)
+    #     Args:
+    #         db: The database session.
+    #     """
+    #     super().__init__(db, User)

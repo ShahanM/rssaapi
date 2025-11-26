@@ -32,12 +32,11 @@ class TextResponseBaseSchema(BaseModel, ParticipantResponseContextMixin):
     response_text: str
 
 
-class TextResponseCreateSchema(BaseModel):
-    step_id: uuid.UUID
-    responses: list[TextResponseBaseSchema]
+class TextResponseUpdatePayload(BaseDBMixin, VersionMixin):
+    response_text: str
 
 
-class TextResponseSchema(TextResponseBaseSchema, BaseDBMixin):
+class TextResponseSchema(TextResponseBaseSchema, VersionMixin, BaseDBMixin):
     pass
 
 
@@ -72,3 +71,13 @@ class StudyInteractionResponseBaseSchema(BaseModel, ParticipantResponseContextMi
 
 class StudyInteractionResponseSchema(VersionMixin, BaseDBMixin):
     payload_json: DynamicPaylaodSchema
+
+
+class FeedbackBaseSchema(BaseModel, ParticipantResponseContextMixin):
+    feedback_text: str
+    feedback_type: str
+    feedback_category: str
+
+
+class FeedbackSchema(FeedbackBaseSchema, VersionMixin, BaseDBMixin):
+    pass

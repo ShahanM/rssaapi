@@ -2,6 +2,9 @@ import uuid
 from datetime import datetime
 
 from fastapi import FastAPI
+from fastapi.openapi.docs import get_swagger_ui_html
+
+from rssa_api.config import ROOT_PATH
 
 from .routers.recommendations import alt_algo, iers, pref_comm, pref_viz
 from .routers.studies import feedback, movies, pages, participant, steps, studies
@@ -18,14 +21,31 @@ api = FastAPI(
 		the specific recommendations for each of the studies.
 		""",
     # openapi_tags=tags_metadata,
-    version='2.0.0',
+    version='0.12.0',
     state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
+    swagger_ui_parameters={
+        'swagger_css_url': f'{ROOT_PATH}/static/swagger-ui-custom.css',
+        'syntaxHighlight': {'theme': 'obsidian'},
+    },
     security=[{'Study ID': []}],
     json_encoders={
         uuid.UUID: lambda obj: str(obj),
         datetime: lambda dt: dt.isoformat(),
     },
 )
+
+print(f'{ROOT_PATH}/study/openapi.json')
+
+
+@api.get('/docs', include_in_schema=False)
+async def custom_swagger_ui_html_cdn():
+    return get_swagger_ui_html(
+        openapi_url=f'{ROOT_PATH}/study/openapi.json',
+        title=f'{api.title} - Swagger U',
+        # swagger_ui_dark.css CDN link
+        swagger_css_url='https://cdn.jsdelivr.net/gh/Itz-fork/Fastapi-Swagger-UI-Dark/assets/swagger_ui_dark.min.css',
+    )
+
 
 """
 Resources API Routers

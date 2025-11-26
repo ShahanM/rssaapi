@@ -78,22 +78,3 @@ class StudyService:
 
     async def delete_study(self, study_id: uuid.UUID) -> None:
         await self.repo.delete(study_id)
-
-    # async def export_study_config(self, study_id: uuid.UUID) -> Optional[StudyConfigSchema]:
-    # 	study_details = await self.get_study_details(study_id)
-
-    # 	if study_details:
-    # 		study_config = {
-    # 			'study_id': study_details.id,
-    # 			'study_steps': [
-    # 				{'name': step.name, '_id': step.id}
-    # 				for step in sorted(study_details.steps, key=lambda s: s.order_position)
-    # 			]
-    # 			if study_details.steps
-    # 			else [],
-    # 			'conditions': {cond.name: cond.id for cond in study_details.conditions}
-    # 			if study_details.conditions
-    # 			else None,
-    # 		}
-    # 		return StudyConfigSchema.model_validate(study_config)
-    # 	return None

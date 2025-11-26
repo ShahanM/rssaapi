@@ -9,17 +9,14 @@ from rssa_api.data.repositories.participant_responses.base_participant_response_
 
 
 class ParticipantRecommendationContextRepository(BaseParticipantResponseRepository[ParticipantRecommendationContext]):
-    """Repository for ParticipantRecommendationContext model.
+    """Repository for ParticipantRecommendationContext model."""
 
-    Attributes:
-        db: The database session.
-        model: The ParticipantRecommendationContext model class.
-    """
+    pass
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the ParticipantRecommendationContextRepository.
+    # def __init__(self, db: AsyncSession):
+    #     """Initialize the ParticipantRecommendationContextRepository.
 
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, ParticipantRecommendationContext)
+    #     Args:
+    #         db: The database session.
+    #     """
+    #     super().__init__(db, ParticipantRecommendationContext)

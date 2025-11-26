@@ -9,17 +9,12 @@ from rssa_api.auth.authorization import authorize_api_key_for_study, generate_jw
 from rssa_api.data.schemas.participant_schemas import ParticpantBaseSchema
 from rssa_api.data.schemas.study_components import StudyStepNavigationSchema
 from rssa_api.data.services import (
-    ParticipantMovieSessionService,
-    ParticipantService,
-    ParticipantSessionService,
-    StudyConditionService,
-    StudyStepService,
+    ParticipantStudySessionServiceDep,
+    StudyConditionServiceDep,
+    StudyParticipantMovieSessionServiceDep,
+    StudyParticipantServiceDep,
+    StudyStepServiceDep,
 )
-from rssa_api.data.services.rssa_dependencies import get_participant_movie_session_service as movie_session_service
-from rssa_api.data.services.rssa_dependencies import get_participant_service as participant_service
-from rssa_api.data.services.rssa_dependencies import get_participant_session_service as participant_session_service
-from rssa_api.data.services.rssa_dependencies import get_study_condition_service as condition_service
-from rssa_api.data.services.rssa_dependencies import get_study_step_service as step_service
 
 
 class ErrorResponse(BaseModel):
@@ -98,7 +93,7 @@ class ResumeResponseSchema(BaseModel):
 )
 async def get_first_step(
     study_id: uuid.UUID,
-    step_service: Annotated[StudyStepService, Depends(step_service)],
+    step_service: StudyStepServiceDep,
 ):
     study_step = await step_service.get_first_study_step(study_id)
 
@@ -128,8 +123,8 @@ async def get_first_step(
 )
 async def export_study_config(
     study_id: uuid.UUID,
-    step_service: Annotated[StudyStepService, Depends(step_service)],
-    condition_service: Annotated[StudyConditionService, Depends(condition_service)],
+    step_service: StudyStepServiceDep,
+    condition_service: StudyConditionServiceDep,
 ):
     steps = await step_service.get_study_steps(study_id)
     conditions = await condition_service.get_study_conditions(study_id)
@@ -161,10 +156,10 @@ async def export_study_config(
 async def create_new_participant_with_session(
     study_id: uuid.UUID,
     new_participant: ParticpantBaseSchema,
-    participant_service: Annotated[ParticipantService, Depends(participant_service)],
-    step_service: Annotated[StudyStepService, Depends(step_service)],
-    session_service: Annotated[ParticipantSessionService, Depends(participant_session_service)],
-    movie_session_service: Annotated[ParticipantMovieSessionService, Depends(movie_session_service)],
+    participant_service: StudyParticipantServiceDep,
+    step_service: StudyStepServiceDep,
+    session_service: ParticipantStudySessionServiceDep,
+    movie_session_service: StudyParticipantMovieSessionServiceDep,
 ):
     next_step = await step_service.get_next_step(new_participant.current_step_id)
     if not next_step:
@@ -193,8 +188,8 @@ async def create_new_participant_with_session(
 )
 async def resume_study_session(
     payload: ResumePayloadSchema,
-    session_service: Annotated[ParticipantSessionService, Depends(participant_session_service)],
-    participant_service: Annotated[ParticipantService, Depends(participant_service)],
+    session_service: ParticipantStudySessionServiceDep,
+    participant_service: StudyParticipantServiceDep,
     study_id: Annotated[uuid.UUID, Depends(authorize_api_key_for_study)],
 ):
     participant_session = await session_service.get_session_by_resume_code(payload.resume_code)

@@ -2,10 +2,10 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from rssa_api.data.repositories import MovieRepository
 from rssa_api.data.repositories.content_dependencies import get_movie_repository
+from rssa_api.data.repositories.items import MovieRepository
 
-from .movie_service import MovieService
+from .items.movie_service import MovieService
 
 
 def get_movie_service(

@@ -39,8 +39,8 @@ class StudyConditionService:
         for row in condition_count_rows:
             participants_by_condition_list.append(
                 {
-                    'condition_id': row.condition_id,
-                    'condition_name': row.condition_name,
+                    'condition_id': row.study_condition_id,
+                    'condition_name': row.study_condition_name,
                     'participant_count': row.participant_count,
                 }
             )

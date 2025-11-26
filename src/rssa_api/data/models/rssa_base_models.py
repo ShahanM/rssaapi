@@ -13,7 +13,7 @@ class DBBaseModel(DeclarativeBase):
     """Base class for all database models in the RSSA API.
 
     Attributes:
-        id (uuid.UUID): Primary key.
+        id: Primary key.
     """
 
     __abstract__ = True
@@ -24,7 +24,7 @@ class OrderedModelMixing:
     """Mixin class to add ordering functionality to models.
 
     Attributes:
-        order_position (int): Position of the model in an ordered list.
+        order_position: Position of the model in an ordered list.
     """
 
     __abstract__ = True
@@ -46,8 +46,8 @@ class BaseModelMixin:
     """Mixin class to add common timestamp fields to models.
 
     Attributes:
-        created_at (datetime): Timestamp of creation.
-        updated_at (datetime): Timestamp of last update.
+        created_at: Timestamp of creation.
+        updated_at: Timestamp of last update.
     """
 
     __abstract__ = True
@@ -66,30 +66,30 @@ class StudyParticipantContextMixin:
     """Mixin class to add study participant context fields to models.
 
     Attributes:
-        study_id (uuid.UUID): Foreign key to the study.
-        step_id (uuid.UUID): Foreign key to the study step.
-        step_page_id (Optional[uuid.UUID]): Foreign key to the step page.
-        participant_id (uuid.UUID): Foreign key to the study participant.
-        context_tag (str): Context tag for the response.
-        version (int): Version of the response.
-        discarded (bool): Indicates if the response is discarded.
+        study_id: Foreign key to the study.
+        study_step_id: Foreign key to the study step.
+        study_step_page_id (Optional[uuid.UUID]): Foreign key to the step page.
+        study_participant_id: Foreign key to the study participant.
+        context_tag: Context tag for the response.
+        version: Version of the response.
+        discarded: Indicates if the response is discarded.
     """
 
     __abstract__ = True
     study_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('studies.id'), nullable=False)
-    step_id: Mapped[uuid.UUID] = mapped_column(
+    study_step_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey('study_steps.id'),
         nullable=False,
         comment='The required step where the context was recorded.',
     )
-    step_page_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    study_step_page_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey('step_pages.id'),
         nullable=True,
         comment='The specific page where the recommendation list was displayed (optional).',
     )
-    participant_id: Mapped[uuid.UUID] = mapped_column(
+    study_participant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey('study_participants.id'), nullable=False
     )
     context_tag: Mapped[str] = mapped_column(String, nullable=False)

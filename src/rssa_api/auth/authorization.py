@@ -7,9 +7,7 @@ from jose import JWTError, jwt
 
 from rssa_api.config import get_env_var
 from rssa_api.data.schemas.participant_schemas import ParticipantSchema
-from rssa_api.data.services import ApiKeyService, ParticipantService
-from rssa_api.data.services.rssa_dependencies import get_api_key_service as key_service
-from rssa_api.data.services.rssa_dependencies import get_participant_service as participant_service
+from rssa_api.data.services import ApiKeyServiceDep, StudyParticipantServiceDep
 
 api_key_id = APIKeyHeader(
     name='X-Api-Key-Id',
@@ -32,7 +30,7 @@ ALGORITHM = 'HS256'
 async def validate_api_key(
     api_key_id: Annotated[uuid.UUID, Depends(api_key_id)],
     api_key_secret: Annotated[str, Depends(api_key_secret)],
-    key_service: Annotated[ApiKeyService, Depends(key_service)],
+    key_service: ApiKeyServiceDep,
 ) -> uuid.UUID:
     valid_key = await key_service.validate_api_key(api_key_id, api_key_secret)
     if not valid_key:
@@ -47,8 +45,8 @@ async def authorize_api_key_for_study(
     study_id: Annotated[uuid.UUID, Path()],
     valid_study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
 ) -> uuid.UUID:
-    """
-    Validates the X-Api-Key and ensures it belongs to the correct, active study.
+    """Validates the X-Api-Key and ensures it belongs to the correct, active study.
+
     Returns the study ID (UUID) on success.
     """
     if study_id != valid_study_id:
@@ -61,7 +59,7 @@ async def authorize_api_key_for_study(
 
 async def get_current_participant(
     token: Annotated[str, Depends(oauth2_scheme)],
-    participant_service: Annotated[ParticipantService, Depends(participant_service)],
+    participant_service: StudyParticipantServiceDep,
 ) -> ParticipantSchema:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

@@ -5,6 +5,7 @@ from datetime import datetime
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from rssa_api.apps import admin_api, demo_api, study_api
@@ -28,8 +29,8 @@ app = FastAPI(
     # description=App_Meta.description,
     version='0.2.0',
     terms_of_service='https://rssa.recsys.dev/terms',
-    docs_url=None,
-    redoc_url=None,
+    # docs_url=None,
+    # redoc_url=None,
     state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
     security=[{'Study ID': []}],
     json_encoders={
@@ -37,6 +38,8 @@ app = FastAPI(
         datetime: lambda dt: dt.isoformat(),
     },
 )
+
+app.mount('/static', StaticFiles(directory='src/rssa_api/static'), name='static')
 
 
 @app.exception_handler(ValidationError)
@@ -90,7 +93,5 @@ app.add_middleware(
 
 @app.get('/')
 async def root():
-    """
-    Hello World!
-    """
+    """Hello World!"""
     return {'message': 'Hello World! Welcome to RSSA APIs!'}

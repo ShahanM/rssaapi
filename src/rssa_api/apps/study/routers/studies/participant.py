@@ -8,8 +8,7 @@ from rssa_api.auth.authorization import (
     validate_study_participant,
 )
 from rssa_api.data.schemas.participant_schemas import DemographicsBaseSchema, DemographicsSchema
-from rssa_api.data.services.participant_service import ParticipantService
-from rssa_api.data.services.rssa_dependencies import get_participant_service
+from rssa_api.data.services import StudyParticipantServiceDep
 
 router = APIRouter(
     prefix='/participants',
@@ -22,7 +21,7 @@ router = APIRouter(
 async def create_particpant_demographic_info(
     demographic_data: DemographicsBaseSchema,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
-    participant_service: Annotated[ParticipantService, Depends(get_participant_service)],
+    participant_service: StudyParticipantServiceDep,
 ):
     dem_data = await participant_service.create_demographic_info(id_token['pid'], demographic_data)
 

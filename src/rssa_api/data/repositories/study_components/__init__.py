@@ -1,12 +1,12 @@
-from .page_content import PageContentRepository
-from .step_page import StepPageRepository
+from .page_content import StudyStepPageContentRepository
+from .study_step_page import StudyStepPageRepository
 from .study_step import StudyStepRepository
 from .study import StudyRepository
 from .study_condition import StudyConditionRepository
 
 __all__ = [
-	"PageContentRepository",
-	"StepPageRepository",
+	"StudyStepPageContentRepository",
+	"StudyStepPageRepository",
 	"StudyStepRepository",
 	"StudyRepository",
 	"StudyConditionRepository",

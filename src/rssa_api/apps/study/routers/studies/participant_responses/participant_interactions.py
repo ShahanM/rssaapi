@@ -1,3 +1,5 @@
+"""Router for handling participant interaction responses in studies."""
+
 import uuid
 from typing import Annotated
 
@@ -8,8 +10,7 @@ from rssa_api.data.schemas.participant_response_schemas import (
     StudyInteractionResponseBaseSchema,
     StudyInteractionResponseSchema,
 )
-from rssa_api.data.services.response_service import ParticipantResponseService
-from rssa_api.data.services.rssa_dependencies import get_response_service as response_service
+from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
 
 interactions_router = APIRouter(
     prefix='/interactions',
@@ -21,18 +22,23 @@ interactions_router = APIRouter(
     '/',
     status_code=status.HTTP_201_CREATED,
     response_model=StudyInteractionResponseSchema,
-    summary='',
-    description='',
-    response_description='',
 )
 async def create_interaction_response(
     interaction_response: StudyInteractionResponseBaseSchema,
-    service: Annotated[ParticipantResponseService, Depends(response_service)],
+    service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
-    int_response = await service.create_participant_interaction_response(
-        id_token['sid'], id_token['pid'], interaction_response
-    )
+    """Create a new participant interaction response.
+
+    Args:
+        interaction_response: The interaction response data.
+        service: The participant response service.
+        id_token: The validated study participant ID token.
+
+    Returns:
+        The created StudyInteractionResponseSchema object.
+    """
+    int_response = await service.create_response(id_token['sid'], id_token['pid'], interaction_response)
 
     return int_response
 
@@ -41,16 +47,25 @@ async def create_interaction_response(
     '/{step_id}',  # FIXME: This should be page_id but currently we only support pages for survey steps
     status_code=status.HTTP_200_OK,
     response_model=list[StudyInteractionResponseSchema],
-    summary='',
-    description='',
-    response_description='',
 )
 async def get_interaction_responses(
-    step_id: uuid.UUID,
-    service: Annotated[ParticipantResponseService, Depends(response_service)],
+    page_id: uuid.UUID,
+    service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
-    responses = await service.get_participant_interaction_responses(step_id, id_token['sid'], id_token['pid'])
+    """Retrieve participant interaction responses for a specific step.
+
+    Args:
+        step_id: The ID of the step.
+        service: The participant response service.
+        id_token: The validated study participant ID token.
+
+    Returns:
+        A list of StudyInteractionResponseSchema objects.
+    """
+    responses = await service.get_response_for_page(
+        ResponseType.STUDY_INTERACTION, id_token['sid'], id_token['pid'], page_id
+    )
 
     return responses
 
@@ -59,19 +74,27 @@ async def get_interaction_responses(
     '/{interactions_id}',
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    summary='',
-    description='',
-    response_description='',
 )
 async def update_interaction_response(
     interactions_id: uuid.UUID,
     update_payload: StudyInteractionResponseSchema,
-    service: Annotated[ParticipantResponseService, Depends(response_service)],
+    service: ParticipantResponseServiceDep,
     _: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
+    """Update an existing participant interaction response.
+
+    Args:
+        interactions_id: The ID of the interaction response to update.
+        update_payload: The updated interaction response data.
+        service: The participant response service.
+        _: The validated study participant ID token.
+
+    Raises:
+        HTTPException: If there is a version conflict during the update.
+    """
     client_version = update_payload.version
-    update_successful = await service.update_participant_interaction_response(
-        interactions_id, update_payload.model_dump(exclude={'version'}), client_version
+    update_successful = await service.update_response(
+        ResponseType.STUDY_INTERACTION, interactions_id, update_payload.model_dump(exclude={'version'}), client_version
     )
 
     if not update_successful:

@@ -16,7 +16,14 @@ ModelType = TypeVar('ModelType', bound=DBBaseOrderedModel)
 class BaseOrderedRepository(BaseRepository[ModelType]):
     """Base repository for ordered models."""
 
-    def __init__(self, db: AsyncSession, model: Type[ModelType], parent_id_column_name: str):
+    parent_id_column_name: str
+
+    def __init__(
+        self,
+        db: AsyncSession,
+        model: Optional[Type[ModelType]] = None,
+        parent_id_column_name: Optional[str] = None,
+    ):
         """Initialize the BaseOrderedRepository.
 
         Args:
@@ -25,8 +32,17 @@ class BaseOrderedRepository(BaseRepository[ModelType]):
             parent_id_column_name: The name of the parent ID column in the model.
         """
         super().__init__(db, model)
-        self.parent_id_column_name = parent_id_column_name
-        self.parent_id_column = getattr(self.model, parent_id_column_name, None)
+
+        if parent_id_column_name:
+            self.parent_id_column_name = parent_id_column_name
+
+        if not self.parent_id_column_name:
+            raise ValueError(
+                f"Repository '{self.__class__.__name__}' must define 'parent_id_column_name' "
+                'as a class attribute or pass it to __init__.'
+            )
+        self.parent_id_column = getattr(self.model, self.parent_id_column_name, None)
+
         if self.parent_id_column is None:
             raise AttributeError(
                 f"Model '{self.model.__name__}' does not have a column named '{self.parent_id_column_name}'."

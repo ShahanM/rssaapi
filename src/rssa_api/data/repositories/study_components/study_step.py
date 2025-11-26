@@ -15,17 +15,18 @@ class StudyStepRepository(BaseOrderedRepository[StudyStep]):
     """Repository for StudyStep model.
 
     Attributes:
-        db: The database session.
-        model: The StudyStep model class.
+        parent_id_column_name: Configured the BaseOrderedRepository to use 'study_id' as the parent ID column.
     """
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the StudyStepRepository.
+    parent_id_column_name: str = 'study_id'
 
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, StudyStep, parent_id_column_name='study_id')
+    # def __init__(self, db: AsyncSession):
+    #     """Initialize the StudyStepRepository.
+
+    #     Args:
+    #         db: The database session.
+    #     """
+    #     super().__init__(db, StudyStep, parent_id_column_name='study_id')
 
     async def validate_path_uniqueness(
         self, study_id: uuid.UUID, path: str, exclude_step_id: Optional[uuid.UUID] = None

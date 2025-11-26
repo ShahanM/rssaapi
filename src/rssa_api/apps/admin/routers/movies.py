@@ -1,5 +1,3 @@
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, Query, status
 
 from rssa_api.apps.admin.docs import ADMIN_MOVIES_TAG
@@ -8,17 +6,13 @@ from rssa_api.data.schemas.movie_schemas import (
     ImdbReviewsPayloadSchema,
     MovieDetailSchema,
     MovieSchema,
-    MovieSearchRequest,
-    MovieSearchResponse,
     PaginatedMovieList,
 )
-from rssa_api.data.services import MovieService
-from rssa_api.data.services.content_dependencies import get_movie_service
+from rssa_api.data.services import MovieServiceDep
 
 router = APIRouter(
     prefix='/movies',
     dependencies=[
-        Depends(get_movie_service),
         Depends(get_auth0_authenticated_user),
         Depends(require_permissions('read:movies')),
     ],
@@ -28,7 +22,7 @@ router = APIRouter(
 
 @router.get('/summary', response_model=list[MovieSchema])
 async def get_movies(
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
+    movie_service: MovieServiceDep,
     offset: int = Query(0, ge=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):
@@ -39,7 +33,7 @@ async def get_movies(
 
 @router.get('/', response_model=PaginatedMovieList)
 async def get_movies_with_details(
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
+    movie_service: MovieServiceDep,
     offset: int = Query(0, ge=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):
@@ -55,7 +49,7 @@ async def get_movies_with_details(
 @router.post('/reviews', status_code=status.HTTP_201_CREATED)
 async def create_movie_reviews(
     payload: ImdbReviewsPayloadSchema,
-    movie_service: Annotated[MovieService, Depends(get_movie_service)],
+    movie_service: MovieServiceDep,
 ):
     print(payload.imdb_id, len(payload.reviews))
     movie = await movie_service.get_movie_by_imdb_id(payload.imdb_id)

@@ -1,13 +1,11 @@
 """Repositories for participant responses."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from rssa_api.data.models.participant_responses import (
-    FreeformResponse,
+    ParticipantFreeformResponse,
     ParticipantInteractionLog,
     ParticipantRating,
-    StudyInteractionResponse,
-    SurveyItemResponse,
+    ParticipantStudyInteractionResponse,
+    ParticipantSurveyResponse,
 )
 from rssa_api.data.repositories.base_repo import BaseRepository
 from rssa_api.data.repositories.participant_responses.base_participant_response_repo import (
@@ -15,61 +13,33 @@ from rssa_api.data.repositories.participant_responses.base_participant_response_
 )
 
 
-class SurveyItemResponseRepository(BaseParticipantResponseRepository[SurveyItemResponse]):
-    """Repository for SurveyItemResponse model."""
+class ParticipantSurveyResponseRepository(BaseParticipantResponseRepository[ParticipantSurveyResponse]):
+    """Repository for ParticipantSurveyResponse model."""
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the SurveyItemResponseRepository.
-
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, SurveyItemResponse)
+    pass
 
 
-class FreeformResponseRepository(BaseParticipantResponseRepository[FreeformResponse]):
+class ParticipantFreeformResponseRepository(BaseParticipantResponseRepository[ParticipantFreeformResponse]):
     """Repository for FreeformResponse model."""
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the FreeformResponseRepository.
-
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, FreeformResponse)
+    pass
 
 
 class ParticipantRatingRepository(BaseParticipantResponseRepository[ParticipantRating]):
     """Repository for ParticipantRating model."""
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the ParticipantRatingRepository.
-
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, ParticipantRating)
+    pass
 
 
-class InteractionLoggingRepository(BaseRepository[ParticipantInteractionLog]):
+class ParticipantInteractionLogRepository(BaseRepository[ParticipantInteractionLog]):
     """Repository for ParticipantInteractionLog model."""
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the InteractionLoggingRepository.
-
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, ParticipantInteractionLog)
+    pass
 
 
-class StudyInteractionResponseRepository(BaseParticipantResponseRepository[StudyInteractionResponse]):
-    """Repository for StudyInteractionResponse model."""
+class ParticipantStudyInteractionResponseRepository(
+    BaseParticipantResponseRepository[ParticipantStudyInteractionResponse]
+):
+    """Repository for ParticipantStudyInteractionResponse model."""
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the StudyInteractionResponseRepository.
-
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, StudyInteractionResponse)
+    pass

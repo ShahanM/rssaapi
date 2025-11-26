@@ -1,3 +1,5 @@
+"""Base schemas and mixins for database models and API responses."""
+
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -7,9 +9,13 @@ from pydantic import BaseModel, Field, computed_field
 
 
 class BaseDBMixin(BaseModel):
+    """A mixin that provides database-related fields."""
+
     id: uuid.UUID = Field(..., description='Unique identifier for the resource.')
 
     class Config:
+        """Pydantic configuration for BaseDBMixin."""
+
         from_attributes = True
         json_encoders = {
             uuid.UUID: lambda v: str(v),
@@ -18,6 +24,8 @@ class BaseDBMixin(BaseModel):
 
 
 class BaseAdminMixin(BaseModel):
+    """A mixin that provides admin-related fields."""
+
     created_at: Optional[datetime] = Field(
         ...,
         description='This is the timestamp logged at database insertion.',
@@ -27,8 +35,7 @@ class BaseAdminMixin(BaseModel):
 
 
 class DisplayNameMixin:
-    """
-    A mixin that provides a `display_name` computed field.
+    """A mixin that provides a `display_name` computed field.
 
     Any class using this mixin MUST define a class variable
     `_display_name_source_field` which holds the name of the field
@@ -40,12 +47,12 @@ class DisplayNameMixin:
     @computed_field
     @property
     def display_name(self) -> str:
+        """Get the display name from the source field."""
         return getattr(self, self._display_name_source_field)
 
 
 class DisplayInfoMixin:
-    """
-    A mixin that provides a `display_info` computed field.
+    """A mixin that provides a `display_info` computed field.
 
     Any class using this mixin MUST define a class variable
     `_display_info_source_field` which holds the name of the field
@@ -57,44 +64,67 @@ class DisplayInfoMixin:
     @computed_field
     @property
     def display_info(self) -> str:
+        """Get the display info from the source field."""
         return getattr(self, self._display_info_source_field)
 
 
 class SortDir(str, Enum):
+    """Enumeration for sort directions."""
+
     ASC = 'asc'
     DESC = 'desc'
 
 
 class PreviewSchema(BaseDBMixin, BaseAdminMixin):
+    """A schema for previewing resources with minimal information.
+
+    _display_name_source_field: ClassVar[str] = 'name'
+    _display_name_source_field: ClassVar[str] = 'name'
+    """
+
     name: str
 
 
 class BaseOrderedMixin(BaseModel):
+    """A mixin that provides ordering capabilities."""
+
     order_position: int
 
 
 class OrderedNavigationMixin(BaseOrderedMixin):
+    """A mixin that provides navigation fields for ordered items."""
+
     next: Optional[uuid.UUID] = None
 
 
 class ReorderPayloadSchema(BaseOrderedMixin, BaseDBMixin):
+    """A schema for reordering items in a list."""
+
     pass
 
 
 class OrderedListItem(DisplayNameMixin, ReorderPayloadSchema):
+    """An ordered list item with a name."""
+
     _display_name_source_field: ClassVar[str] = 'name'
     name: str
 
 
 class OrderedTextListItem(DisplayNameMixin, ReorderPayloadSchema):
+    """An ordered list item with text."""
+
     _display_name_source_field: ClassVar[str] = 'text'
     text: str
 
 
 class UpdatePayloadSchema(BaseModel):
+    """A schema for updating resource fields."""
+
     parent_id: uuid.UUID
     updated_fields: dict[str, Any]
 
 
 class VersionMixin(BaseModel):
+    """A mixin that provides versioning capabilities."""
+
     version: int

@@ -15,9 +15,12 @@ from rssa_api.data.models.rssa_base_models import (
     BaseModelMixin,
     DBBaseParticipantResponseModel,
 )
-from rssa_api.data.models.survey_constructs import ScaleLevel
+from rssa_api.data.models.survey_constructs import SurveyScaleLevel
 
 
+# TODO: This table will be removed from the participant response flow. It will be used for testing and dev feedback.
+# In the future, to disentable feedback from participant responses, the sutdy_participant_id foreign key needs to be
+# dropped, and should be replaced with a text field for email or user identifier.
 class Feedback(BaseModelMixin, DBBaseParticipantResponseModel):
     """Stores participant feedback for a study.
 
@@ -32,33 +35,31 @@ class Feedback(BaseModelMixin, DBBaseParticipantResponseModel):
     feedback_text: Mapped[str] = mapped_column(nullable=False)
     feedback_type: Mapped[str] = mapped_column(nullable=False)
     feedback_category: Mapped[str] = mapped_column(nullable=False)
-    __table_args__ = (UniqueConstraint('study_id', 'participant_id', 'context_tag', name='uq_feedbacks_context'),)
 
 
-class SurveyItemResponse(BaseModelMixin, DBBaseParticipantResponseModel):
+class ParticipantSurveyResponse(BaseModelMixin, DBBaseParticipantResponseModel):
     """Stores participant responses to specific survey items within the context of a survey construct."""
 
-    __tablename__ = 'survey_item_responses'
+    __tablename__ = 'participant_survey_responses'
 
-    construct_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_constructs.id'), nullable=False)
-    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('construct_items.id'), nullable=True)
-    scale_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('construct_scales.id'), nullable=True)
-    scale_level_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('scale_levels.id'))
+    survey_construct_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_constructs.id'), nullable=False)
+    survey_item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_items.id'), nullable=True)
+    survey_scale_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_scales.id'), nullable=True)
+    survey_scale_level_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('survey_scale_levels.id'))
 
-    scale_level: Mapped[Optional['ScaleLevel']] = relationship()
+    survey_scale_level: Mapped[Optional['SurveyScaleLevel']] = relationship()
 
-    __table_args__ = (UniqueConstraint('study_id', 'participant_id', 'item_id', name='uq_survey_context'),)
+    __table_args__ = (UniqueConstraint('study_id', 'study_participant_id', 'survey_item_id', name='uq_survey_context'),)
 
 
-class FreeformResponse(BaseModelMixin, DBBaseParticipantResponseModel):
+class ParticipantFreeformResponse(BaseModelMixin, DBBaseParticipantResponseModel):
     """Stores participant freeform text responses within the study context."""
 
-    __tablename__ = 'freeform_responses'
+    __tablename__ = 'participant_freeform_responses'
 
-    item_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('construct_items.id'), nullable=True)
     response_text: Mapped[str] = mapped_column()
 
-    __table_args__ = (UniqueConstraint('study_id', 'participant_id', 'context_tag', name='uq_freeform_context'),)
+    __table_args__ = (UniqueConstraint('study_id', 'study_participant_id', 'context_tag', name='uq_freeform_context'),)
 
 
 class ParticipantRating(BaseModelMixin, DBBaseParticipantResponseModel):
@@ -72,7 +73,9 @@ class ParticipantRating(BaseModelMixin, DBBaseParticipantResponseModel):
     scale_min: Mapped[int] = mapped_column()
     scale_max: Mapped[int] = mapped_column()
 
-    __table_args__ = (UniqueConstraint('study_id', 'participant_id', 'item_id', name='uq_participant_ratings_item'),)
+    __table_args__ = (
+        UniqueConstraint('study_id', 'study_participant_id', 'item_id', name='uq_participant_ratings_item'),
+    )
 
 
 class ParticipantInteractionLog(BaseModelMixin, DBBaseParticipantResponseModel):
@@ -82,16 +85,18 @@ class ParticipantInteractionLog(BaseModelMixin, DBBaseParticipantResponseModel):
 
     payload_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
-    __table_args__ = (UniqueConstraint('study_id', 'participant_id', 'context_tag', name='uq_interaction_context_tag'),)
+    __table_args__ = (
+        UniqueConstraint('study_id', 'study_participant_id', 'context_tag', name='uq_interaction_context_tag'),
+    )
 
 
-class StudyInteractionResponse(BaseModelMixin, DBBaseParticipantResponseModel):
+class ParticipantStudyInteractionResponse(BaseModelMixin, DBBaseParticipantResponseModel):
     """Stores participant responses to study interaction prompts."""
 
-    __tablename__ = 'study_interaction_responses'
+    __tablename__ = 'participant_study_interaction_responses'
 
     payload_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
     __table_args__ = (
-        UniqueConstraint('study_id', 'participant_id', 'context_tag', name='uq_study_participant_context_tag'),
+        UniqueConstraint('study_id', 'study_participant_id', 'context_tag', name='uq_study_participant_context_tag'),
     )

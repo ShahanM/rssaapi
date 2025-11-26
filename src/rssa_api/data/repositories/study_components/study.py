@@ -4,7 +4,6 @@ import uuid
 from typing import Optional, Union
 
 from sqlalchemy import Row, Select, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
 from rssa_api.data.models.study_components import Study, User
@@ -19,14 +18,6 @@ class StudyRepository(BaseRepository[Study]):
         db: The database session.
         model: The Study model class.
     """
-
-    def __init__(self, db: AsyncSession):
-        """Initialize the StudyRepository.
-
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, Study)
 
     async def get_detailed_study_object(
         self,
@@ -54,8 +45,8 @@ class StudyRepository(BaseRepository[Study]):
             .join_from(Study, Owner, Study.owner_id == Owner.id, isouter=True)
             .join_from(Study, Creator, Study.created_by_id == Creator.id, isouter=True)
             .options(
-                selectinload(Study.steps),
-                selectinload(Study.conditions),
+                selectinload(Study.study_steps),
+                selectinload(Study.study_conditions),
             )
             .where(Study.id == study_id)
         )
@@ -90,8 +81,8 @@ class StudyRepository(BaseRepository[Study]):
         query = select(Study.id, Study.name, Study.created_at, Study.updated_at, Study.created_by_id)
 
         query = self._add_user_filter(query, user_id)
-        query = self._add_search_filter(query, search, ['name', 'description'])
-        query = self._sort_by_column(query, sort_by, sort_dir)
+        query = self._filter(query, search, ['name', 'description'])
+        query = self._sort(query, sort_by, sort_dir)
         query = query.offset(offset).limit(limit)
 
         result = await self.db.execute(query)
@@ -110,7 +101,7 @@ class StudyRepository(BaseRepository[Study]):
         """
         query = select(func.count()).select_from(Study)
         query = self._add_user_filter(query, user_id)
-        query = self._add_search_filter(query, search, ['name', 'description'])
+        query = self._filter(query, search, ['name', 'description'])
         result = await self.db.execute(query)
 
         return result.scalar_one()

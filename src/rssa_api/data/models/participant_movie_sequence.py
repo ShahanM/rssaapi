@@ -37,22 +37,22 @@ class PreShuffledMovieList(DBBaseModel):
         return f'<PreShuffledMovieList(list_id={self.id}, num_movies={len(self.movie_ids) if self.movie_ids else 0})>'
 
 
-class ParticipantMovieSession(DBBaseModel):
-    """SQLAlchemy model for the 'participant_movie_sessions' table.
+class StudyParticipantMovieSession(DBBaseModel):
+    """SQLAlchemy model for the 'study_participant_movie_sessions' table.
 
     Tracks each participant's assigned movie list and their current progress.
 
     Attributes:
-        participant_id (uuid.UUID): Primary key, references the participant.
+        study_participant_id (uuid.UUID): Primary key, references the participant.
         assigned_list_id (int): Foreign key to the assigned pre-shuffled movie list.
         current_offset (int): Current position in the movie list.
         created_at (datetime): Timestamp of session creation.
         last_accessed_at (datetime): Timestamp of last access to the session.
     """
 
-    __tablename__ = 'participant_movie_sessions'
+    __tablename__ = 'study_participant_movie_sessions'
 
-    participant_id: Mapped[uuid.UUID] = mapped_column(
+    study_participant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey('study_participants.id'), nullable=False
     )
     assigned_list_id: Mapped[uuid.UUID] = mapped_column(
@@ -71,6 +71,6 @@ class ParticipantMovieSession(DBBaseModel):
     def __repr__(self):
         """String representation of ParticipantMovieSession."""
         return (
-            f'<ParticipantMovieSession(participant_id={self.participant_id}, '
+            f'<ParticipantMovieSession(study_participant_id={self.study_participant_id}, '
             f'assigned_list_id={self.assigned_list_id}, offset={self.current_offset})>'
         )

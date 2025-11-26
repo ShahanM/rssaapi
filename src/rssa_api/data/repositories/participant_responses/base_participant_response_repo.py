@@ -22,15 +22,6 @@ class BaseParticipantResponseRepository(BaseRepository[ModelType]):
         model: The participant response model class.
     """
 
-    def __init__(self, db: AsyncSession, model: Type[ModelType]):
-        """Initialize the BaseParticipantResponseRepository.
-
-        Args:
-            db: The database session.
-            model: The participant response model class.
-        """
-        super().__init__(db, model)
-
     async def update_response(self, instance_id: uuid.UUID, update_data: dict, client_version: int) -> bool:
         """Update a participant response with optimistic concurrency control.
 

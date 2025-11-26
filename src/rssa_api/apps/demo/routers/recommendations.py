@@ -11,7 +11,7 @@ from rssa_api.data.schemas.preferences_schemas import (
     AdvisorProfileSchema,
     Avatar,
 )
-from rssa_api.data.services import MovieService
+from rssa_api.data.services import MovieServiceDep
 from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
 from rssa_api.docs.metadata import RSTagsEnum as Tags
 from rssa_api.services.recommenders.alt_rec_service import AlternateRS
@@ -82,7 +82,7 @@ AVATARS = {
 @router.post('/prefcomm', response_model=dict[str, AdvisorProfileSchema])
 async def get_advisor(
     payload: RecommendationRequestPayload,
-    movie_service: Annotated[MovieService, Depends(movie_service)],
+    movie_service: MovieServiceDep,
 ):
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
@@ -113,7 +113,7 @@ async def get_advisor(
 @router.post('/altrecs', response_model=list[MovieSchema])
 async def get_alt_recs(
     payload: RecommendationRequestPayload,
-    movie_service: Annotated[MovieService, Depends(movie_service)],
+    movie_service: MovieServiceDep,
 ):
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
@@ -143,7 +143,7 @@ class RecommendationRequest(BaseModel):
 @router.post('/altrecs/function', response_model=Any)
 async def get_alt_rec_do_func(
     payload: RecommendationRequestPayload,
-    movie_service: Annotated[MovieService, Depends(movie_service)],
+    movie_service: MovieServiceDep,
 ):
     """
     This endpoint takes a user and their ratings, sends them to the
@@ -195,7 +195,7 @@ async def get_alt_rec_do_func(
 @router.post('/iers', response_model=list[MovieSchema])
 async def get_iers_recommendations(
     payload: RecommendationRequestPayload,
-    movie_service: Annotated[MovieService, Depends(movie_service)],
+    movie_service: MovieServiceDep,
 ):
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))

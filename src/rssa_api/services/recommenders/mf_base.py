@@ -1,5 +1,5 @@
-"""
-----
+"""RSSA Base Matrix Factorization Recommender Class.
+
 File: mf_base.py
 Project: RS:SA Recommender System (Clemson University)
 Created Date: Friday, 1st September 2023
@@ -30,7 +30,22 @@ MFModelType = Union[als.BiasedMF, als.ImplicitMF]
 
 
 class RSSABase:
+    """Base class for RSSA Matrix Factorization recommenders.
+
+    This class provides common functionality for loading models, making predictions,
+    and finding nearest neighbors using Annoy.
+
+    Attributes:
+        model: The loaded Matrix Factorization model.
+        items: List of item IDs available for recommendations.
+    """
+
     def __init__(self, model_folder: str):
+        """Initialize the RSSABase with the specified model folder.
+
+        Args:
+            model_folder: The folder name where the model and related assets are stored.
+        """
         self.path = MODELS_DIR / model_folder
         self.item_popularity = pd.read_csv(self.path / 'item_popularity.csv')
         self.ave_item_score = pd.read_csv(self.path / 'averaged_item_score.csv')
@@ -43,6 +58,7 @@ class RSSABase:
         self.items = self.item_popularity.item.unique()
 
     def _load_model_asset(self):
+        """Loads the trained MF model from a binary pickle file."""
         return binpickle.load(f'{self.path}/model.bpk')
 
     def _get_typed_model_instance(self, model: MFPredictor) -> Optional[Union[als.BiasedMF, als.ImplicitMF]]:
@@ -55,8 +71,7 @@ class RSSABase:
         return model
 
     def find_nearest_neighbors_annoy(self, new_user_vector: np.ndarray, num_neighbors: int) -> list[int]:
-        """
-        Finds K nearest neighbors using the pre-built Annoy index over the P matrix.
+        """Finds K nearest neighbors using the pre-built Annoy index over the P matrix.
 
         Args:
             new_user_vector: The projected 1D vector (q_u) of the new user.
@@ -86,7 +101,6 @@ class RSSABase:
 
     def _load_annoy_assets_asset(self):
         """Loads the pre-built Annoy index and the ID mapping table."""
-
         annoy_index_path = f'{self.path}/annoy_index'
         user_map_path = f'{annoy_index_path}_map.csv'
 
@@ -111,7 +125,8 @@ class RSSABase:
         return index, user_map_df.iloc[:, 0].to_dict()
 
     def calculate_neighborhood_average(self, neighbor_ids: list[int], target_item: int, min_ratings: int = 1):
-        """
+        """Computes the average observed rating for a target item among the K neighbors.
+
         Calculates the average observed rating for a target item among the K neighbors
         using the in-memory history map.
         """
@@ -138,12 +153,13 @@ class RSSABase:
         """Retrieves the Q (item factor) matrix subset corresponding to the list of item UUIDs.
 
         Args:
-            item_uuids (list[str]): The list of external item IDs (UUIDs) to retrieve.
+            item_ids: List of item UUIDs to retrieve factor vectors for.
 
         Returns:
-            np.ndarray: The sliced Q matrix (N_target_items x F_features).
+            A tuple containing:
+                - A 2D numpy array of shape (num_items, num_factors) with the item factor vectors.
+                - A list of valid item IDs that were found in the model's vocabulary.
         """
-
         item_vocab = self.model.item_index_
 
         # This returns an array of integer indices, with -1 for Out-of-Vocabulary (OOV) items.
@@ -193,22 +209,20 @@ class RSSABase:
         factor: int,
         coeff: float = 0.5,
     ) -> pd.DataFrame:
-        """Predict the ratings for the new items for the live user.
-        Discount the score of the items based on their popularity and
+        """Predict the ratings for the new items for a user.
+
+        This method discount the score of the items based on their popularity and
         compute the RSSA score.
 
         Args:
-            model (Pipeline): The trained pipeline object loaded from disk.
-            item_popularity (pd.DataFrame): ['item', 'count', 'rank']
-            userid (str): User ID of the live user
-            new_ratings (pd.Series): New ratings of the live user indexed by item ID
-            factor (int): Number of items to be considered for discounting. Typically,
-                it the order of magnitude of the number of items in the dataset.
-                coeff (float): Discounting coefficient. Default value is 0.5.
+            userid: The new user's UUID (external ID).
+            ratings: The new user's interaction history, indexed by item ID.
+            factor: The scaling factor for popularity discounting.
+            coeff: The coefficient to control the impact of popularity on the score.
 
         Returns:
-            pd.DataFrame: ['item', 'score', 'count', 'rank', 'discounted_score']
-                The dataframe is sorted by the discounted_score in descending order.
+            DataFrame containing item IDs, original scores, popularity counts,
+            ranks, and discounted scores.
         """
         als_preds = self.predict(userid, ratings)
 
@@ -220,16 +234,13 @@ class RSSABase:
         return als_preds
 
     def get_user_feature_vector(self, ratings: list[MovieLensRatingSchema]) -> Optional[np.ndarray]:
-        """
-        Extracts the new user's latent feature vector (q_u)
-        using the Scorer's public new_user_embedding method.
+        """Projects the new user's ratings into the latent feature space to obtain the user feature vector.
 
         Args:
-            pipeline (Pipeline): The trained pipeline object.
-            ratings (pd.Series): The new user's ratings history (indexed by item ID).
+            ratings: The new user's interaction history, indexed by item ID.
 
         Returns:
-            np.ndarray: The projected user feature vector (q_u).
+            The projected user feature vector as a numpy array, or None if projection fails.
         """
         rated_items = np.array([rating.item_id for rating in ratings], dtype=np.int32)
         new_ratings = pd.Series([rating.rating for rating in ratings], index=rated_items, dtype=np.float64)
@@ -250,9 +261,22 @@ class RSSABase:
 
         return None
 
+    def scale_value(
+        self, value: Union[float, int], new_min: float, new_max: float, cur_min: float, cur_max: float
+    ) -> float:
+        """Scales a value from the current range to a new range.
 
-def scale_value(value, new_min, new_max, cur_min, cur_max):
-    new_range = new_max - new_min
-    cur_range = cur_max - cur_min
-    new_value = new_range * (value - cur_min) / cur_range + new_min
-    return new_value
+        Args:
+            value: The value to be scaled.
+            new_min: The minimum of the new range.
+            new_max: The maximum of the new range.
+            cur_min: The minimum of the current range.
+            cur_max: The maximum of the current range.
+
+        Returns:
+            The scaled value.
+        """
+        new_range = new_max - new_min
+        cur_range = cur_max - cur_min
+        new_value = new_range * (value - cur_min) / cur_range + new_min
+        return new_value

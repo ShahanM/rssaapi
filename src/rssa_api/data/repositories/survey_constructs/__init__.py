@@ -1,13 +1,13 @@
 from .survey_constructs import (
-	ConstructItemRepository, 
-	ConstructScaleRepository, 
+	SurveyItemRepository, 
+	SurveyScaleRepository, 
 	SurveyConstructRepository, 
-	ScaleLevelRepository,
+	SurveyScaleLevelRepository,
 )
 
 __all__ = [
 	'SurveyConstructRepository',
-	'ConstructScaleRepository',
-	'ConstructItemRepository',
-	'ScaleLevelRepository',
+	'SurveyScaleRepository',
+	'SurveyItemRepository',
+	'SurveyScaleLevelRepository',
 ]

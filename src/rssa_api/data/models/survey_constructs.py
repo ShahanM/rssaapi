@@ -8,23 +8,23 @@ from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.ext.orderinglist import ordering_list
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from rssa_api.data.models.rssa_base_models import BaseModelMixin, DBBaseModel
+from rssa_api.data.models.rssa_base_models import BaseModelMixin, DBBaseModel, DBBaseOrderedModel
 
 
-class ConstructItem(DBBaseModel, BaseModelMixin):
+class SurveyItem(DBBaseOrderedModel, BaseModelMixin):
     """SQLAlchemy model for the 'construct_items' table.
 
     Attributes:
-        enabled (bool): Indicates if the item is enabled.
-        deleted_at (Optional[datetime]): Timestamp of deletion.
-        text (str): The text of the construct item.
-        notes (Optional[str]): Additional notes about the item.
-        order_position (int): Position of the item in an ordered list.
-        created_by_id (Optional[uuid.UUID]): Foreign key to the user who created the item.
-        construct_id (uuid.UUID): Foreign key to the associated survey construct.
+        enabled: Indicates if the item is enabled.
+        deleted_at: Timestamp of deletion.
+        text: The text of the construct item.
+        notes: Additional notes about the item.
+        order_position: Position of the item in an ordered list.
+        created_by_id: Foreign key to the user who created the item.
+        construct_id: Foreign key to the associated survey construct.
     """
 
-    __tablename__ = 'construct_items'
+    __tablename__ = 'survey_items'
 
     enabled: Mapped[bool] = mapped_column(default=True)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -34,19 +34,19 @@ class ConstructItem(DBBaseModel, BaseModelMixin):
     order_position: Mapped[int] = mapped_column(nullable=False)
 
     created_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('users.id'))
-    construct_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_constructs.id'), nullable=False)
+    survey_construct_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_constructs.id'), nullable=False)
 
-    survey_construct: Mapped['SurveyConstruct'] = relationship('SurveyConstruct', back_populates='items')
+    survey_construct: Mapped['SurveyConstruct'] = relationship('SurveyConstruct', back_populates='survey_items')
 
 
 class SurveyConstruct(DBBaseModel, BaseModelMixin):
     """SQLAlchemy model for the 'survey_constructs' table.
 
     Attributes:
-        deleted_at (Optional[datetime]): Timestamp of deletion.
-        name (str): Name of the survey construct.
-        description (str): Description of the survey construct.
-        created_by_id (Optional[uuid.UUID]): Foreign key to the user who created the construct
+        deleted_at: Timestamp of deletion.
+        name: Name of the survey construct.
+        description: Description of the survey construct.
+        created_by_id: Foreign key to the user who created the construct
     """
 
     __tablename__ = 'survey_constructs'
@@ -58,29 +58,29 @@ class SurveyConstruct(DBBaseModel, BaseModelMixin):
 
     created_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('users.id'))
 
-    items: Mapped[list[ConstructItem]] = relationship(
-        'ConstructItem',
+    survey_items: Mapped[list[SurveyItem]] = relationship(
+        'SurveyItem',
         back_populates='survey_construct',
         uselist=True,
         cascade='all, delete-orphan',
     )
-    page_contents: Mapped[list['PageContent']] = relationship(  # type: ignore # noqa: F821
-        'PageContent', back_populates='survey_construct', uselist=True
+    study_step_page_contents: Mapped[list['StudyStepPageContent']] = relationship(  # type: ignore # noqa: F821
+        'StudyStepPageContent', back_populates='survey_construct', uselist=True
     )
 
 
-class ConstructScale(DBBaseModel, BaseModelMixin):
+class SurveyScale(DBBaseModel, BaseModelMixin):
     """SQLAlchemy model for the 'construct_scales' table.
 
     Attributes:
-        enabled (bool): Indicates if the scale is enabled.
+        enabled: Indicates if the survey scale is enabled.
         deleted_at (Optional[datetime]): Timestamp of deletion.
-        name (str): Name of the construct scale.
-        description (Optional[str]): Description of the construct scale.
+        name: Name of the survey survey scale.
+        description (Optional[str]): Description of the survey scale.
         created_by_id (Optional[uuid.UUID]): Foreign key to the user who created the scale.
     """
 
-    __tablename__ = 'construct_scales'
+    __tablename__ = 'survey_scales'
 
     enabled: Mapped[bool] = mapped_column(default=True)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -90,34 +90,34 @@ class ConstructScale(DBBaseModel, BaseModelMixin):
 
     created_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('users.id'))
 
-    scale_levels: Mapped[list['ScaleLevel']] = relationship(
-        'ScaleLevel',
-        back_populates='scale',
-        order_by='ScaleLevel.order_position',
+    survey_scale_levels: Mapped[list['SurveyScaleLevel']] = relationship(
+        'SurveyScaleLevel',
+        back_populates='survey_scale',
+        order_by='SurveyScaleLevel.order_position',
         collection_class=ordering_list('order_position'),
         uselist=True,
         cascade='all, delete-orphan',
     )
-    page_contents: Mapped[list['PageContent']] = relationship(  # type: ignore # noqa: F821
-        'PageContent', back_populates='construct_scale', uselist=True
+    study_step_page_contents: Mapped[list['StudyStepPageContent']] = relationship(  # type: ignore # noqa: F821
+        'StudyStepPageContent', back_populates='survey_scale', uselist=True
     )
 
 
-class ScaleLevel(DBBaseModel, BaseModelMixin):
-    """SQLAlchemy model for the 'scale_levels' table.
+class SurveyScaleLevel(DBBaseOrderedModel, BaseModelMixin):
+    """SQLAlchemy model for the 'survey_scale_levels' table.
 
     Attributes:
-        enabled (bool): Indicates if the scale level is enabled.
-        deleted_at (Optional[datetime]): Timestamp of deletion.
-        label (str): Label of the scale level.
-        notes (Optional[str]): Additional notes about the scale level.
-        value (int): Numeric value of the scale level.
-        order_position (int): Position of the scale level in an ordered list.
-        created_by_id (Optional[uuid.UUID]): Foreign key to the user who created the scale level.
-        scale_id (uuid.UUID): Foreign key to the associated construct scale.
+        enabled: Indicates if the survey scale level is enabled.
+        deleted_at: Timestamp of deletion.
+        label: Label of the survey scale level.
+        notes: Additional notes about the survey_scale level.
+        value: Numeric value of the survey scale level.
+        order_position: Position of the survey scale level in an ordered list.
+        created_by_id: Foreign key to the user who created the survey scale level.
+        scale_id: Foreign key to the associated survey scale.
     """
 
-    __tablename__ = 'scale_levels'
+    __tablename__ = 'survey_scale_levels'
 
     enabled: Mapped[bool] = mapped_column(default=True)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -129,6 +129,6 @@ class ScaleLevel(DBBaseModel, BaseModelMixin):
     order_position: Mapped[int] = mapped_column(nullable=False)
 
     created_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('users.id'))
-    scale_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('construct_scales.id'), nullable=False)
+    scale_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_scales.id'), nullable=False)
 
-    scale: Mapped['ConstructScale'] = relationship('ConstructScale', back_populates='scale_levels')
+    survey_scale: Mapped['SurveyScale'] = relationship('SurveyScale', back_populates='survey_scale_levels')

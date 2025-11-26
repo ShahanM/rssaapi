@@ -1,10 +1,11 @@
 """Base repository providing generic CRUD operations for SQLAlchemy models."""
 
 import uuid
-from typing import Any, Generic, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Generic, Optional, Sequence, Type, TypeVar, Union, get_args
 
 from sqlalchemy import Select, and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.base import ExecutableOption
 
 from rssa_api.data.models.rssa_base_models import DBBaseModel
 
@@ -19,7 +20,7 @@ class BaseRepository(Generic[ModelType]):
         model (Type[ModelType]): The SQLAlchemy model class.
     """
 
-    def __init__(self, db: AsyncSession, model: Type[ModelType]):
+    def __init__(self, db: AsyncSession, model: Optional[Type[ModelType]] = None):
         """Initialize the BaseRepository.
 
         Args:
@@ -27,7 +28,30 @@ class BaseRepository(Generic[ModelType]):
             model: The SQLAlchemy model class.
         """
         self.db = db
-        self.model = model
+
+        if model:
+            self.model = model
+        else:
+            inferred_model = self._infer_model_type()
+            if inferred_model is None:
+                raise ValueError(
+                    f'Could not automatically infer ModelType for {self.__class__.__name__}. '
+                    "Please pass the 'model' argument explicitly."
+                )
+            self.model = inferred_model
+
+    def _infer_model_type(self) -> Union[Type[ModelType], None]:
+        """Inspects the class hierarchy to find the generic type argument for ModelType."""
+        cls = self.__class__
+        for base in cls.__orig_bases__:  # type: ignore[attr-defined]
+            origin = getattr(base, '__origin__', None)
+
+            if origin is BaseRepository or (origin and issubclass(origin, BaseRepository)):
+                args = get_args(base)
+
+                if args and len(args) > 0:
+                    return args[0]
+        return None
 
     async def create(self, instance: ModelType) -> ModelType:
         """Create a new instance in the database.
@@ -54,39 +78,56 @@ class BaseRepository(Generic[ModelType]):
         self.db.add_all(instances)
         return instances
 
-    async def get(self, instance_id: uuid.UUID) -> Optional[ModelType]:
+    async def get(
+        self, instance_id: uuid.UUID, options: Union[Sequence[ExecutableOption], None] = None
+    ) -> Optional[ModelType]:
         """Get an instance by its ID.
 
         Args:
             instance_id: The UUID of the instance to retrieve.
+            options: Optional sequence of SQLAlchemy ExecutableOptions to apply to the query.
 
         Returns:
             The instance if found, else None.
         """
         query = select(self.model).where(self.model.id == instance_id)
+
+        if options:
+            query = query.options(*options)
+
         result = await self.db.execute(query)
         return result.scalars().first()
 
-    async def get_all(self) -> list[ModelType]:
+    async def get_all(self, options: Union[Sequence[ExecutableOption], None] = None) -> list[ModelType]:
         """Get all instances of the model.
 
         Returns:
             A list of all instances.
         """
         query = select(self.model)
+
+        if options:
+            query = query.options(*options)
+
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_all_from_ids(self, instance_ids: list[uuid.UUID]) -> Optional[list[ModelType]]:
+    async def get_all_from_ids(
+        self, instance_ids: list[uuid.UUID], options: Union[Sequence[ExecutableOption], None] = None
+    ) -> Optional[list[ModelType]]:
         """Get all instances matching the provided list of IDs.
 
         Args:
             instance_ids: A list of UUIDs of the instances to retrieve.
+            options: Optional sequence of SQLAlchemy ExecutableOptions to apply to the query.
 
         Returns:
             A list of instances matching the IDs.
         """
         query = select(self.model).where(self.model.id.in_(instance_ids))
+
+        if options:
+            query = query.options(*options)
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
@@ -136,12 +177,15 @@ class BaseRepository(Generic[ModelType]):
 
         return result.rowcount > 0  # type: ignore
 
-    async def get_by_field(self, field_name: str, value: Any) -> Union[ModelType, None]:
+    async def get_by_field(
+        self, field_name: str, value: Any, options: Union[Sequence[ExecutableOption], None] = None
+    ) -> Union[ModelType, None]:
         """Get an instance by a specific field.
 
         Args:
             field_name: The name of the field to filter by.
             value: The value of the field to match.
+            options: Optional sequence of SQLAlchemy ExecutableOptions to apply to the query.
 
         Returns:
             The instance if found, else None.
@@ -151,14 +195,21 @@ class BaseRepository(Generic[ModelType]):
             raise AttributeError(f'Model "{self.model.__name__}" has no attribute "{field_name}" to query by.')
 
         query = select(self.model).where(column_attribute == value)
+
+        if options:
+            query = query.options(*options)
+
         result = await self.db.execute(query)
         return result.scalars().first()
 
-    async def get_by_fields(self, filters: list[tuple[str, Any]]) -> Optional[ModelType]:
+    async def get_by_fields(
+        self, filters: list[tuple[str, Any]], options: Union[Sequence[ExecutableOption], None] = None
+    ) -> Optional[ModelType]:
         """Get an instance by multiple fields.
 
         Args:
             filters: A list of tuples where each tuple contains a field name and its corresponding value.
+            options: Optional sequence of SQLAlchemy ExecutableOptions to apply to the query.
 
         Returns:
             The instance if found, else None.
@@ -168,6 +219,10 @@ class BaseRepository(Generic[ModelType]):
             column_attribute = getattr(self.model, col_name)
             _filter_criteria.append(column_attribute == col_value)
         query = select(self.model).where(and_(*_filter_criteria))
+
+        if options:
+            query = query.options(*options)
+
         result = await self.db.execute(query)
         return result.scalars().first()
 
@@ -189,11 +244,14 @@ class BaseRepository(Generic[ModelType]):
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_all_by_fields(self, filters: list[tuple[str, Any]]) -> Sequence[ModelType]:
+    async def get_all_by_fields(
+        self, filters: list[tuple[str, Any]], options: Union[Sequence[ExecutableOption], None] = None
+    ) -> Sequence[ModelType]:
         """Get all instances matching multiple field values.
 
         Args:
             filters: A list of tuples where each tuple contains a field name and its corresponding value.
+            options: Optional sequence of SQLAlchemy ExecutableOptions to apply to the query.
 
         Returns:
             A list of instances matching the field values.
@@ -203,15 +261,22 @@ class BaseRepository(Generic[ModelType]):
             column_attribute = getattr(self.model, col_name)
             _filter_criteria.append(column_attribute == col_value)
         query = select(self.model).where(and_(*_filter_criteria))
+
+        if options:
+            query = query.options(*options)
+
         result = await self.db.execute(query)
         return result.scalars().all()
 
-    async def get_all_by_field_in_values(self, field_name: str, values: list[Any]) -> list[ModelType]:
+    async def get_all_by_field_in_values(
+        self, field_name: str, values: list[Any], options: Union[Sequence[ExecutableOption], None] = None
+    ) -> list[ModelType]:
         """Get all instances where a specific field's value is in a list of values.
 
         Args:
             field_name: The name of the field to filter by.
             values: A list of values to match against the field.
+            options: Optional sequence of SQLAlchemy ExecutableOptions to apply to the query.
 
         Returns:
             A list of instances matching the field values.
@@ -225,30 +290,72 @@ class BaseRepository(Generic[ModelType]):
             return []
 
         query = select(self.model).where(column_attribute.in_(values))
+
+        if options:
+            query = query.options(*options)
+
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    def _add_search_filter(self, query: Select, search: Union[str, None], search_cols: list[str]) -> Select:
+    async def get_paged(
+        self,
+        limit: int,
+        offset: int,
+        sort_by: Optional[str] = None,
+        sort_dir: Optional[str] = None,
+        filter_str: Optional[str] = None,
+        filter_cols: Optional[list[str]] = None,
+        options: Union[Sequence[ExecutableOption], None] = None,
+    ) -> list[ModelType]:
+        """Get a paginated list of instances with optional sorting and filtering.
+
+        Args:
+            limit: The maximum number of instances to return.
+            offset: The number of instances to skip.
+            sort_by: The column name to sort by.
+            sort_dir: The direction of sorting ('asc' or 'desc').
+            filter_str: The search string to filter by.
+            filter_cols: A list of column names to apply the search filter on.
+            options: Optional sequence of SQLAlchemy ExecutableOptions to apply to the query.
+
+        Returns:
+            A list of instances.
+        """
+        query = select(self.model).offset(offset).limit(limit)
+
+        if sort_by:
+            query = self._sort(query, sort_by, sort_dir)
+
+        if filter_str and filter_cols:
+            query = self._filter(query, filter_str, filter_cols)
+
+        if options:
+            query = query.options(*options)
+
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    def _filter(self, query: Select, filter_str: Union[str, None], filter_cols: list[str]) -> Select:
         """Add search filters to the query based on specified columns.
 
         Args:
             query: The SQLAlchemy Select query to modify.
-            search: The search string to filter by.
-            search_cols: A list of column names to apply the search filter on.
+            filter_str: The search string to filter by.
+            filter_cols: A list of column names to apply the search filter on.
 
         Returns:
             The modified Select query with search filters applied.
         """
-        if search:
-            search_pattern = f'%{search}%'
+        if filter_str:
+            search_pattern = f'%{filter_str}%'
             conditions = []
-            for col_name in search_cols:
+            for col_name in filter_cols:
                 column_attribute = getattr(self.model, col_name)
                 conditions.append(column_attribute.ilike(search_pattern))
             return query.where(or_(*conditions))
         return query
 
-    def _sort_by_column(self, query: Select, sort_by: Optional[str], sort_dir: Optional[str]) -> Select:
+    def _sort(self, query: Select, sort_by: Optional[str], sort_dir: Optional[str]) -> Select:
         """Sort the query by a specified column and direction.
 
         Args:
@@ -267,3 +374,19 @@ class BaseRepository(Generic[ModelType]):
                 else:
                     query = query.order_by(column_to_sort.asc())
         return query
+
+    async def count(
+        self,
+        filter_str: Optional[str] = None,
+        filter_cols: Optional[list[str]] = None,
+    ) -> int:
+        """Count the total number of instances of the model.
+
+        Returns:
+            The total number of instances.
+        """
+        query = select(func.count()).select_from(self.model)
+        if filter_str and filter_cols:
+            query = self._filter(query, filter_str, filter_cols)
+        result = await self.db.execute(query)
+        return result.scalar_one()

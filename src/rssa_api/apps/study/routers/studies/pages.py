@@ -5,9 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import validate_api_key
 from rssa_api.data.schemas.study_components import SurveyPage
-from rssa_api.data.services import PageContentService, StepPageService
-from rssa_api.data.services.rssa_dependencies import get_content_service as content_service
-from rssa_api.data.services.rssa_dependencies import get_step_page_service as page_service
+from rssa_api.data.services import StudyStepPageContentServiceDep, StudyStepPageServiceDep
 
 router = APIRouter(
     prefix='/pages',
@@ -26,8 +24,8 @@ router = APIRouter(
 )
 async def get_step_page_details(
     page_id: uuid.UUID,
-    page_service: Annotated[StepPageService, Depends(page_service)],
-    content_service: Annotated[PageContentService, Depends(content_service)],
+    page_service: StudyStepPageServiceDep,
+    content_service: StudyStepPageContentServiceDep,
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
 ):
     page = await page_service.get_page_with_navigation(page_id)

@@ -44,6 +44,15 @@ class PreferenceVisualization(RSSABase):
         ratings: list[MovieLensRatingSchema],
         user_id: str,
     ) -> pd.DataFrame:
+        """Get predicted scores for all items for a given user.
+
+        Args:
+            ratings: List of user ratings.
+            user_id: User identifier.
+
+        Returns:
+            DataFrame containing predicted scores for all items.
+        """
         preds_df = self.predict(user_id, ratings)
         preds_df = preds_df.rename(columns={'item_id': 'item', 'score': 'user_score'})
 
@@ -52,6 +61,16 @@ class PreferenceVisualization(RSSABase):
     def get_baseline_prediction(
         self, ratings: list[MovieLensRatingSchema], user_id: str, num_rec: int
     ) -> list[PrefVizItem]:
+        """Get baseline predicted items for preference visualization.
+
+        Args:
+            ratings: User ratings.
+            user_id: User identifier.
+            num_rec: Number of recommendations to generate.
+
+        Returns:
+            List of recommended preference visualization items.
+        """
         preds = self.get_prediction(ratings, user_id).sort_values(by='score', ascending=False)
         preds = preds.head(num_rec)
         # FIXME: This is a hack to get it working using the current data model
@@ -77,6 +96,17 @@ class PreferenceVisualization(RSSABase):
         ave_score_type: Literal['global', 'nn_observed', 'nn_predicted'],
         min_rating_count: int = 50,
     ) -> pd.DataFrame:
+        """Get candidate items with baseline scores for preference visualization.
+
+        Args:
+            user_id: User identifier.
+            ratings: User ratings.
+            ave_score_type: Type of average score to compute ('global', 'nn_observed', 'nn_predicted').
+            min_rating_count: Minimum rating count for items. Defaults to 50.
+
+        Returns:
+            DataFrame containing candidate items with baseline scores.
+        """
         preds_df = self.get_prediction(ratings, user_id)
         candidates = pd.merge(preds_df, self.item_popularity, how='left', on='item')
         baseline_df = pd.DataFrame()
@@ -142,6 +172,15 @@ class PreferenceVisualization(RSSABase):
     def calculate_predicted_neighborhood_average(
         self, neighbor_internal_codes: np.ndarray, target_item_ids: list[int]
     ) -> pd.DataFrame:
+        """Calculate average predicted scores from neighboring users.
+
+        Args:
+            neighbor_internal_codes: Internal codes of neighboring users.
+            target_item_ids: List of target item IDs.
+
+        Returns:
+            DataFrame containing average predicted scores for target items.
+        """
         user_features = self.model.user_features_
         if user_features is None:
             return pd.DataFrame()
@@ -165,6 +204,19 @@ class PreferenceVisualization(RSSABase):
         init_sample_size: int = 500,
         min_rating_count: int = 50,
     ) -> list[PrefVizItem]:
+        """Generate diverse recommended items for preference visualization.
+
+        Args:
+            ratings: User ratings.
+            num_rec: Number of recommendations to generate.
+            user_id: User identifier.
+            algo: Diversity algorithm to use. Defaults to 'fishnet'.
+            init_sample_size: Initial sample size for diversity algorithms. Defaults to 500.
+            min_rating_count: Minimum rating count for items. Defaults to 50.
+
+        Returns:
+            List of recommended preference visualization items.
+        """
         ratedset = tuple([r.item_id for r in ratings])
         seed = hash(ratedset) % (2**32)
         np.random.seed(seed)  # Set the NumPy seed for repeatable sampling/shuffling
@@ -240,6 +292,22 @@ class PreferenceVisualization(RSSABase):
         init_sample_size: int = 500,
         min_rating_count: int = 50,
     ) -> list[PrefVizItem]:
+        """Generate reference items using neighborhood predicted scores.
+
+        1. Get candidates with neighborhood predicted average scores.
+        2. Apply fishingnet sampling to get diverse items.
+        3. Apply single linkage clustering to select final recommendations.
+
+        Args:
+            ratings: User ratings.
+            num_rec: Number of recommendations to generate.
+            user_id: User identifier.
+            init_sample_size: Initial sample size for fishingnet. Defaults to 500.
+            min_rating_count: Minimum rating count for items. Defaults to 50.
+
+        Returns:
+            List of recommended preference visualization items.
+        """
         candidates = self.get_candidates(user_id, ratings, ave_score_type='nn_predicted')
 
         diverse_items = self._fishingnet(candidates, init_sample_size)
@@ -262,10 +330,29 @@ class PreferenceVisualization(RSSABase):
 
         return recommended_items
 
-    def seeding(self, n, nb):
-        return list(islice(count(n, (n - 1) / nb), nb + 1))
+    def create_square_grid(self, n: int, interval_count: int) -> list[float]:
+        """Create a square grid of values.
+
+        Args:
+            n: The maximum value.
+            interval_count: Number of intervals.
+
+        Returns:
+            List of grid values.
+        """
+        return list(islice(count(n, (n - 1) / interval_count), interval_count + 1))
 
     def scale_grid(self, minval, maxval, num_divisions):
+        """Scale grid points between minval and maxval.
+
+        Args:
+            minval: Minimum value.
+            maxval: Maximum value.
+            num_divisions: Number of divisions.
+
+        Returns:
+            Numpy array of scaled grid points.
+        """
         ticks = [minval]
         step = (maxval - minval) / num_divisions
         for i in range(num_divisions):
@@ -441,10 +528,10 @@ class PreferenceVisualization(RSSABase):
             return row
 
         labeled_items = scaled_items.apply(label, axis=1)
-        labeled_items['item'] = labeled_items['item'].astype(pd.Int32Dtype)
-        labeled_items['count'] = labeled_items['count'].astype(pd.Int32Dtype)
-        labeled_items['community_label'] = labeled_items['community_label'].astype(pd.Int32Dtype)
-        labeled_items['user_label'] = labeled_items['user_label'].astype(pd.Int32Dtype)
+        labeled_items['item'] = labeled_items['item'].astype('int32')
+        labeled_items['count'] = labeled_items['count'].astype('int32')
+        labeled_items['community_label'] = labeled_items['community_label'].astype('int32')
+        labeled_items['user_label'] = labeled_items['user_label'].astype('int32')
 
         avg_comm_score = np.mean(labeled_items['community'])
         avg_user_score = np.mean(labeled_items['user'])

@@ -12,13 +12,13 @@ from rssa_api.data.repositories.base_repo import BaseRepository
 class PreShuffledMovieRepository(BaseRepository[PreShuffledMovieList]):
     """Repository for PreShuffledMovieList model."""
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the PreShuffledMovieRepository.
+    # def __init__(self, db: AsyncSession):
+    #     """Initialize the PreShuffledMovieRepository.
 
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, PreShuffledMovieList)
+    #     Args:
+    #         db: The database session.
+    #     """
+    #     super().__init__(db, PreShuffledMovieList)
 
     async def get_all_shuffled_lists_by_subset(self, subset_desc: str) -> Optional[List[PreShuffledMovieList]]:
         """Get all pre-shuffled movie lists by subset description.

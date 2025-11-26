@@ -18,13 +18,13 @@ class ApiKeyRepository(BaseRepository[ApiKey]):
         model: The ApiKey model class.
     """
 
-    def __init__(self, db: AsyncSession):
-        """Initialize the ApiKeyRepository.
+    # def __init__(self, db: AsyncSession):
+    #     """Initialize the ApiKeyRepository.
 
-        Args:
-            db: The database session.
-        """
-        super().__init__(db, ApiKey)
+    #     Args:
+    #         db: The database session.
+    #     """
+    #     super().__init__(db, ApiKey)
 
     async def get_active_api_key_with_study(self, key_hash: str, study_id: uuid.UUID) -> Optional[ApiKey]:
         """Get an active API key by its hash and associated study ID.

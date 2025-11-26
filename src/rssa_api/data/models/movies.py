@@ -6,45 +6,47 @@ from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from rssa_api.data.models.rssa_base_models import DBBaseModel
 
 
-class Movie(DeclarativeBase):
+class Movie(DBBaseModel):
     """SQLAlchemy model for the 'movies' table.
 
     Attributes:
-        id (uuid.UUID): Primary key.
-        movielens_id (str): Unique MovieLens identifier.
-        tmdb_id (str): TMDB identifier.
-        imdb_id (str): IMDB identifier.
-        title (str): Title of the movie.
-        year (int): Release year of the movie.
-        runtime (int): Runtime of the movie in minutes.
-        genre (str): Genre(s) of the movie.
-        imdb_genres (str): Genres from IMDB.
-        tmdb_genres (str): Genres from TMDB.
-        ave_rating (float): Average rating across sources.
-        imdb_avg_rating (float): Average rating from IMDB.
-        imdb_rate_count (int): Number of ratings from IMDB.
-        tmdb_avg_rating (float): Average rating from TMDB.
-        tmdb_rate_count (int): Number of ratings from TMDB.
-        movielens_avg_rating (float): Average rating from MovieLens.
-        movielens_rate_count (int): Number of ratings from MovieLens.
-        origin_country (str): Country of origin.
-        parental_guide (str): Parental guidance information.
-        movie_lens_dataset (str): Dataset source from MovieLens.
+        id: Primary key.
+        movielens_id: Unique MovieLens identifier.
+        tmdb_id: TMDB identifier.
+        imdb_id: IMDB identifier.
+        title: Title of the movie.
+        year: Release year of the movie.
+        runtime: Runtime of the movie in minutes.
+        genre: Genre(s) of the movie.
+        imdb_genres: Genres from IMDB.
+        tmdb_genres: Genres from TMDB.
+        ave_rating: Average rating across sources.
+        imdb_avg_rating: Average rating from IMDB.
+        imdb_rate_count: Number of ratings from IMDB.
+        tmdb_avg_rating: Average rating from TMDB.
+        tmdb_rate_count: Number of ratings from TMDB.
+        movielens_avg_rating: Average rating from MovieLens.
+        movielens_rate_count: Number of ratings from MovieLens.
+        origin_country: Country of origin.
+        parental_guide: Parental guidance information.
+        movie_lens_dataset: Dataset source from MovieLens.
         last_updated (datetime): Timestamp of last update.
-        director (str): Director(s) of the movie.
-        writer (str): Writer(s) of the movie.
-        description (str): Description or synopsis of the movie.
-        cast (str): Cast members of the movie.
-        poster (str): URL or path to the movie poster.
-        tmdb_poster (str): TMDB poster URL or path.
-        count (int): Count metric (context-specific).
-        rank (int): Rank metric (context-specific).
-        imdb_popularity (float): Popularity score from IMDB.
-        tmdb_popularity (float): Popularity score from TMDB.
-        poster_identifier (str): Identifier for the poster image.
+        director: Director(s) of the movie.
+        writer: Writer(s) of the movie.
+        description: Description or synopsis of the movie.
+        cast: Cast members of the movie.
+        poster: URL or path to the movie poster.
+        tmdb_poster: TMDB poster URL or path.
+        count: Count metric (context-specific).
+        rank: Rank metric (context-specific).
+        imdb_popularity: Popularity score from IMDB.
+        tmdb_popularity: Popularity score from TMDB.
+        poster_identifier: Identifier for the poster image.
     """
 
     __tablename__ = 'movies'
@@ -107,23 +109,23 @@ class Movie(DeclarativeBase):
     )
 
 
-class MovieEmotions(DeclarativeBase):
+class MovieEmotions(DBBaseModel):
     """SQLAlchemy model for the 'movie_emotions' table.
 
     Attributes:
-        id (uuid.UUID): Primary key.
-        movie_id (uuid.UUID): Foreign key to the movie.
-        movielens_id (str): Unique MovieLens identifier.
-        anger (float): Anger emotion score.
-        anticipation (float): Anticipation emotion score.
-        disgust (float): Disgust emotion score.
-        fear (float): Fear emotion score.
-        joy (float): Joy emotion score.
-        surprise (float): Surprise emotion score.
-        sadness (float): Sadness emotion score.
-        trust (float): Trust emotion score.
-        iers_count (int): IERS count metric.
-        iers_rank (int): IERS rank metric.
+        id: Primary key.
+        movie_id: Foreign key to the movie.
+        movielens_id: Unique MovieLens identifier.
+        anger: Anger emotion score.
+        anticipation: Anticipation emotion score.
+        disgust: Disgust emotion score.
+        fear: Fear emotion score.
+        joy: Joy emotion score.
+        surprise: Surprise emotion score.
+        sadness: Sadness emotion score.
+        trust: Trust emotion score.
+        iers_count: IERS count metric.
+        iers_rank: IERS rank metric.
     """
 
     __tablename__ = 'movie_emotions'
@@ -146,16 +148,16 @@ class MovieEmotions(DeclarativeBase):
     movie = relationship('Movie', back_populates='emotions')
 
 
-class MovieRecommendationText(DeclarativeBase):
+class MovieRecommendationText(DBBaseModel):
     """SQLAlchemy model for the 'movie_recommendation_text' table.
 
     Attributes:
-        id (uuid.UUID): Primary key.
-        movie_id (uuid.UUID): Foreign key to the movie.
-        formal (str): Formal recommendation text.
-        informal (str): Informal recommendation text.
-        source (str): Source of the recommendation.
-        model (str): Model used for generating the recommendation.
+        id: Primary key.
+        movie_id: Foreign key to the movie.
+        formal: Formal recommendation text.
+        informal: Informal recommendation text.
+        source: Source of the recommendation.
+        model: Model used for generating the recommendation.
     """
 
     __tablename__ = 'movie_recommendation_text'

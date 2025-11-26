@@ -51,11 +51,11 @@ class StudyConditionRepository(BaseRepository[StudyCondition]):
         """
         condition_counts_query = (
             select(
-                StudyCondition.id.label('condition_id'),
-                StudyCondition.name.label('condition_name'),
+                StudyCondition.id.label('study_condition_id'),
+                StudyCondition.name.label('study_condition_name'),
                 func.count(StudyParticipant.id).label('participant_count'),
             )
-            .join(StudyParticipant, StudyParticipant.condition_id == StudyCondition.id, isouter=True)
+            .join(StudyParticipant, StudyParticipant.study_condition_id == StudyCondition.id, isouter=True)
             .where(StudyCondition.study_id == study_id)
             .group_by(StudyCondition.id, StudyCondition.name)
             .order_by(StudyCondition.name)
