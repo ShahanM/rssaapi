@@ -33,4 +33,4 @@ async def test_admin_routers_structure():
 
     # Check users router path
     user_routes = [r.path for r in users.router.routes]
-    assert '/users/' in user_routes # Should be / (which maps to /users/ prefix)
+    assert '/users/' in user_routes
