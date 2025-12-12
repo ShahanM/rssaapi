@@ -15,8 +15,7 @@ from rssa_api.data.services import MovieServiceDep
 from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
 from rssa_api.docs.metadata import RSTagsEnum as Tags
 from rssa_api.services.recommendation.alt_rec_service import AlternateRS
-from rssa_api.services.recommendation.emotions_rs_service import EmotionsRS
-from rssa_api.services.recommendation.pref_com_service import PreferenceCommunity
+from rssa_api.services.recommendation.legacy_pref_com_service import PreferenceCommunity
 
 IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
 EMOTIONS_MODEL_PATH = 'implicit_als_ers_ml32m'

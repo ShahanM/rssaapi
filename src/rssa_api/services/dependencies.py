@@ -1,7 +1,8 @@
 from rssa_api.data.repositories.dependencies import (
     StudyParticipantRepositoryDep,
     ParticipantRatingRepositoryDep,
-    ParticipantStudyInteractionResponseRepositoryDep
+    ParticipantStudyInteractionResponseRepositoryDep,
+    ParticipantRecommendationContextRepositoryDep,
 )
 from rssa_api.data.repositories.content_dependencies import MovieRepositoryDep
 from .recommender_service import RecommenderService
@@ -13,6 +14,7 @@ def get_recommender_service(
     rating_repo: ParticipantRatingRepositoryDep,
     movie_repo: MovieRepositoryDep,
     interaction_repo: ParticipantStudyInteractionResponseRepositoryDep,
+    rec_ctx_repo: ParticipantRecommendationContextRepositoryDep,
 ) -> RecommenderService:
     """Get RecommenderService dependency."""
     return RecommenderService(
@@ -20,6 +22,7 @@ def get_recommender_service(
         rating_repo,
         movie_repo,
         interaction_repo,
+        rec_ctx_repo,
     )
 
 

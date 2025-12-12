@@ -42,6 +42,14 @@ class MovieRepository(BaseRepository[Movie]):
         result = await self.db.execute(query)
         return result.scalars().all()
 
+    async def get_by_exact_ilike(self, field_name: str, value: str) -> Sequence[Movie]:
+        """Get movies by exact case-insensitive match."""
+        column = self._get_column(field_name)
+        # Using ILIKE logic: lower(column) == lower(value)
+        query = select(Movie).where(func.lower(column) == value.lower())
+        result = await self.db.execute(query)
+        return result.scalars().all()
+
     def _get_column(self, field_name: str) -> Any:
         attr = getattr(self.model, field_name, None)
         if attr is None:

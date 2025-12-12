@@ -128,6 +128,34 @@ class ParticipantResponseService:
         response_items = await repo.find_many(repo_options)
         return [schema_cls.model_validate(resitm) for resitm in response_items]
 
+    async def get_response_for_step(
+        self, response_type: ResponseType, study_id: uuid.UUID, participant_id: uuid.UUID, step_id: Optional[uuid.UUID] = None
+    ) -> list[ResponseSchemaType]:
+        """Retrieve a participant response by its type and step identifier.
+
+        Args:
+            response_type: The type of the response to retrieve.
+            study_id: The ID of the study.
+            participant_id: The ID of the participant.
+            step_id: The ID of the step associated with the response.
+
+        Returns:
+            The corresponding response schema object, or None if not found.
+        """
+        repo, schema_cls = self._get_strategy(response_type)
+
+        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+        filters = {
+            'study_participant_id': participant_id,
+            'study_id': study_id,
+        }
+        if step_id is not None:
+             filters['study_step_id'] = step_id
+        
+        repo_options = RepoQueryOptions(filters=filters)
+        response_items = await repo.find_many(repo_options)
+        return [schema_cls.model_validate(resitm) for resitm in response_items]
+
     async def update_response(
         self,
         response_type: ResponseType,
@@ -206,7 +234,34 @@ class ParticipantResponseService:
     async def _(
         self, text_response_data: ParticipantFreeformResponseCreate, study_id: uuid.UUID, participant_id: uuid.UUID
     ) -> ParticipantFreeformResponseRead:
-        """Creates a single freeform text response."""
+        """Creates or updates a single freeform text response."""
+        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+        
+        # Check for existing response relative to generic context tag constraint
+        # Constraint: (study_id, study_participant_id, context_tag)
+        existing = await self.text_repo.find_one(
+            RepoQueryOptions(
+                filters={
+                    'study_id': study_id,
+                    'study_participant_id': participant_id,
+                    'context_tag': text_response_data.context_tag
+                }
+            )
+        )
+
+        if existing:
+            # Update
+            updated_fields = {
+                'response_text': text_response_data.response_text,
+                'updated_at': datetime.now(timezone.utc)
+            }
+            # Handle study_step_id update if provided? Model has it.
+            if text_response_data.study_step_id:
+                  updated_fields['study_step_id'] = text_response_data.study_step_id
+            
+            result = await self.text_repo.update(existing.id, updated_fields)
+            return ParticipantFreeformResponseRead.model_validate(result)
+
         new_response = ParticipantFreeformResponse(
             study_id=study_id,
             study_participant_id=participant_id,

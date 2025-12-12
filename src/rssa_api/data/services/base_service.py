@@ -99,7 +99,7 @@ class BaseService(Generic[ModelType, RepoType]):
             id: The unique identifier of the model instance to update.
             update_dict: A dictionary of fields to update.
 
-        Returns:
+        Returns:1
             None
         """
         await self.repo.update(id, update_dict)

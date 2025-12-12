@@ -20,6 +20,11 @@ class RecommendationStrategy(Protocol):
     ) -> RecommendationResponse: ...
 
 
+class RawAdvisorResponse:
+    """Wraps raw advisor data from Lambda for downstream hydration."""
+    def __init__(self, advisors: dict):
+        self.advisors = advisors
+
 class LambdaStrategy:
     """Invokes an AWS Lambda function for recommendations."""
 
@@ -101,25 +106,31 @@ class LambdaStrategy:
                     raise RuntimeError(f"Recommendation Engine Error: {error_msg}")
 
                 # Parse Response
-                # Handle direct list return or dict with items
-                items = []
                 log.info(f"Lambda Raw Response: {response_data}")
 
-                if isinstance(response_data, list):
-                    items = response_data
-                elif isinstance(response_data, dict):
-                    if 'items' in response_data:
-                        items = response_data['items']
-                    # Handle API Gateway style body wrapper if necessary
-                    elif 'body' in response_data:
-                        body = response_data['body']
-                        if isinstance(body, str):
-                            body = json.loads(body)
-                        if isinstance(body, list):
-                            items = body
-                        elif isinstance(body, dict) and 'items' in body:
-                            items = body['items']
-                
+                # 1. unwrapping body if necessary
+                body_data = response_data
+                if isinstance(response_data, dict) and 'body' in response_data:
+                    body = response_data['body']
+                    if isinstance(body, str):
+                        body_data = json.loads(body)
+                    else:
+                        body_data = body
+
+                # 2. Check for Community Advisors
+                if isinstance(body_data, dict) and 'advisors' in body_data:
+                     # This is a community advisor response
+                     log.info("Detected Community Advisors response")
+                     return RawAdvisorResponse(advisors=body_data['advisors'])
+
+                # 3. Default: Handle lists or dicts with 'items'
+                items = []
+                if isinstance(body_data, list):
+                    items = body_data
+                elif isinstance(body_data, dict):
+                     if 'items' in body_data:
+                        items = body_data['items']
+
                 log.info(f"Parsed Items: {items}")
                 
                 return StandardRecResponse(items=items, total_count=len(items))

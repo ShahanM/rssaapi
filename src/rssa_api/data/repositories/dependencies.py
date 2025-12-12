@@ -87,11 +87,19 @@ get_study_participant_movie_session_repository = get_repository(StudyParticipant
 
 # Participant study context repositories
 get_participant_study_session_repository = get_repository(ParticipantStudySessionRepository)
+
 get_participant_recommendation_context_repository = get_repository(ParticipantRecommendationContextRepository)
+ParticipantRecommendationContextRepositoryDep = Annotated[
+    ParticipantRecommendationContextRepository, Depends(get_participant_recommendation_context_repository)
+]
 
 # Participant context repositories
 get_participant_demographic_repository = get_repository(ParticipantDemographicRepository)
+
 get_participant_interaction_log_repository = get_repository(ParticipantInteractionLogRepository)
+ParticipantInteractionLogRepositoryDep = Annotated[
+    ParticipantInteractionLogRepository, Depends(get_participant_interaction_log_repository)
+]
 
 # Participant response repositories
 get_participant_freeform_response_repository = get_repository(ParticipantFreeformResponseRepository)
@@ -111,3 +119,4 @@ get_participant_survey_response_repository = get_repository(ParticipantSurveyRes
 ParticipantSurveyResponseRepositoryDep = Annotated[
     ParticipantSurveyResponseRepository, Depends(get_participant_survey_response_repository)
 ]
+

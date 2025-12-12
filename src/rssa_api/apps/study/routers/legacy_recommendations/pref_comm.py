@@ -18,7 +18,7 @@ from rssa_api.data.schemas.preferences_schemas import (
 )
 from rssa_api.data.services import MovieServiceDep, StudyConditionServiceDep, StudyParticipantServiceDep
 from rssa_api.docs.metadata import RSTagsEnum as Tags
-from rssa_api.services.recommendation.pref_com_service import PreferenceCommunity
+from rssa_api.services.recommendation.legacy_pref_com_service import PreferenceCommunity
 
 IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
 router = APIRouter(

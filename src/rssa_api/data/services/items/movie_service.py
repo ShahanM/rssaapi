@@ -71,6 +71,15 @@ class MovieService:
             return []
         return [MovieSchema.model_validate(movie) for movie in movies]
 
+    async def get_movie_by_exact_title_search(self, query: str) -> list[Movie]:
+        """Get movies by exact title search (case-insensitive)."""
+        # The router expects list[Movie] (which it then validates), or list[MovieSchema]
+        # Looking at router: 
+        # exact_match_result = await movie_service.get_movie_by_exact_title_search(query)
+        # exact_match = [MovieSchema.model_validate(movie) for movie in exact_match_result]
+        # So it expects Sequence[Movie]
+        return await self.movie_repo.get_by_exact_ilike('title', query)
+
     async def get_movies_with_emotions_by_movielens_ids(self, movielens_ids: list[str]) -> list[MovieSchema]:
         # movies = await self.movie_repo.get_all_by_field_in_values(
         #     'movielens_id', movielens_ids, options=MovieRepository.LOAD_EMOTIONS

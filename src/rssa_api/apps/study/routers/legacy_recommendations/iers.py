@@ -14,7 +14,7 @@ from rssa_api.data.schemas.preferences_schemas import (
 from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 from rssa_api.data.services import MovieServiceDep, StudyConditionServiceDep, StudyParticipantServiceDep
 from rssa_api.docs.metadata import RSTagsEnum as Tags
-from rssa_api.services.recommendation.emotions_rs_service import EmotionsRS
+from rssa_api.services.recommendation.legacy_pref_com_service import PreferenceCommunity
 
 EMOTIONS_MODEL_PATH = 'implicit_als_ers_ml32m'
 router = APIRouter(

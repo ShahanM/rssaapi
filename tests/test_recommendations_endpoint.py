@@ -20,9 +20,6 @@ async def test_recommendations_endpoint_returns_emotions(client, db_session):
     mock_movie.id = uuid.uuid4()
     mock_movie.movielens_id = '101'
     mock_movie.title = "Test Movie"
-    # Ensure it dumps to dict properly if pydantic model_dump is called
-    # But FASTAPI will try to serialise valid objects. 
-    # Better to create real Pydantic objects for the service return value
     
     emotions = EmotionsSchema(
         id=uuid.uuid4(),
@@ -44,10 +41,6 @@ async def test_recommendations_endpoint_returns_emotions(client, db_session):
         poster="path/to/poster",
         cast="Actor A",
         emotions=emotions,
-        # Optional fields that might be required if defaults aren't set in schema?
-        # Checked schema: director is Optional[str] but error said Field required?
-        # Maybe I misread schema_file or it inherits from DBMixin which has id? 
-        # Yes DBMixin has id.
         imdb_id="tt123", tmdb_id="123",
         director="Director", writer="Writer",
         imdb_avg_rating=5.0, imdb_rate_count=100,

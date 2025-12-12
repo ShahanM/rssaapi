@@ -45,12 +45,12 @@ async def create_interaction_response(
 
 
 @interactions_router.get(
-    '/{page_id}',  # FIXME: This should be page_id but currently we only support pages for survey steps
+    '/{step_id}',
     status_code=status.HTTP_200_OK,
     response_model=list[ParticipantStudyInteractionResponseRead],
 )
 async def get_interaction_responses(
-    page_id: uuid.UUID,
+    step_id: uuid.UUID,
     service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
@@ -64,8 +64,8 @@ async def get_interaction_responses(
     Returns:
         A list of StudyInteractionResponseSchema objects.
     """
-    responses = await service.get_response_for_page(
-        ResponseType.STUDY_INTERACTION, id_token['sid'], id_token['pid'], page_id
+    responses = await service.get_response_for_step(
+        ResponseType.STUDY_INTERACTION, id_token['sid'], id_token['pid'], step_id
     )
 
     return responses

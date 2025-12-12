@@ -27,15 +27,6 @@ async def test_get_recommender_keys(client: AsyncClient):
     try:
         response = await client.get("/admin/conditions/recommender-keys")
         
-        # If the prefix is different (e.g. /api/v1...), strict routing might fail. 
-        # Checking mounted app structure or assuming /conditions if mounted differently.
-        # study_conditions router has prefix '/conditions'. 
-        # Need to check where it is mounted in main.py.
-        # But assuming standard mounting, let's try to match the likely path.
-        # If fail, I will check main.py.
-        
-        # Based on file structure rssa_api/apps/admin/routers/..., it's likely under /admin/conditions
-        
         assert response.status_code == 200
         data = response.json()
         

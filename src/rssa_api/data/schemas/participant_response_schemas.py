@@ -81,7 +81,7 @@ class ParticipantStudyInteractionResponseRead(ParticipantStudyInteractionRespons
 
 
 class ParticipantStudyInteractionResponseUpdate(ParticipantStudyInteractionResponseRead):
-    payload_json: DynamicPayload
+    pass
 
 
 
