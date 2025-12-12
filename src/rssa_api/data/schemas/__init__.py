@@ -1,4 +1,4 @@
-from .user_schemas import Auth0UserSchema
+from .auth_schemas import Auth0UserSchema
 
 
 __all__ = [

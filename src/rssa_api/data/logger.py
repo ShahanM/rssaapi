@@ -5,7 +5,7 @@ from typing import Union
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from rssa_api.data.models.participant_responses import Feedback
-from rssa_api.data.repositories.study_components.feedback import FeedbackRepository
+from rssa_api.data.repositories.study_components import FeedbackRepository
 from rssa_api.data.schemas.participant_response_schemas import FeedbackBaseSchema
 
 

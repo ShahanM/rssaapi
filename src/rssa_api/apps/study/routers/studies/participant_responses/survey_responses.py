@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import get_current_participant, validate_api_key, validate_study_participant
 from rssa_api.data.schemas.participant_response_schemas import (
-    SurveyItemResponseBaseSchema,
-    SurveyItemResponseSchema,
-    SurveyItemResponseUpdatePayload,
+    ParticipantSurveyResponseCreate,
+    ParticipantSurveyResponseRead,
+    ParticipantSurveyResponseUpdate,
 )
 from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
 
@@ -21,19 +21,17 @@ survey_router = APIRouter(
 @survey_router.post(
     '/',
     status_code=status.HTTP_201_CREATED,
-    response_model=SurveyItemResponseSchema,
+    response_model=ParticipantSurveyResponseRead,
     summary='',
     description='',
     response_description='',
 )
 async def create_survey_item_response(
-    item_response: SurveyItemResponseBaseSchema,
+    item_response: ParticipantSurveyResponseCreate,
     service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
-    new_response = await service.create_response(
-        ResponseType.SURVEY_ITEM, id_token['sid'], id_token['pid'], item_response
-    )
+    new_response = await service.create_response(item_response, id_token['sid'], id_token['pid'])
 
     return new_response
 
@@ -48,7 +46,7 @@ async def create_survey_item_response(
 )
 async def update_survey_item_response(
     response_item_id: uuid.UUID,
-    item_response: SurveyItemResponseUpdatePayload,
+    item_response: ParticipantSurveyResponseUpdate,
     service: ParticipantResponseServiceDep,
     _: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
@@ -67,7 +65,7 @@ async def update_survey_item_response(
 @survey_router.get(
     '/{survey_page_id}',
     status_code=status.HTTP_200_OK,
-    response_model=list[SurveyItemResponseSchema],
+    response_model=list[ParticipantSurveyResponseRead],
     summary='',
     description='',
     response_description='',

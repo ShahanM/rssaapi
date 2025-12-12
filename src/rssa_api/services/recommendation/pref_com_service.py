@@ -14,7 +14,7 @@ License: MIT License (See LICENSE.md)
 # SPDX-License-Identifier: MIT License
 """
 
-from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 
 from .mf_base import RSSABase
 
@@ -30,14 +30,14 @@ class PreferenceCommunity(RSSABase):
         the RSSA algorithms. See documentation RSSABase.
     """
 
-    def get_advisors_with_profile(self, ratings: list[MovieLensRatingSchema], num_rec=10) -> dict:
+    def get_advisors_with_profile(self, ratings: list[MovieLensRating], num_rec=10) -> dict:
         """Recommends a list of advisor profiles.
 
         Identifies the K nearest latent neighbors (advisors) to the new user and
         extracts a diverse recommendation and top profile from each neighbor.
 
         Args:
-            ratings (List[MovieLensRatingSchema]): New user's 10 warm-start ratings.
+            ratings (List[MovieLensRating]): New user's 10 warm-start ratings.
             num_rec (int): The final number of unique neighbors/advisors to return (K in the K-NN).
 
         Returns:
@@ -57,10 +57,11 @@ class PreferenceCommunity(RSSABase):
         advisors = {}
         for neighbor_id in final_advisors_ids:
             advisor = {'id': neighbor_id, 'recommendation': None, 'profile_top': []}
-            user_implicit_preds = self.model.predict_for_user(neighbor_id, self.items)
-            preds_df = user_implicit_preds.to_frame().reset_index()
-            preds_df.columns = ['item_id', 'score']
-            preds_df = preds_df.sort_values(by='score', ascending=False)
+            # user_implicit_preds = self.model.predict_for_user(neighbor_id, self.items)
+            # preds_df = user_implicit_preds.to_frame().reset_index()
+            # preds_df.columns = ['item_id', 'score']
+            pred_df = self.predict(neighbor_id, None) # we are using TOP-N predictions here (check if we need diverse-N)
+            # preds_df = preds_df.sort_values(by='score', ascending=False)
             preds_without_rated = preds_df[~preds_df['item_id'].isin(rated_items)]
 
             if not preds_without_rated.empty:

@@ -15,7 +15,8 @@ from .dependencies import (
 	FeedbackServiceDep,
 	StudyParticipantMovieSessionServiceDep,
 	ParticipantStudySessionServiceDep,
-	ParticipantResponseServiceDep
+	ParticipantResponseServiceDep,
+	EnrollmentServiceDep
 )
 from .participant_responses import ResponseType
 
@@ -38,4 +39,5 @@ __all__ = [
 	'ParticipantStudySessionServiceDep',
 	'ParticipantResponseServiceDep',
 	'ResponseType',
+	'EnrollmentServiceDep',
 ]

@@ -1,12 +1,19 @@
+"""Router for managing study step pages in the admin API."""
+
 import logging
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.study_components import PageContentBaseSchema, PageContentSchema, PageSchema
+from rssa_api.data.schemas.base_schemas import OrderedListItem
+from rssa_api.data.schemas.study_components import (
+    StudyStepPageContentCreate,
+    StudyStepPageContentRead,
+    StudyStepPageRead,
+)
 from rssa_api.data.services import StudyStepPageContentServiceDep, StudyStepPageServiceDep
 
 from ...docs import ADMIN_STEP_PAGES_TAG
@@ -23,19 +30,15 @@ router = APIRouter(
 
 @router.get(
     '/{page_id}',
-    response_model=PageSchema,
-    summary='',
-    description="""
-	""",
-    response_description='',
+    response_model=StudyStepPageRead,
 )
 async def get_step_page_details(
     page_id: uuid.UUID,
     page_service: StudyStepPageServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('read:pages', 'admin:all'))],
 ):
-    page_from_db = await page_service.get_page_with_content_detail(page_id)
-    return PageSchema.model_validate(page_from_db)
+    page_from_db = await page_service.get_detailed(page_id, StudyStepPageRead)
+    return StudyStepPageRead.model_validate(page_from_db)
 
 
 @router.patch(
@@ -52,8 +55,8 @@ async def update_step_page(
     page_service: StudyStepPageServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:pages', 'admin:all'))],
 ):
-    await page_service.update_step_page(page_id, updated_page)
-    return {}
+    await page_service.update(page_id, updated_page)
+    return {'status': 'success'}
 
 
 @router.delete(
@@ -69,47 +72,42 @@ async def delete_step_page(
     page_service: StudyStepPageServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:pages', 'admin:all'))],
 ):
-    await page_service.delete_step_page(page_id)
+    await page_service.delete(page_id)
 
-    return {}
+    return {'status': 'success'}
 
 
 @router.get(
-    '/{page_id}/content',
-    response_model=list[PageContentSchema],
-    summary='',
-    description='',
-    response_description='',
+    '/{page_id}/contents',
+    response_model=list[OrderedListItem],
 )
 async def get_page_content(
     page_id: uuid.UUID,
     content_service: StudyStepPageContentServiceDep,
     user: Annotated[
         Auth0UserSchema,
-        Depends(require_permissions('read:surveys', 'read:content')),
+        Depends(require_permissions('read:content', 'admin:all')),
     ],
 ):
-    content = await content_service.get_content_detail_by_page_id(page_id)
+    content = await content_service.get_items_for_owner_as_ordered_list(page_id)
 
-    return content
+    return [OrderedListItem.model_validate(c) for c in content]
 
 
 @router.post(
-    '/{page_id}/content',
+    '/{page_id}/contents',
     status_code=status.HTTP_201_CREATED,
-    summary='',
-    description='',
-    response_description='',
+    response_model=Any,
 )
 async def add_content_to_page(
     page_id: uuid.UUID,
-    new_content: PageContentBaseSchema,
+    new_content: StudyStepPageContentCreate,
     content_service: StudyStepPageContentServiceDep,
-    user: Annotated[
+    _: Annotated[
         Auth0UserSchema,
-        Depends(require_permissions('create:surveys', 'create:content')),
+        Depends(require_permissions('create:content', 'admin:all')),
     ],
 ):
-    await content_service.create_page_content(page_id, new_content)
-
-    return {}
+    content = await content_service.create_for_owner(page_id, new_content)
+    # return StudyStepPageContentCreate.model_validate(content)
+    return {'status': 'success', 'content_id': str(content.id)}

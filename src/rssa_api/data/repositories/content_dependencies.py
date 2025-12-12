@@ -15,3 +15,5 @@ def get_movie_repository(
 ) -> MovieRepository:
     """Get MovieRepository dependency."""
     return MovieRepository(db)
+
+MovieRepositoryDep = Annotated[MovieRepository, Depends(get_movie_repository)]

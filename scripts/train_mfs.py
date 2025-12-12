@@ -12,7 +12,7 @@ Created Date: Saturday, 11th October 2025
 Author: Mehtab 'Shahan' Iqbal
 Affiliation: Clemson University
 ----
-Last Modified: Saturday, 1st November 2025 3:11:33 pm
+Last Modified: Wednesday, 10th December 2025 1:02:45 am
 Modified By: Mehtab 'Shahan' Iqbal (mehtabi@clemson.edu)
 ----
 Copyright (c) 2025 Clemson University
@@ -439,9 +439,8 @@ def _compute_observed_item_mean(training_data: pd.DataFrame) -> tuple[pd.DataFra
         A tuple of (ave_scores_df, item_popularity_df):
             - ave_scores_df: DataFrame with 'item' and observed 'ave_score'.
             - item_popularity_df: DataFrame with 'item', 'count',
-              'rank_popular', and 'rank_quality'.
+            'rank_popular', and 'rank_quality'.
     """
-
     item_stats = training_data.groupby('item')['rating'].agg(['mean', 'count'])
     item_stats = item_stats.reset_index()
 
@@ -468,7 +467,6 @@ def _create_annoy_index(user_factors: np.ndarray, user_index: pd.Index, output_p
         n_trees: Number of trees for the Annoy index. More trees give
             higher precision but take longer to build.
     """
-
     dims = user_factors.shape[1]
     index = AnnoyIndex(dims, 'angular')
 

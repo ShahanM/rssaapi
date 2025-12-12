@@ -29,7 +29,8 @@ class PreShuffledMovieRepository(BaseRepository[PreShuffledMovieList]):
         Returns:
             A list of PreShuffledMovieList instances if found, else None.
         """
-        query = select(PreShuffledMovieList).where(PreShuffledMovieList.subset_desc == subset_desc)
-
-        db_rows = await self.db.execute(query)
-        return list(db_rows.scalars().all())
+        # query = select(PreShuffledMovieList).where(PreShuffledMovieList.subset_desc == subset_desc)
+        # db_rows = await self.db.execute(query)
+        # return list(db_rows.scalars().all())
+        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+        return await self.find_many(RepoQueryOptions(filters={'subset_desc': subset_desc}))

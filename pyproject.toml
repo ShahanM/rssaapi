@@ -40,21 +40,38 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
+    "aiobotocore>=3.0.0",
+    "aiosqlite>=0.21.0",
     "annoy==1.17.3",
+    "async-lru>=2.0.5",
+    "asyncpg>=0.31.0",
+    "cryptography>=46.0.3",
     "fastapi>=0.120.0",
+    "httpx>=0.28.1",
     "joblib>=1.5.2",
     "lenskit==0.14.4",
     "networkx>=3.2.1",
     "pydantic>=2.12.3",
+    "pytest-asyncio>=1.2.0",
+    "python-dotenv>=1.2.1",
+    "python-jose>=3.5.0",
     "scikit-learn>=1.6.1",
+    "sqlalchemy>=2.0.45",
+    "uvicorn>=0.38.0",
 ]
 
 [dependency-groups]
 dev = [
     "pylint-sqlalchemy>=0.3.0",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
     "ruff>=0.14.2",
 ]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 packages = ["rssa_api"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src"]

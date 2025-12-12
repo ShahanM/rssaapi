@@ -8,45 +8,45 @@ from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
 
-from rssa_api.data.models.study_participants import ParticipantSession
+from rssa_api.data.models.study_participants import ParticipantStudySession
 from rssa_api.data.repositories.study_participants import ParticipantStudySessionRepository
 
 MAX_RETRIES = 5
 
 
 class ParticipantStudySessionService:
-    """Service for managing ParticipantSession operations.
+    """Service for managing ParticipantStudySession operations.
 
     Attributes:
-        repo: The ParticipantSession repository.
+        repo: The ParticipantStudySession repository.
     """
 
     def __init__(
         self,
         participant_session_repo: ParticipantStudySessionRepository,
     ):
-        """Initialize the ParticipantSessionService.
+        """Initialize the ParticipantStudySessionService.
 
         Args:
-            participant_session_repo: The ParticipantSession repository.
+            participant_session_repo: The ParticipantStudySession repository.
         """
         self.repo = participant_session_repo
 
-    async def create_session(self, participant_id: uuid.UUID) -> Optional[ParticipantSession]:
-        """Create a new ParticipantSession for the given participant.
+    async def create_session(self, participant_id: uuid.UUID) -> Optional[ParticipantStudySession]:
+        """Create a new ParticipantStudySession for the given participant.
 
         Args:
             participant_id: The ID of the participant.
 
         Returns:
-            The created ParticipantSession, or None if creation failed after retries.
+            The created ParticipantStudySession, or None if creation failed after retries.
         """
         for _ in range(MAX_RETRIES):
             resume_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
             expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
 
-            new_session = ParticipantSession(
-                participant_id=participant_id, resume_code=resume_code, expires_at=expires_at
+            new_session = ParticipantStudySession(
+                study_participant_id=participant_id, resume_code=resume_code, expires_at=expires_at
             )
             try:
                 await self.repo.create(new_session)
@@ -56,16 +56,18 @@ class ParticipantStudySessionService:
         else:
             return None
 
-    async def get_session_by_resume_code(self, resume_code: str) -> Optional[ParticipantSession]:
-        """Retrieve a ParticipantSession by its resume code.
+    async def get_session_by_resume_code(self, resume_code: str) -> Optional[ParticipantStudySession]:
+        """Retrieve a ParticipantStudySession by its resume code.
 
         Args:
             resume_code: The resume code of the session.
 
         Returns:
-            The ParticipantSession if found and valid, else None.
+            The ParticipantStudySession if found and valid, else None.
         """
-        session = await self.repo.get_by_field('resume_code', resume_code)
+        # session = await self.repo.get_by_field('resume_code', resume_code)
+        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+        session = await self.repo.find_one(RepoQueryOptions(filters={'resume_code': resume_code}))
         if not session:
             return None
         if session.created_at + timedelta(hours=72) < datetime.now(timezone.utc):

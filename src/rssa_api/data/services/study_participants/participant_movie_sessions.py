@@ -44,6 +44,6 @@ class StudyParticipantMovieSessionService:
         if shuffled_lists:
             random_list = random.choice(shuffled_lists)
             new_participant_sess = StudyParticipantMovieSession(
-                participant_id=participant_id, assigned_list_id=random_list.id
+                study_participant_id=participant_id, assigned_list_id=random_list.id
             )
             await self.movie_session_repo.create(new_participant_sess)

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from rssa_api.data.schemas.movie_schemas import MovieSchema
-from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema, RatedItemBaseSchema
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRating, RatedItem
 from rssa_api.data.schemas.preferences_schemas import (
     AdvisorProfileSchema,
     Avatar,
@@ -14,9 +14,9 @@ from rssa_api.data.schemas.preferences_schemas import (
 from rssa_api.data.services import MovieServiceDep
 from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
 from rssa_api.docs.metadata import RSTagsEnum as Tags
-from rssa_api.services.recommenders.alt_rec_service import AlternateRS
-from rssa_api.services.recommenders.emotions_rs_service import EmotionsRS
-from rssa_api.services.recommenders.pref_com_service import PreferenceCommunity
+from rssa_api.services.recommendation.alt_rec_service import AlternateRS
+from rssa_api.services.recommendation.emotions_rs_service import EmotionsRS
+from rssa_api.services.recommendation.pref_com_service import PreferenceCommunity
 
 IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
 EMOTIONS_MODEL_PATH = 'implicit_als_ers_ml32m'
@@ -35,7 +35,7 @@ class AdvisorIDSchema(BaseModel):
 
 class RecommendationRequestPayload(BaseModel):
     context_tag: str
-    ratings: list[RatedItemBaseSchema]
+    ratings: list[RatedItem]
 
 
 CONDITIONS_MAP = {'topN': 0, 'controversial': 1, 'hate': 2, 'hip': 3, 'noclue': 4}
@@ -87,7 +87,7 @@ async def get_advisor(
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
     ratings_with_movielens_ids = [
-        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        MovieLensRating.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
     rssa_pref_comm = PreferenceCommunity(IMPLICIT_MODEL_PATH)
@@ -118,7 +118,7 @@ async def get_alt_recs(
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
     ratings_with_movielens_ids = [
-        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        MovieLensRating.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
     rssa_alt_recs = AlternateRS(IMPLICIT_MODEL_PATH)
@@ -136,7 +136,7 @@ ALT_RECS_FUNC_URL = 'https://9mtnkol2ne.execute-api.us-east-1.amazonaws.com/alt-
 
 class RecommendationRequest(BaseModel):
     user_id: str
-    ratings: list[MovieLensRatingSchema]
+    ratings: list[MovieLensRating]
     n: int
 
 
@@ -153,7 +153,7 @@ async def get_alt_rec_do_func(
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
     ratings_with_movielens_ids = [
-        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        MovieLensRating.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
     if not ALT_RECS_FUNC_URL:
@@ -200,7 +200,7 @@ async def get_iers_recommendations(
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
     ratings_with_movielens_ids = [
-        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        MovieLensRating.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
 

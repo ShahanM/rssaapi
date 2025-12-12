@@ -44,13 +44,18 @@ async def get_user_permissions(
     return {'permissions': profile.get('permissions', [])}
 
 
-@router.get('/users')
+@router.get(
+    '/',
+    summary='Search users.',
+    description="""
+    API endpoint for searching users to assign permissions or roles.
+    """,
+)
 async def search_users_endpoint(
     q: Optional[str] = None,
     page: int = 0,
     per_page: int = 20,
     user: Auth0UserSchema = Depends(require_permissions('read:users')),
 ):
-    """API endpoint for searching users to assign permissions or roles."""
     users = await search_users(search_query=q, page=page, per_page=per_page)
     return users

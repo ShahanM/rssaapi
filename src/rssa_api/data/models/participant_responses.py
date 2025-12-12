@@ -77,6 +77,11 @@ class ParticipantRating(BaseModelMixin, DBBaseParticipantResponseModel):
         UniqueConstraint('study_id', 'study_participant_id', 'item_id', name='uq_participant_ratings_item'),
     )
 
+    @property
+    def rated_item(self) -> dict:
+        """Returns the rated item as a dictionary for schema validation."""
+        return {'item_id': self.item_id, 'rating': self.rating}
+
 
 class ParticipantInteractionLog(BaseModelMixin, DBBaseParticipantResponseModel):
     """Stores general participant interaction events/behaviors within the study."""

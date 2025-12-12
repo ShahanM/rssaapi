@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from rssa_api.auth.authorization import get_current_participant, validate_api_key, validate_study_participant
 from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.participant_response_schemas import (
-    TextResponseBaseSchema,
-    TextResponseSchema,
-    TextResponseUpdatePayload,
+    ParticipantFreeformResponseCreate,
+    ParticipantFreeformResponseRead,
+    ParticipantFreeformResponseUpdate,
 )
 from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
 
@@ -19,9 +19,9 @@ text_response_router = APIRouter(
 )
 
 
-@text_response_router.post('/', status_code=status.HTTP_201_CREATED, response_model=TextResponseSchema)
+@text_response_router.post('/', status_code=status.HTTP_201_CREATED, response_model=ParticipantFreeformResponseRead)
 async def create_freeform_text_response(
-    text_response: TextResponseBaseSchema,
+    text_response: ParticipantFreeformResponseCreate,
     service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
@@ -36,15 +36,15 @@ async def create_freeform_text_response(
         The created text response.
     """
     created_response = await service.create_response(
-        ResponseType.TEXT_RESPONSE, id_token['sid'], id_token['pid'], text_response
+        text_response, id_token['sid'], id_token['pid']
     )
-    return TextResponseSchema.model_validate(created_response)
+    return created_response
 
 
 @text_response_router.patch('/{text_response_id}', response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 async def update_freeform_text_response(
     text_response_id: uuid.UUID,
-    text_response: TextResponseUpdatePayload,
+    text_response: ParticipantFreeformResponseUpdate,
     service: ParticipantResponseServiceDep,
     _: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
@@ -72,7 +72,7 @@ async def update_freeform_text_response(
     return {}
 
 
-@text_response_router.get('/', response_model=TextResponseSchema)
+@text_response_router.get('/', response_model=list[ParticipantFreeformResponseRead])
 async def get_participant_text_response(
     page_id: uuid.UUID,
     service: ParticipantResponseServiceDep,
@@ -92,7 +92,7 @@ async def get_participant_text_response(
         ResponseType.TEXT_RESPONSE, id_token['sid'], id_token['pid'], page_id
     )
 
-    return TextResponseSchema.model_validate(text_response)
+    return text_response
 
 
 # TODO: decouple patch and include POST

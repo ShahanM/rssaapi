@@ -1,22 +1,37 @@
 import uuid
 from datetime import datetime
-from typing import ClassVar, Optional
+from typing import ClassVar, Generic, Optional, TypeVar
 
 from pydantic import AliasPath, BaseModel, Field, computed_field
 
-from .analytics_schemas import ConditionCountSchema
 from .base_schemas import (
-    BaseAdminMixin,
-    BaseDBMixin,
+    AuditMixin,
     BaseOrderedMixin,
+    DBMixin,
     DisplayInfoMixin,
     DisplayNameMixin,
-    OrderedNavigationMixin,
 )
-from .survey_constructs import ConstructItemSchema, ScaleLevelSchema
+from .survey_components import SurveyItemRead, SurveyScaleLevelRead
 
 
-class StudyComponentBaseSchema(BaseModel):
+class ConditionCountSchema(BaseModel):
+    condition_id: uuid.UUID
+    condition_name: str
+    participant_count: int
+
+T = TypeVar('T', bound=BaseModel)
+
+
+class NavigationWrapper(BaseModel, Generic[T]):
+    """Wrap any schema T with a navigation fields."""
+
+    data: T
+
+    next_id: Optional[uuid.UUID] = None
+    next_path: Optional[str] = None
+
+
+class StudyComponentBase(BaseModel):
     name: str
     description: str
 
@@ -35,31 +50,83 @@ class StudyMetaOverrideMixin(BaseModel):
 # table: study_conditions
 # model: StudyCondition
 # ==============================================================================
-class StudyConditionBaseSchema(StudyComponentBaseSchema):
+class StudyConditionBase(StudyComponentBase):
     recommendation_count: int
+    recommender_key: Optional[str] = None
+    created_by_id: Optional[uuid.UUID] = None
     pass
 
 
-class StudyConditionSchema(StudyConditionBaseSchema, BaseDBMixin, StudyParentMixin):
+class StudyConditionCreate(StudyConditionBase):
     pass
 
 
-class StudyConditionAdminSchema(StudyConditionSchema, BaseAdminMixin):
+class StudyConditionRead(StudyConditionBase, DBMixin, StudyParentMixin):
+    pass
+
+
+class StudyConditionAdminSchema(StudyConditionRead, AuditMixin):
     pass
 
 
 # ==============================================================================
-# Pages
-# table: step_page
-# model: Page
+# Page content
+# table: page_contents
+# model: PageContent
 # ==============================================================================
-class PageBaseSchema(StudyComponentBaseSchema):
+class StudyStepPageContentBase(BaseModel):
+    survey_construct_id: uuid.UUID
+    survey_scale_id: uuid.UUID
+    preamble: Optional[str] = None
+
+
+class StudyStepPageContentCreate(StudyStepPageContentBase):
+    pass
+
+
+class StudyStepPageContentUpdate(BaseModel):
+    preamble: Optional[str] = None
+    survey_construct_id: Optional[uuid.UUID] = None
+    survey_scale_id: Optional[uuid.UUID] = None
+
+
+
+class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMixin, DisplayNameMixin, DisplayInfoMixin):
+    study_step_page_id: uuid.UUID
+
+    _display_name_source_field: ClassVar[str] = 'name'
+    _display_info_source_field: ClassVar[str] = 'description'
+
+    items: list[SurveyItemRead] = Field(validation_alias=AliasPath('survey_construct', 'survey_items'))
+
+    name: str = Field(validation_alias=AliasPath('survey_construct', 'name'))
+    description: str = Field(validation_alias=AliasPath('survey_construct', 'description'))
+
+    scale_id: uuid.UUID = Field(validation_alias=AliasPath('survey_scale', 'id'))
+    scale_name: str = Field(validation_alias=AliasPath('survey_scale', 'name'))
+    scale_levels: list[SurveyScaleLevelRead] = Field(validation_alias=AliasPath('survey_scale', 'survey_scale_levels'))
+
+
+class StudyStepPageContentAudit(StudyStepPageContentRead, AuditMixin):
+    pass
+
+
+# ==============================================================================
+# StudyStepPages
+# table: study_step_pages
+# model: StudyStepPages
+# ==============================================================================
+class StudyStepPageBase(StudyComponentBase):
     page_type: Optional[str] = None
 
 
-class PageSchema(
-    PageBaseSchema,
-    BaseDBMixin,
+class StudyStepPageCreate(StudyStepPageBase):
+    pass
+
+
+class StudyStepPageRead(
+    StudyStepPageBase,
+    DBMixin,
     StudyParentMixin,
     BaseOrderedMixin,
     StudyMetaOverrideMixin,
@@ -68,10 +135,15 @@ class PageSchema(
 ):
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
-    step_id: uuid.UUID
+    study_step_id: uuid.UUID
+
+    study_step_page_contents: Optional[list[StudyStepPageContentRead]] = Field(
+        validation_alias=AliasPath('study_step_page_contents'),
+        default=[],
+    )
 
 
-class PageAdminSchema(PageSchema, BaseAdminMixin):
+class StudyStepPageAudit(StudyStepPageRead, AuditMixin):
     pass
 
 
@@ -80,15 +152,19 @@ class PageAdminSchema(PageSchema, BaseAdminMixin):
 # table: study_step
 # model: StudyStep
 # ==============================================================================
-class StudyStepBaseSchema(StudyComponentBaseSchema):
+class StudyStepBase(StudyComponentBase):
     step_type: Optional[str] = None
 
     path: str
 
 
-class StudyStepSchema(
-    StudyStepBaseSchema,
-    BaseDBMixin,
+class StudyStepCreate(StudyStepBase):
+    pass
+
+
+class StudyStepRead(
+    StudyStepBase,
+    DBMixin,
     StudyParentMixin,
     BaseOrderedMixin,
     StudyMetaOverrideMixin,
@@ -98,15 +174,11 @@ class StudyStepSchema(
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
 
-    survey_api_root: Optional[str] = None
+    survey_api_root: Optional[str] = None  # Deprecated, use root_page_info instead
+    root_page_info: Optional[NavigationWrapper[StudyStepPageRead]] = None
 
 
-class StudyStepAdminSchema(StudyStepSchema, BaseAdminMixin):
-    pass
-
-
-class StudyStepNavigationSchema(StudyStepSchema):
-    next: Optional[str] = None
+class StudyStepAudit(StudyStepBase, AuditMixin):
     pass
 
 
@@ -115,17 +187,21 @@ class StudyStepNavigationSchema(StudyStepSchema):
 # table: studies
 # model: Study
 # ==============================================================================
-class StudyBaseSchema(StudyComponentBaseSchema):
+class StudyBase(StudyComponentBase):
     pass
 
 
-class StudySchema(StudyBaseSchema, BaseDBMixin, DisplayNameMixin, DisplayInfoMixin):
+class StudyCreate(StudyBase):
+    pass
+
+
+class StudyRead(StudyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
 
 
-class StudyAdminSchema(StudySchema, BaseAdminMixin):
-    owner: Optional[str] = Field(
+class StudyAudit(StudyRead, AuditMixin):
+    owner_id: Optional[uuid.UUID] = Field(
         None,  # Default value for an optional field
         description="""The owner's transformed identifier, used for querying
 		the OAuth provider's API.""",
@@ -136,46 +212,19 @@ class StudyAdminSchema(StudySchema, BaseAdminMixin):
 
 
 # ==============================================================================
-# Page content
-# table: page_contents
-# model: PageContent
-# ==============================================================================
-class PageContentBaseSchema(BaseModel):
-    construct_id: uuid.UUID
-    scale_id: uuid.UUID
-    preamble: Optional[str] = None
-
-
-class PageContentSchema(PageContentBaseSchema, BaseDBMixin, BaseOrderedMixin, DisplayNameMixin, DisplayInfoMixin):
-    page_id: uuid.UUID
-
-    _display_name_source_field: ClassVar[str] = 'name'
-    _display_info_source_field: ClassVar[str] = 'description'
-
-    items: list[ConstructItemSchema] = Field(validation_alias=AliasPath('survey_construct', 'items'))
-
-    name: str = Field(validation_alias=AliasPath('survey_construct', 'name'))
-    description: str = Field(validation_alias=AliasPath('survey_construct', 'description'))
-
-    scale_id: uuid.UUID = Field(validation_alias=AliasPath('construct_scale', 'id'))
-    scale_name: str = Field(validation_alias=AliasPath('construct_scale', 'name'))
-    scale_levels: list[ScaleLevelSchema] = Field(validation_alias=AliasPath('construct_scale', 'scale_levels'))
-
-
-class PageContentAdminSchema(PageContentSchema, BaseAdminMixin):
-    pass
-
-
-# ==============================================================================
 # Api keys
 # table: api_keys
 # model: ApiKey
 # ==============================================================================
-class ApiKeyBaseSchema(BaseModel):
+class ApiKeyBase(BaseModel):
     description: str
 
 
-class ApiKeySchema(ApiKeyBaseSchema, BaseDBMixin, DisplayNameMixin, DisplayInfoMixin):
+class ApiKeyCreate(ApiKeyBase):
+    pass
+
+
+class ApiKeyRead(ApiKeyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
     _display_name_source_field: ClassVar[str] = 'plain_text_key'
     _display_info_source_field: ClassVar[str] = 'description'
 
@@ -194,9 +243,4 @@ class ApiKeySchema(ApiKeyBaseSchema, BaseDBMixin, DisplayNameMixin, DisplayInfoM
         return self.last_used_at
 
 
-class PageNavigationSchema(PageSchema, OrderedNavigationMixin, StudyParentMixin):
-    pass
 
-
-class SurveyPage(PageNavigationSchema):
-    page_content: list[PageContentSchema]

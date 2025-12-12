@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends
 from rssa_api.auth.authorization import get_current_participant, validate_api_key
 from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.movie_schemas import MovieSchema
-from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
+from rssa_api.data.schemas.participant_schemas import StudyParticipantRead
 from rssa_api.data.schemas.preferences_schemas import (
     RecommendationRequestPayload,
 )
 from rssa_api.data.services import MovieServiceDep, StudyConditionServiceDep, StudyParticipantServiceDep
 from rssa_api.docs.metadata import RSTagsEnum as Tags
-from rssa_api.services.recommenders.alt_rec_service import AlternateRS
+from rssa_api.services.recommendation.alt_rec_service import AlternateRS
 
 IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
 router = APIRouter(

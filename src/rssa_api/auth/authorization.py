@@ -6,7 +6,7 @@ from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from jose import JWTError, jwt
 
 from rssa_api.config import get_env_var
-from rssa_api.data.schemas.participant_schemas import ParticipantSchema
+from rssa_api.data.schemas.participant_schemas import StudyParticipantRead
 from rssa_api.data.services import ApiKeyServiceDep, StudyParticipantServiceDep
 
 api_key_id = APIKeyHeader(
@@ -60,7 +60,7 @@ async def authorize_api_key_for_study(
 async def get_current_participant(
     token: Annotated[str, Depends(oauth2_scheme)],
     participant_service: StudyParticipantServiceDep,
-) -> ParticipantSchema:
+) -> StudyParticipantRead:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail='Could not validate credentials',
@@ -74,7 +74,7 @@ async def get_current_participant(
     except JWTError as e:
         raise credentials_exception from e
 
-    participant = await participant_service.get_participant(uuid.UUID(participant_id))
+    participant = await participant_service.get(uuid.UUID(participant_id))
 
     if participant is None:
         raise credentials_exception
@@ -84,7 +84,7 @@ async def get_current_participant(
 
 async def validate_study_participant(
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
-    participant: Annotated[ParticipantSchema, Depends(get_current_participant)],
+    participant: Annotated[StudyParticipantRead, Depends(get_current_participant)],
 ) -> dict[str, uuid.UUID]:
     if participant.study_id != study_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Permission denied.')

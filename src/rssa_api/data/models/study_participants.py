@@ -11,15 +11,15 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from rssa_api.data.models.rssa_base_models import BaseModelMixin, DBBaseModel, DBBaseParticipantResponseModel
 
 
-class ParticipantType(DBBaseModel):
-    """SQLAlchemy model for the 'participant_types' table.
+class StudyParticipantType(DBBaseModel):
+    """SQLAlchemy model for the 'study_participant_types' table.
 
     Attributes:
         id: Primary key.
         type: Type of participant (e.g., 'student', 'professional').
     """
 
-    __tablename__ = 'participant_types'
+    __tablename__ = 'study_participant_types'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     type: Mapped[str] = mapped_column()
@@ -31,9 +31,9 @@ class StudyParticipant(DBBaseModel, BaseModelMixin):
     Attributes:
         study_id: Foreign key to the study.
         discarded: Indicates if the participant is discarded.
-        participant_type_id: Foreign key to the participant type.
+        study_participant_type_id: Foreign key to the participant type.
         external_id: External identifier for the participant.
-        condition_id: Foreign key to the study condition.
+        study_condition_id: Foreign key to the study condition.
         current_status: Current status of the participant (e.g., 'active', 'completed').
         current_step_id: Foreign key to the current study step.
         current_page_id (Optional[uuid.UUID]): Foreign key to the current step page.
@@ -44,17 +44,18 @@ class StudyParticipant(DBBaseModel, BaseModelMixin):
     study_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('studies.id'), nullable=False)
     discarded: Mapped[bool] = mapped_column(default=False)
 
-    participant_type_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('participant_types.id'), nullable=False)
+    study_participant_type_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('study_participant_types.id'), nullable=False)
     external_id: Mapped[str] = mapped_column()
     study_condition_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('study_conditions.id'), nullable=False)
     current_status: Mapped[str] = mapped_column(default='active')
 
     current_step_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('study_steps.id'), nullable=False)
-    current_page_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('step_pages.id'), nullable=True)
+    current_page_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('study_step_pages.id'), nullable=True)
 
-    participant_session: Mapped['ParticipantSession'] = relationship(
-        'ParticipantSession', back_populates='participant', cascade='all, delete-orphan'
+    participant_study_session: Mapped['ParticipantStudySession'] = relationship(
+        'ParticipantStudySession', back_populates='study_participant', cascade='all, delete-orphan'
     )
+    study_condition: Mapped['StudyCondition'] = relationship('StudyCondition', back_populates='study_participants') 
 
 
 class Demographic(DBBaseModel, BaseModelMixin):
@@ -74,7 +75,7 @@ class Demographic(DBBaseModel, BaseModelMixin):
         discarded: Indicates if the demographic record is discarded.
     """
 
-    __tablename__ = 'demographics'
+    __tablename__ = 'participant_demographics'
 
     study_participant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('study_participants.id'))
     age_range: Mapped[str] = mapped_column()
@@ -90,7 +91,7 @@ class Demographic(DBBaseModel, BaseModelMixin):
     discarded: Mapped[bool] = mapped_column(default=False)
 
 
-class ParticipantSession(DBBaseModel):
+class ParticipantStudySession(DBBaseModel):
     """SQLAlchemy model for the 'participant_sessions' table.
 
     Attributes:
@@ -102,7 +103,7 @@ class ParticipantSession(DBBaseModel):
         is_active: Indicates if the session is active.
     """
 
-    __tablename__ = 'participant_sessions'
+    __tablename__ = 'participant_study_sessions'
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -112,7 +113,7 @@ class ParticipantSession(DBBaseModel):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)
 
-    participant: Mapped['StudyParticipant'] = relationship('StudyParticipant', back_populates='participant_session')
+    study_participant: Mapped['StudyParticipant'] = relationship('StudyParticipant', back_populates='participant_study_session')
 
 
 class ParticipantRecommendationContext(DBBaseParticipantResponseModel, BaseModelMixin):

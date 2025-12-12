@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from rssa_api.auth.authorization import get_current_participant, validate_api_key
 from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.movie_schemas import MovieSchema
-from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema, RatedItemBaseSchema
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRating, RatedItem
 from rssa_api.data.schemas.preferences_schemas import (
     AdvisorProfileSchema,
     Avatar,
@@ -18,7 +18,7 @@ from rssa_api.data.schemas.preferences_schemas import (
 )
 from rssa_api.data.services import MovieServiceDep, StudyConditionServiceDep, StudyParticipantServiceDep
 from rssa_api.docs.metadata import RSTagsEnum as Tags
-from rssa_api.services.recommenders.pref_com_service import PreferenceCommunity
+from rssa_api.services.recommendation.pref_com_service import PreferenceCommunity
 
 IMPLICIT_MODEL_PATH = 'implicit_als_ml32m'
 router = APIRouter(
@@ -35,7 +35,7 @@ class AdvisorIDSchema(BaseModel):
 
 
 class TempRequestSchema(BaseModel):
-    ratings: list[RatedItemBaseSchema]
+    ratings: list[RatedItem]
     rec_type: Literal['baseline', 'reference', 'diverse']
 
 

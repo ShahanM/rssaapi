@@ -4,10 +4,10 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from rssa_api.data.schemas.base_schemas import BaseDBMixin
+from rssa_api.data.schemas.base_schemas import DBMixin
 
 
-class EmotionsSchema(BaseDBMixin):
+class EmotionsSchema(DBMixin):
     movie_id: uuid.UUID
     movielens_id: str
     anger: float
@@ -20,7 +20,7 @@ class EmotionsSchema(BaseDBMixin):
     trust: float
 
 
-class RecommendationTextSchema(BaseDBMixin):
+class RecommendationTextSchema(DBMixin):
     movie_id: uuid.UUID
     formal: str
     informal: str
@@ -30,7 +30,7 @@ class RecommendationTextSchema(BaseDBMixin):
     updated_at: datetime
 
 
-class MovieSchema(BaseDBMixin):
+class MovieSchema(DBMixin):
     imdb_id: Optional[str]
     tmdb_id: Optional[str]
     movielens_id: str
@@ -70,13 +70,6 @@ class MovieSearchResponse(BaseModel):
 class MovieDetailSchema(MovieSchema):
     emotions: Optional[EmotionsSchema] = None
     recommendations_text: Optional[RecommendationTextSchema] = None
-
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            uuid.UUID: lambda v: str(v),
-            datetime: lambda v: v.isoformat(),
-        }
 
 
 class PaginatedMovieList(BaseModel):

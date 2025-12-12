@@ -1,83 +1,105 @@
 import uuid
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel
 
-from rssa_api.data.schemas.base_schemas import BaseDBMixin, VersionMixin
+from rssa_api.data.schemas.base_schemas import DBMixin, VersionMixin
 
 
 class ParticipantResponseContextMixin:
     __abstract__ = True
-    step_id: uuid.UUID
-    step_page_id: Optional[uuid.UUID] = None
+    study_step_id: uuid.UUID
+    study_step_page_id: Optional[uuid.UUID] = None
     context_tag: str
 
 
-class SurveyItemResponseBaseSchema(BaseModel, ParticipantResponseContextMixin):
-    construct_id: uuid.UUID
-    item_id: uuid.UUID
-    scale_id: uuid.UUID
-    scale_level_id: uuid.UUID
+class ParticipantSurveyResponseBase(BaseModel, ParticipantResponseContextMixin):
+    survey_construct_id: uuid.UUID
+    survey_item_id: uuid.UUID
+    survey_scale_id: uuid.UUID
+    survey_scale_level_id: uuid.UUID
 
 
-class SurveyItemResponseSchema(SurveyItemResponseBaseSchema, VersionMixin, BaseDBMixin):
+class ParticipantSurveyResponseCreate(ParticipantSurveyResponseBase):
+    pass
+
+class ParticipantSurveyResponseRead(ParticipantSurveyResponseBase, VersionMixin, DBMixin):
     pass
 
 
-class SurveyItemResponseUpdatePayload(BaseDBMixin, VersionMixin):
-    scale_level_id: uuid.UUID
+class ParticipantSurveyResponseUpdate(ParticipantSurveyResponseRead):
+    survey_scale_level_id: uuid.UUID
 
 
-class TextResponseBaseSchema(BaseModel, ParticipantResponseContextMixin):
+class ParticipantFreeformResponseBase(BaseModel, ParticipantResponseContextMixin):
     response_text: str
 
 
-class TextResponseUpdatePayload(BaseDBMixin, VersionMixin):
-    response_text: str
-
-
-class TextResponseSchema(TextResponseBaseSchema, VersionMixin, BaseDBMixin):
+class ParticipantFreeformResponseCreate(ParticipantFreeformResponseBase):
     pass
 
 
-class RatedItemBaseSchema(BaseModel):
+class ParticipantFreeformResponseRead(ParticipantFreeformResponseBase, VersionMixin, DBMixin):
+    pass
+
+
+class ParticipantFreeformResponseUpdate(ParticipantFreeformResponseRead):
+    response_text: str
+
+
+class RatedItem(BaseModel):
     item_id: uuid.UUID
     rating: int
 
 
-class RatedItemSchema(RatedItemBaseSchema, VersionMixin, BaseDBMixin):
-    pass
+class ParticipantRatingBase(BaseModel, ParticipantResponseContextMixin):
+    rated_item: RatedItem
 
 
-class ParticipantContentRatingPayload(BaseModel, ParticipantResponseContextMixin):
-    rated_item: RatedItemBaseSchema
-
-
-class MovieLensRatingSchema(BaseModel):
-    item_id: str
+class MovieLensRating(BaseModel):
+    item_id: Union[str, int]
     rating: int
 
 
-class DynamicPaylaodSchema(BaseModel):
+class DynamicPayload(BaseModel):
     experimnet_condition: Optional[str] = None
     extra: dict[str, Any] = {}
 
     model_config = {'extra': 'allow'}
 
 
-class StudyInteractionResponseBaseSchema(BaseModel, ParticipantResponseContextMixin):
-    payload_json: DynamicPaylaodSchema
+class ParticipantStudyInteractionResponseBase(BaseModel, ParticipantResponseContextMixin):
+    payload_json: DynamicPayload
 
 
-class StudyInteractionResponseSchema(VersionMixin, BaseDBMixin):
-    payload_json: DynamicPaylaodSchema
+class ParticipantStudyInteractionResponseCreate(ParticipantStudyInteractionResponseBase):
+    pass
 
 
+class ParticipantStudyInteractionResponseRead(ParticipantStudyInteractionResponseBase, VersionMixin, DBMixin):
+    pass
+
+
+class ParticipantStudyInteractionResponseUpdate(ParticipantStudyInteractionResponseRead):
+    payload_json: DynamicPayload
+
+
+
+# The Feedback Schemas are deprecated. They will be refactored to become user feedback. Participant feedback will
+# be collected in the form of freeform responses. So we will keep them as is for now.
 class FeedbackBaseSchema(BaseModel, ParticipantResponseContextMixin):
     feedback_text: str
     feedback_type: str
     feedback_category: str
 
 
-class FeedbackSchema(FeedbackBaseSchema, VersionMixin, BaseDBMixin):
+class FeedbackSchema(FeedbackBaseSchema, VersionMixin, DBMixin):
+    pass
+
+
+class ParticipantRatingRead(ParticipantRatingBase, VersionMixin, DBMixin):
+    pass
+
+
+class ParticipantRatingUpdate(ParticipantRatingRead):
     pass

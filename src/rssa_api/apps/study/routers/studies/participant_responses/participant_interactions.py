@@ -7,8 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import validate_study_participant
 from rssa_api.data.schemas.participant_response_schemas import (
-    StudyInteractionResponseBaseSchema,
-    StudyInteractionResponseSchema,
+    ParticipantStudyInteractionResponseCreate,
+    ParticipantStudyInteractionResponseRead,
+    ParticipantStudyInteractionResponseUpdate,
 )
 from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
 
@@ -21,10 +22,10 @@ interactions_router = APIRouter(
 @interactions_router.post(
     '/',
     status_code=status.HTTP_201_CREATED,
-    response_model=StudyInteractionResponseSchema,
+    response_model=ParticipantStudyInteractionResponseRead,
 )
 async def create_interaction_response(
-    interaction_response: StudyInteractionResponseBaseSchema,
+    interaction_response: ParticipantStudyInteractionResponseCreate,
     service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
@@ -38,15 +39,15 @@ async def create_interaction_response(
     Returns:
         The created StudyInteractionResponseSchema object.
     """
-    int_response = await service.create_response(id_token['sid'], id_token['pid'], interaction_response)
+    int_response = await service.create_response(interaction_response, id_token['sid'], id_token['pid'])
 
     return int_response
 
 
 @interactions_router.get(
-    '/{step_id}',  # FIXME: This should be page_id but currently we only support pages for survey steps
+    '/{page_id}',  # FIXME: This should be page_id but currently we only support pages for survey steps
     status_code=status.HTTP_200_OK,
-    response_model=list[StudyInteractionResponseSchema],
+    response_model=list[ParticipantStudyInteractionResponseRead],
 )
 async def get_interaction_responses(
     page_id: uuid.UUID,
@@ -77,7 +78,7 @@ async def get_interaction_responses(
 )
 async def update_interaction_response(
     interactions_id: uuid.UUID,
-    update_payload: StudyInteractionResponseSchema,
+    update_payload: ParticipantStudyInteractionResponseUpdate,
     service: ParticipantResponseServiceDep,
     _: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):

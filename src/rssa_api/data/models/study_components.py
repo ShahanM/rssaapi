@@ -76,6 +76,7 @@ class StudyCondition(DBBaseModel, BaseModelMixin):
 
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column()
+    recommender_key: Mapped[str] = mapped_column()
     recommendation_count: Mapped[int] = mapped_column(default=10)
 
     study_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('studies.id'), nullable=False)
@@ -83,6 +84,9 @@ class StudyCondition(DBBaseModel, BaseModelMixin):
 
     # Foreign key relationships
     study: Mapped['Study'] = relationship('Study', back_populates='study_conditions')
+    study_participants: Mapped[list['StudyParticipant']] = relationship(
+        'StudyParticipant', back_populates='study_condition', uselist=True, cascade='all, delete-orphan'
+    )
 
 
 class StudyStep(DBBaseOrderedModel, BaseModelMixin):
@@ -165,7 +169,7 @@ class StudyStepPageContent(DBBaseOrderedModel, BaseModelMixin):
     study_step_page_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey('study_step_pages.id'), primary_key=True
     )
-    construct_id: Mapped[uuid.UUID] = mapped_column(
+    survey_construct_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey('survey_constructs.id'), primary_key=True
     )
     survey_scale_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_scales.id'), primary_key=True)
@@ -175,6 +179,13 @@ class StudyStepPageContent(DBBaseOrderedModel, BaseModelMixin):
         'SurveyConstruct', back_populates='study_step_page_contents'
     )
     survey_scale: Mapped['SurveyScale'] = relationship('SurveyScale', back_populates='study_step_page_contents')
+
+    @property
+    def name(self) -> str:
+        """Get the display name for the content."""
+        if self.survey_construct:
+            return self.survey_construct.name
+        return "Unknown Content"
 
 
 class StudyStepPage(DBBaseOrderedModel, BaseModelMixin):

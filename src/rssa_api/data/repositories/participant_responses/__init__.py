@@ -5,7 +5,7 @@ from .participant_response import (
 	ParticipantInteractionLogRepository,
 	ParticipantStudyInteractionResponseRepository,
 )
-from ..study_components.feedback import FeedbackRepository
+from .base_participant_response_repo import BaseParticipantResponseRepository
 
 __all__ = [
 	'ParticipantSurveyResponseRepository',
@@ -13,5 +13,5 @@ __all__ = [
 	'ParticipantRatingRepository',
 	'ParticipantInteractionLogRepository',
 	'ParticipantStudyInteractionResponseRepository',
-	'FeedbackRepository',
+	'BaseParticipantResponseRepository',
 ]

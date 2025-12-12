@@ -14,13 +14,20 @@ router = APIRouter(
     prefix='/movies',
     dependencies=[
         Depends(get_auth0_authenticated_user),
-        Depends(require_permissions('read:movies')),
+        Depends(require_permissions('read:movies', 'admin:all')),
     ],
     tags=[ADMIN_MOVIES_TAG],
 )
 
 
-@router.get('/summary', response_model=list[MovieSchema])
+@router.get(
+    '/summary',
+    response_model=list[MovieSchema],
+    summary='Get movie summaries.',
+    description="""
+    Get a list of movies with summary details.
+    """,
+)
 async def get_movies(
     movie_service: MovieServiceDep,
     offset: int = Query(0, ge=0, description='The starting index of the movies to return'),
@@ -31,7 +38,15 @@ async def get_movies(
     return [MovieSchema.model_validate(movie) for movie in movies]
 
 
-@router.get('/', response_model=PaginatedMovieList)
+@router.get(
+    '/',
+    response_model=PaginatedMovieList,
+    summary='Get movies with details.',
+    description="""
+    Get a paginated list of movies with full details.
+    This resource is read-only as movies are synced from external sources.
+    """,
+)
 async def get_movies_with_details(
     movie_service: MovieServiceDep,
     offset: int = Query(0, ge=0, description='The starting index of the movies to return'),

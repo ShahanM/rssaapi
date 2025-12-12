@@ -2,10 +2,11 @@
 
 import math
 import uuid
+from functools import reduce
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from rssa_api.auth.security import (
     get_auth0_authenticated_user,
@@ -21,15 +22,24 @@ from rssa_api.data.schemas.base_schemas import (
     SortDir,
 )
 from rssa_api.data.schemas.study_components import (
-    ApiKeyBaseSchema,
-    ApiKeySchema,
-    StudyBaseSchema,
-    StudyConditionBaseSchema,
-    StudyConditionSchema,
-    StudySchema,
-    StudyStepBaseSchema,
+    ApiKeyCreate,
+    ApiKeyRead,
+    StudyAudit,
+    StudyBase,
+    StudyConditionCreate,
+    StudyConditionRead,
+    StudyCreate,
+    StudyRead,
+    StudyStepCreate,
+    StudyStepRead,
 )
-from rssa_api.data.services import ApiKeyServiceDep, StudyConditionServiceDep, StudyServiceDep, StudyStepServiceDep
+from rssa_api.data.services import (
+    ApiKeyServiceDep,
+    StudyConditionServiceDep,
+    StudyParticipantServiceDep,
+    StudyServiceDep,
+    StudyStepServiceDep,
+)
 
 from ...docs import ADMIN_STUDIES_TAG
 
@@ -55,8 +65,7 @@ class PaginatedStudyResponse(BaseModel):
     rows: list[PreviewSchema]  # type: ignore
     page_count: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudyStepConfigObj(BaseModel):
@@ -71,7 +80,17 @@ class StudyConfigSchema(BaseModel):
     steps: list[StudyStepConfigObj]
 
 
-@router.get('/', response_model=PaginatedStudyResponse)
+@router.get(
+    '/',
+    response_model=PaginatedStudyResponse,
+    summary='Get a list of studies.',
+    description="""
+    Get a paginated and sortable list of studies accessible to the current user.
+
+    This returns all studies where the user is either an owner or has specific
+    visibility privileges. Super Admins will see all studies in the system.
+    """,
+)
 async def get_studies(
     study_service: StudyServiceDep,
     user: Annotated[
@@ -98,18 +117,26 @@ async def get_studies(
     offset = page_index * page_size
     studies_from_db = []
     total_items = 0
-    user_id = current_user.id
+    total_items = await study_service.count(search)
     if is_super_admin:
-        user_id = None
-    total_items = await study_service.count_studies_for_user(user_id, search)
-    studies_from_db = await study_service.get_studies_for_user(
-        user_id=user_id,
-        limit=page_size,
-        offset=offset,
-        sort_by=sort_by,
-        sort_dir=sort_dir.value if sort_dir else None,
-        search=search,
-    )
+        studies_from_db = await study_service.get_paged_list(
+            limit=page_size,
+            offset=offset,
+            schema=PreviewSchema,
+            sort_by=sort_by,
+            sort_dir=sort_dir.value if sort_dir else None,
+            search=search,
+        )
+    else:
+        studies_from_db = await study_service.get_paged_for_owner(
+            owner_id=current_user.id,
+            limit=page_size,
+            offset=offset,
+            schema=PreviewSchema,
+            sort_by=sort_by,
+            sort_dir=sort_dir.value if sort_dir else None,
+            search=search,
+        )
     page_count = math.ceil(total_items / page_size) if total_items > 0 else 1
 
     return PaginatedStudyResponse(rows=studies_from_db, page_count=page_count)
@@ -117,12 +144,27 @@ async def get_studies(
 
 @router.get(
     '/{study_id}',
-    response_model=StudySchema,
+    response_model=StudyAudit,
     responses={404: {'description': 'Study not found or user lacks permission'}},
+    summary='Get a study details.',
+    description="""
+    Get a single instance of a study.
+
+    Retrieves a single study with all joined table fields.
+
+    **Visibility Rules:**
+    * **Super Admins:** Can view any study.
+    * **Standard Users:** Can only view studies they own.
+
+    If the study does not exist or the user does not have permission,
+    a generic `404 Not Found` is returned to prevent ID enumeration.
+    """,
 )
 async def get_study_detail(
     study_id: uuid.UUID,
     study_service: StudyServiceDep,
+    study_participant_service: StudyParticipantServiceDep,
+    study_condition_service: StudyConditionServiceDep,
     user: Annotated[
         Auth0UserSchema,
         Depends(require_permissions('read:studies', 'admin:all', 'read:own_studies')),
@@ -140,75 +182,54 @@ async def get_study_detail(
     If the study does not exist or the user does not have permission,
     a generic `404 Not Found` is returned to prevent ID enumeration.
     """
-    is_super_admin = 'admin:all' in user.permissions or 'read:studies' in user.permissions
+    study = await study_service.get_detailed(study_id, StudyAudit)
 
-    study_detail = None
-    if is_super_admin:
-        study_detail = await study_service.get_study_info(study_id)
-    else:
-        study_detail = await study_service.get_study_info_for_user(current_user.id, study_id)
-
-    if study_detail is None:
+    if study is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
+
+    grouped_count = await study_condition_service.get_participant_count_by_condition(study_id)
+    total = reduce(lambda acc, row: acc + row.participant_count, grouped_count, 0)
+    study_detail = StudyAudit(**study.model_dump())
+    study_detail.total_participants = total
+    study_detail.participants_by_condition = grouped_count
 
     return study_detail
-
-
-@router.get(
-    '/{study_id}/summary',
-    response_model=StudySchema,
-    summary='Get a summary of a study instance',
-    description=(
-        'Retrieves a single instance of a study that matches the {study_id} with only the top level fields, and '
-        'includes some computed statistics.This is only visible to authorized users with full visibility privileges '
-        'or those with ownership privileges and is listed as a owner of the study.\n\n'
-        'Raises a 404 NOT FOUND exception if no studies matches {study_id} that is visible to the authorized user.\n\n'
-        '_Note: The not found exception is also raised when the current user does not have the necessary privileges._'
-    ),
-    response_description='A summary of a study isntance, or a HTTP 404 NOT FOUND.',
-    responses={404: {'description': 'Study not found.'}},
-)
-async def get_study_summary(
-    study_id: uuid.UUID,
-    study_service: StudyServiceDep,
-    condition_service: StudyConditionServiceDep,
-    user: Annotated[
-        Auth0UserSchema,
-        Depends(require_permissions('read:studies', 'admin:all', 'read:own_studies')),
-    ],
-    current_user: Annotated[User, Depends(get_current_user)],
-):
-    is_super_admin = 'admin:all' in user.permissions or 'read:studies' in user.permissions
-    study_summary = None
-    condition_counts = await condition_service.get_participant_count_per_coundition(study_id)
-    if is_super_admin:
-        study_summary = await study_service.get_study_info(study_id, condition_counts)
-    else:
-        study_summary = await study_service.get_study_info_for_user(current_user.id, study_id, condition_counts)
-
-    if study_summary is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
-
-    return study_summary
 
 
 @router.post(
     '/',
     status_code=status.HTTP_201_CREATED,
-    summary='Create a study instance.',
+    response_model=StudyRead,
+    summary='Create a new study.',
     description="""
-	""",
-    response_description='HTTP 201 CREATED, or an appropriate HTTP error',
+    Create a new study instance.
+
+    ## Permissions
+    Requires one of: `create:studies`, `admin:all`
+    """,
 )
 async def create_study(
-    new_study: StudyBaseSchema,
+    new_study: StudyCreate,
     study_service: StudyServiceDep,
     current_user: Annotated[User, Depends(get_current_user)],
-    user: Annotated[None, Depends(require_permissions('create:studies', 'admin:all'))],
+    _: Annotated[None, Depends(require_permissions('create:studies', 'admin:all'))],
 ):
-    await study_service.create_new_study(new_study.name, new_study.description, current_user)
+    """Create a new study instance.
 
-    return {'message': 'Study created.'}
+    ## Permissions
+    Requires one of: `create:studies`, `admin:all`
+
+    Args:
+        new_study: The study data to create.
+        study_service: The service to handle study operations.
+        current_user: The currently authenticated user.
+
+    Returns:
+        The created study instance.
+    """
+    created_study = await study_service.create_for_owner(current_user.id, new_study)
+
+    return StudyRead.model_validate(created_study)
 
 
 @router.get('/{study_id}/steps', response_model=list[OrderedListItem])
@@ -217,13 +238,14 @@ async def get_study_steps(
     step_service: StudyStepServiceDep,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-    study_steps = await step_service.get_study_steps_as_ordered_list_Items(study_id)
+    study_steps = await step_service.get_items_for_owner_as_ordered_list(study_id, OrderedListItem)
     return study_steps
 
 
 @router.post(
     '/{study_id}/steps',
     status_code=status.HTTP_201_CREATED,
+    response_model=StudyStepRead,
     summary='Get a list of steps for a study.',
     description="""
 	""",
@@ -231,18 +253,18 @@ async def get_study_steps(
 )
 async def create_study_step(
     study_id: uuid.UUID,
-    new_step: StudyStepBaseSchema,
+    new_step: StudyStepCreate,
     step_service: StudyStepServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('create:steps'))],
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('create:steps', 'admin:all'))],
 ):
-    await step_service.create_study_step(study_id, new_step)
+    step_in_db = await step_service.create_for_owner(study_id, new_step)
 
-    return {'message': 'Study step created'}
+    return StudyStepRead.model_validate(step_in_db)
 
 
 @router.get(
     '/{study_id}/conditions',
-    response_model=list[StudyConditionSchema],
+    response_model=list[StudyConditionRead],
     summary='Get a list of conditions assigned to a study.',
     description="""
 	""",
@@ -253,8 +275,12 @@ async def get_study_conditions(
     study_id: uuid.UUID,
     condition_service: StudyConditionServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'read:conditions'))],
+    page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
+    page_size: int = Query(10, ge=1, le=100, description='The number of items per page'),
 ):
-    study_conditions = await condition_service.get_study_conditions(study_id)
+    study_conditions = await condition_service.get_paged_for_owner(
+        study_id, page_size, page_index * page_size, StudyConditionRead
+    )
     return study_conditions
 
 
@@ -268,32 +294,50 @@ async def get_study_conditions(
 )
 async def create_study_condition(
     study_id: uuid.UUID,
-    new_condition: StudyConditionBaseSchema,
+    new_condition: StudyConditionCreate,
     condition_service: StudyConditionServiceDep,
+    current_user: Annotated[User, Depends(get_current_user)],
     user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'create:conditions'))],
 ):
-    await condition_service.create_study_condition(study_id, new_condition)
+    new_condition.created_by_id = current_user.id
+    condition = await condition_service.create_for_owner(study_id, new_condition)
+
+    return condition
 
 
-@router.patch('/{study_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    '/{study_id}',
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Update a study.',
+    description="""
+    Updates an existing study with the provided fields.
+    """,
+)
 async def update_study(
     study_id: uuid.UUID,
     payload: dict[str, str],
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:studies', 'admin:all'))],
 ):
-    await study_service.update_study(study_id, payload)
+    await study_service.update(study_id, payload)
 
     return {}
 
 
-@router.delete('/{study_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    '/{study_id}',
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Delete a study.',
+    description="""
+    Deletes a study by its ID.
+    """,
+)
 async def delete_study(
     study_id: uuid.UUID,
     study_service: StudyServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:studies'))],
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:studies', 'admin:all'))],
 ):
-    await study_service.delete_study(study_id)
+    await study_service.delete(study_id)
 
     return {}
 
@@ -306,7 +350,7 @@ async def reorder_study_steps(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
     steps_map = {item.id: item.order_position for item in payload}
-    await step_service.reorder_study_steps(study_id, steps_map)
+    await step_service.reorder_items(study_id, steps_map)
 
     return {'message': 'Steps reordered successfully'}
 
@@ -337,10 +381,10 @@ async def validate_step_path_uniqueness(
     return {}
 
 
-@router.post('/{study_id}/apikeys', response_model=ApiKeySchema, status_code=status.HTTP_201_CREATED)
+@router.post('/{study_id}/apikeys', response_model=ApiKeyRead, status_code=status.HTTP_201_CREATED)
 async def generate_study_api_key(
     study_id: uuid.UUID,
-    new_api_key: ApiKeyBaseSchema,
+    new_api_key: ApiKeyCreate,
     key_service: ApiKeyServiceDep,
     user: Annotated[User, Depends(get_current_user)],
 ):
@@ -349,7 +393,7 @@ async def generate_study_api_key(
     return api_key
 
 
-@router.get('/{study_id}/apikeys', response_model=list[ApiKeySchema])
+@router.get('/{study_id}/apikeys', response_model=list[ApiKeyRead])
 async def get_api_keys(
     study_id: uuid.UUID,
     service: ApiKeyServiceDep,
@@ -360,27 +404,27 @@ async def get_api_keys(
     return keys
 
 
-@router.get('/{study_id}/export_study_config', response_model=StudyConfigSchema)
-async def export_study_config(
-    study_id: uuid.UUID,
-    step_service: StudyStepServiceDep,
-    condition_service: StudyConditionServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
-):
-    steps = await step_service.get_study_steps(study_id)
-    conditions = await condition_service.get_study_conditions(study_id)
+# @router.get('/{study_id}/export_study_config', response_model=StudyConfigSchema)
+# async def export_study_config(
+#     study_id: uuid.UUID,
+#     step_service: StudyStepServiceDep,
+#     condition_service: StudyConditionServiceDep,
+#     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+# ):
+#     steps = await step_service.get_study_steps(study_id)
+#     conditions = await condition_service.get(study_id)
 
-    config = {
-        'study_id': study_id,
-        'conditions': {con.name: con.id for con in conditions},
-        'steps': [
-            {
-                'step_id': step.id,
-                'path': step.path,
-                'component_type': STEP_TYPE_TO_COMPONENT[step.step_type if step.step_type else 'extras'],
-            }
-            for step in steps
-        ],
-    }
+#     config = {
+#         'study_id': study_id,
+#         'conditions': {con.name: con.id for con in conditions},
+#         'steps': [
+#             {
+#                 'step_id': step.id,
+#                 'path': step.path,
+#                 'component_type': STEP_TYPE_TO_COMPONENT[step.step_type if step.step_type else 'extras'],
+#             }
+#             for step in steps
+#         ],
+#     }
 
-    return config
+#     return config

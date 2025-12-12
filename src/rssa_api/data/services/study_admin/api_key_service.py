@@ -14,7 +14,7 @@ from cryptography.fernet import Fernet
 from rssa_api.config import get_env_var
 from rssa_api.data.models.study_components import ApiKey
 from rssa_api.data.repositories.study_admin import ApiKeyRepository
-from rssa_api.data.schemas.study_components import ApiKeySchema
+from rssa_api.data.schemas.study_components import ApiKeyRead
 from rssa_api.data.utility import sa_obj_to_dict
 
 ENCRYPTION_KEY = get_env_var('RSSA_MASTER_ENCRYPTION_KEY')
@@ -54,7 +54,7 @@ class ApiKeyService:
         study_id: uuid.UUID,
         description: str,
         user_id: uuid.UUID,
-    ) -> ApiKeySchema:
+    ) -> ApiKeyRead:
         """Creates and saves a new API key for a study.
 
         This will invalidate any existing active keys for the same study and user.
@@ -65,12 +65,17 @@ class ApiKeyService:
             user_id: The ID of the user creating the key.
 
         Returns:
-            An ApiKeySchema object including the new plain-text key.
+            An ApiKeyRead object including the new plain-text key.
         """
         _plain_key, key_hash = self.generate_key_and_hash()
-        current_active_keys = await self.repo.get_all_by_fields(
-            [('study_id', study_id), ('user_id', user_id), ('is_active', True)]
+        # current_active_keys = await self.repo.get_all_by_fields(
+        #     [('study_id', study_id), ('user_id', user_id), ('is_active', True)]
+        # )
+        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+        repo_options = RepoQueryOptions(
+            filters={'study_id': study_id, 'user_id': user_id, 'is_active': True}
         )
+        current_active_keys = await self.repo.find_many(repo_options)
         await self._invalidate_keys(current_active_keys)
 
         new_api_key = ApiKey(
@@ -84,7 +89,7 @@ class ApiKeyService:
         api_key_dict = sa_obj_to_dict(new_api_key)
         api_key_dict['plain_text_key'] = _plain_key
 
-        return ApiKeySchema.model_validate(api_key_dict)
+        return ApiKeyRead.model_validate(api_key_dict)
 
     async def _invalidate_keys(self, api_keys: Sequence[ApiKey]) -> None:
         """Sets a sequence of API keys to be inactive.
@@ -100,7 +105,7 @@ class ApiKeyService:
         self,
         study_id: uuid.UUID,
         user_id: uuid.UUID,
-    ) -> list[ApiKeySchema]:
+    ) -> list[ApiKeyRead]:
         """Retrieves all API keys for a given study and user.
 
         The plain-text version of the key is decrypted and included in the result.
@@ -110,9 +115,13 @@ class ApiKeyService:
             user_id: The ID of the user.
 
         Returns:
-            A list of ApiKeySchema objects, each including the plain-text key.
+            A list of ApiKeyRead objects, each including the plain-text key.
         """
-        api_keys = await self.repo.get_all_by_fields([('study_id', study_id), ('user_id', user_id)])
+        # api_keys = await self.repo.get_all_by_fields([('study_id', study_id), ('user_id', user_id)])
+        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+        repo_options = RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id})
+        api_keys = await self.repo.find_many(repo_options)
+        
         api_key_dicts = []
         if api_keys:
             fernet = Fernet(ENCRYPTION_KEY.encode())
@@ -133,7 +142,7 @@ class ApiKeyService:
                     }
                 )
 
-        return [ApiKeySchema.model_validate(api_key) for api_key in api_key_dicts]
+        return [ApiKeyRead.model_validate(api_key) for api_key in api_key_dicts]
 
     @alru_cache(maxsize=128)
     async def validate_api_key(self, api_key_id: uuid.UUID, api_key_secret: str) -> Optional[ApiKey]:
@@ -151,7 +160,9 @@ class ApiKeyService:
             The valid API Key if it is found, otherwise None.
 
         """
-        key_record = await self.repo.get(api_key_id)
+        # key_record = await self.repo.get(api_key_id)
+        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+        key_record = await self.repo.find_one(RepoQueryOptions(filters={'id': api_key_id}))
         if not key_record:
             return None
 

@@ -6,7 +6,6 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rssa_api.data.repositories.participant_responses import (
-    FeedbackRepository,
     ParticipantFreeformResponseRepository,
     ParticipantInteractionLogRepository,
     ParticipantRatingRepository,
@@ -14,13 +13,6 @@ from rssa_api.data.repositories.participant_responses import (
     ParticipantSurveyResponseRepository,
 )
 from rssa_api.data.repositories.study_admin import ApiKeyRepository, PreShuffledMovieRepository, UserRepository
-from rssa_api.data.repositories.study_components import (
-    StudyConditionRepository,
-    StudyRepository,
-    StudyStepPageContentRepository,
-    StudyStepPageRepository,
-    StudyStepRepository,
-)
 from rssa_api.data.repositories.study_participants import (
     ParticipantDemographicRepository,
     ParticipantRecommendationContextRepository,
@@ -28,13 +20,22 @@ from rssa_api.data.repositories.study_participants import (
     StudyParticipantMovieSessionRepository,
     StudyParticipantRepository,
 )
-from rssa_api.data.repositories.survey_constructs import (
+from rssa_api.data.rssadb import get_db
+
+from .study_components import (
+    FeedbackRepository,
+    StudyConditionRepository,
+    StudyRepository,
+    StudyStepPageContentRepository,
+    StudyStepPageRepository,
+    StudyStepRepository,
+)
+from .survey_components import (
     SurveyConstructRepository,
     SurveyItemRepository,
     SurveyScaleLevelRepository,
     SurveyScaleRepository,
 )
-from rssa_api.data.rssadb import get_db
 
 R = TypeVar('R')
 
@@ -80,6 +81,8 @@ get_survey_scale_level_repository = get_repository(SurveyScaleLevelRepository)
 
 # Study participant repositories
 get_study_participant_repository = get_repository(StudyParticipantRepository)
+StudyParticipantRepositoryDep = Annotated[StudyParticipantRepository, Depends(get_study_participant_repository)]
+
 get_study_participant_movie_session_repository = get_repository(StudyParticipantMovieSessionRepository)
 
 # Participant study context repositories

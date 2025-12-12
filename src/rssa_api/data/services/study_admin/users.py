@@ -10,7 +10,9 @@ class UserService:
         self.repo = user_repo
 
     async def get_user_by_auth0_sub(self, token_user: str) -> Optional[User]:
-        return await self.repo.get_by_field('auth0_sub', token_user)
+        # return await self.repo.get_by_field('auth0_sub', token_user)
+        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+        return await self.repo.find_one(RepoQueryOptions(filters={'auth0_sub': token_user}))
 
     async def create_user_from_auth0(self, token_user: Auth0UserSchema) -> User:
         new_user = User(auth0_sub=Auth0UserSchema.sub)

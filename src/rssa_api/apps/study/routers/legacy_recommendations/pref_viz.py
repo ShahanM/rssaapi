@@ -7,7 +7,7 @@ from rssa_api.auth.authorization import get_current_participant, validate_api_ke
 from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.movie_schemas import MovieSchema
 from rssa_api.data.schemas.participant_response_schemas import (
-    MovieLensRatingSchema,
+    MovieLensRating,
 )
 from rssa_api.data.schemas.preferences_schemas import (
     PreferenceVizRecommendedItemSchema,
@@ -20,7 +20,7 @@ from rssa_api.data.schemas.preferences_schemas import (
 )
 from rssa_api.data.services import MovieServiceDep, StudyConditionServiceDep, StudyParticipantServiceDep
 from rssa_api.docs.metadata import RSTagsEnum as Tags
-from rssa_api.services.recommenders.prev_viz_service import PreferenceVisualization
+from rssa_api.services.recommendation.prev_viz_service import PreferenceVisualization
 
 BIASED_MODEL_PATH = 'biased_als_ml32m'
 router = APIRouter(
@@ -65,7 +65,7 @@ async def recommend_for_study_condition(
     rated_item_dict = {item.item_id: item.rating for item in payload.ratings}
     rated_movies = await movie_service.get_movies_from_ids(list(rated_item_dict.keys()))
     ratings_with_movielens_ids = [
-        MovieLensRatingSchema.model_validate({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
+        MovieLensRating({'item_id': item.movielens_id, 'rating': rated_item_dict[item.id]})
         for item in rated_movies
     ]
 
@@ -106,14 +106,14 @@ async def recommend_for_study_condition(
     if len(recs) == 0:
         raise HTTPException(status_code=500, detail='No recommendations were generated.')
 
-    recmap = {r.item_id: r for r in recs}
-    movies = await movie_service.get_movies_by_movielens_ids(list(recmap.keys()))
+
+    movies = await movie_service.get_movies_by_movielens_ids(recs.keys())
 
     res = {}
 
     for m in movies:
         movie = MovieSchema.model_validate(m)
-        pref_item = PreferenceVizRecommendedItemSchema(**movie.model_dump(), **recmap[m.movielens_id].model_dump())
+        pref_item = PreferenceVizRecommendedItemSchema(**movie.model_dump(), **recs[m.movielens_id].model_dump())
         res[str(pref_item.id)] = pref_item
 
     rec_ctx_create_req = RecommendationContextBaseSchema(

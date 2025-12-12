@@ -23,7 +23,7 @@ import pandas as pd
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial import ConvexHull
 
-from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 from rssa_api.data.schemas.preferences_schemas import PrefVizItem
 
 from .mf_base import RSSABase
@@ -39,28 +39,28 @@ class PreferenceVisualization(RSSABase):
     similar user predicted scores.
     """
 
-    def get_prediction(
-        self,
-        ratings: list[MovieLensRatingSchema],
-        user_id: str,
-    ) -> pd.DataFrame:
-        """Get predicted scores for all items for a given user.
+    # def get_prediction(
+    #     self,
+    #     ratings: list[MovieLensRating],
+    #     user_id: str,
+    # ) -> pd.DataFrame:
+    #     """Get predicted scores for all items for a given user.
 
-        Args:
-            ratings: List of user ratings.
-            user_id: User identifier.
+    #     Args:
+    #         ratings: List of user ratings.
+    #         user_id: User identifier.
 
-        Returns:
-            DataFrame containing predicted scores for all items.
-        """
-        preds_df = self.predict(user_id, ratings)
-        preds_df = preds_df.rename(columns={'item_id': 'item', 'score': 'user_score'})
+    #     Returns:
+    #         DataFrame containing predicted scores for all items.
+    #     """
+    #     preds_df = self.predict(user_id, ratings)
+    #     # preds_df = preds_df.rename(columns={'score': 'user_score'})
 
-        return preds_df
+    #     return preds_df
 
     def get_baseline_prediction(
-        self, ratings: list[MovieLensRatingSchema], user_id: str, num_rec: int
-    ) -> list[PrefVizItem]:
+        self, ratings: list[MovieLensRating], user_id: str, num_rec: int
+    ) -> dict[str, PrefVizItem]:
         """Get baseline predicted items for preference visualization.
 
         Args:
@@ -71,28 +71,35 @@ class PreferenceVisualization(RSSABase):
         Returns:
             List of recommended preference visualization items.
         """
-        preds = self.get_prediction(ratings, user_id).sort_values(by='score', ascending=False)
+        preds = self.predict(user_id, ratings)
         preds = preds.head(num_rec)
-        # FIXME: This is a hack to get it working using the current data model
-        recommended_items = []
-        for _, row in preds.iterrows():
-            recommended_items.append(
-                PrefVizItem(
-                    item_id=str(int(row['item'])),  # truncate the trailing .0
-                    community_score=0,
-                    user_score=row['score'],
-                    community_label=-1,
-                    user_label=-1,
-                    cluster=-1,
-                )
-            )
 
-        return recommended_items
+        preds['community_score'] = 0
+        preds['community_label'] = -1
+        preds['user_label'] = -1
+        preds['cluster'] = -1
+        
+        # recommended_items = []
+        # for _, row in preds.iterrows():
+        #     recommended_items.append(
+        #         PrefVizItem(
+        #             item_id=str(int(row['item'])),  # truncate the trailing .0
+        #             community_score=0,
+        #             user_score=row['score'],
+        #             community_label=-1,
+        #             user_label=-1,
+        #             cluster=-1,
+        #         )
+        #     )
 
-    def get_candidates(
+        recdict = {row['item']: PrefVizItem(**row) for _, row in preds.iterrows()}
+
+        return recdict
+
+    def _get_candidates(
         self,
         user_id: str,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         ave_score_type: Literal['global', 'nn_observed', 'nn_predicted'],
         min_rating_count: int = 50,
     ) -> pd.DataFrame:
@@ -107,7 +114,7 @@ class PreferenceVisualization(RSSABase):
         Returns:
             DataFrame containing candidate items with baseline scores.
         """
-        preds_df = self.get_prediction(ratings, user_id)
+        preds_df = self.predict(user_id, ratings)
         candidates = pd.merge(preds_df, self.item_popularity, how='left', on='item')
         baseline_df = pd.DataFrame()
 
@@ -127,7 +134,7 @@ class PreferenceVisualization(RSSABase):
                 new_user_vector=user_features,
                 num_neighbors=search_space_k,
             )
-            target_item_ids = set(preds_df['item_id'].to_list())
+            target_item_ids = set(preds_df['item'].to_list())
             observed_ratings_list = []
             for item_id in target_item_ids:
                 neighborhood_avg = self.calculate_neighborhood_average(all_neighbors_ids, item_id, min_rating_count)
@@ -149,9 +156,10 @@ class PreferenceVisualization(RSSABase):
             del annoy_index
             del _
             neighbor_internal_codes_np: np.ndarray = np.array(nn_ids, dtype=np.int32)
-            target_item_ids = set(preds_df['item_id'].to_list())
+            target_item_ids = set(preds_df['item'].to_list())
+            
             p_nn_ave_df = self.calculate_predicted_neighborhood_average(
-                neighbor_internal_codes_np, preds_df['item_id'].to_list()
+                neighbor_internal_codes_np, preds_df['item'].to_list()
             )
             baseline_df = p_nn_ave_df.rename(columns={'p_nn_ave_score': 'ave_score'})
         if not baseline_df.empty:
@@ -197,7 +205,7 @@ class PreferenceVisualization(RSSABase):
 
     def predict_diverse_items(
         self,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         num_rec: int,
         user_id: str,
         algo: str = 'fishnet',
@@ -221,7 +229,7 @@ class PreferenceVisualization(RSSABase):
         seed = hash(ratedset) % (2**32)
         np.random.seed(seed)  # Set the NumPy seed for repeatable sampling/shuffling
 
-        candidates = self.get_candidates(user_id, ratings, 'global')
+        candidates = self._get_candidates(user_id, ratings, 'global')
         diverse_items: pd.DataFrame = candidates.copy()
 
         if algo == 'fishnet':
@@ -269,24 +277,26 @@ class PreferenceVisualization(RSSABase):
 
         scaled_items, _, _ = self.scale_and_label(diverse_items)
 
-        recommended_items = []
-        for _, row in scaled_items.iterrows():
-            recommended_items.append(
-                PrefVizItem(
-                    item_id=str(int(row['item'])),  # truncate the trailing .0
-                    community_score=row['community'],
-                    user_score=row['user'],
-                    community_label=row['community_label'],
-                    user_label=row['user_label'],
-                    cluster=int(row['cluster']) if 'cluster' in row else 0,
-                )
-            )
+        # recommended_items = []
+        # for _, row in scaled_items.iterrows():
+        #     recommended_items.append(
+        #         PrefVizItem(
+        #             item_id=str(int(row['item'])),  # truncate the trailing .0
+        #             community_score=row['community'],
+        #             user_score=row['user'],
+        #             community_label=row['community_label'],
+        #             user_label=row['user_label'],
+        #             cluster=int(row['cluster']) if 'cluster' in row else 0,
+        #         )
+        #     )
 
-        return recommended_items
+        recdict = {row['item']: PrefVizItem(**row) for _, row in scaled_items.iterrows()}
+
+        return recdict
 
     def predict_reference_items(
         self,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         num_rec: int,
         user_id: str,
         init_sample_size: int = 500,
@@ -308,29 +318,31 @@ class PreferenceVisualization(RSSABase):
         Returns:
             List of recommended preference visualization items.
         """
-        candidates = self.get_candidates(user_id, ratings, ave_score_type='nn_predicted')
+        candidates = self._get_candidates(user_id, ratings, ave_score_type='nn_predicted')
 
         diverse_items = self._fishingnet(candidates, init_sample_size)
         diverse_items = self._single_linkage_clustering(diverse_items, num_rec)
 
         scaled_items, scaled_avg_comm, scaled_avg_user = self.scale_and_label(diverse_items)
 
-        recommended_items = []
-        for _, row in scaled_items.iterrows():
-            recommended_items.append(
-                PrefVizItem(
-                    item_id=str(int(row['item'])),  # truncate the trailing .0
-                    community_score=row['community'],
-                    user_score=row['user'],
-                    community_label=row['community_label'],
-                    user_label=row['user_label'],
-                    cluster=int(row['cluster']) if 'cluster' in row else 0,
-                )
-            )
+        # recommended_items = []
+        # for _, row in scaled_items.iterrows():
+        #     recommended_items.append(
+        #         PrefVizItem(
+        #             item_id=str(int(row['item'])),  # truncate the trailing .0
+        #             community_score=row['community'],
+        #             user_score=row['user'],
+        #             community_label=row['community_label'],
+        #             user_label=row['user_label'],
+        #             cluster=int(row['cluster']) if 'cluster' in row else 0,
+        #         )
+        #     )
+        
+        recdict = {row['item']: PrefVizItem(**row) for _, row in scaled_items.iterrows()}
 
-        return recommended_items
+        return recdict
 
-    def create_square_grid(self, n: int, interval_count: int) -> list[float]:
+    def _create_square_grid(self, n: int, interval_count: int) -> list[float]:
         """Create a square grid of values.
 
         Args:
@@ -367,13 +379,13 @@ class PreferenceVisualization(RSSABase):
         """Compute the outer boundary (Convex Hull) in the 2D space.
 
         Identifies the set of items that define the outer boundary (Convex Hull)
-        in the 2D score space (user_score vs. ave_score).
+        in the 2D score space (score vs. ave_score).
 
         These items represent the extremes of the model's predictions for the user.
 
         Args:
             candidates (pd.DataFrame): DataFrame containing item candidates, must
-                                    include 'user_score' and 'ave_score'.
+                                    include 'score' and 'ave_score'.
 
         Returns:
             pd.DataFrame: A DataFrame containing only the items that lie on the
@@ -383,8 +395,8 @@ class PreferenceVisualization(RSSABase):
             # A Convex Hull requires at least 3 points
             return candidates
 
-        # Use the 2D score space: (User Score, Community Score)
-        X = candidates[['user_score', 'ave_score']].values
+        # Use the 2D score space: (score, ave_score)
+        X = candidates[['score', 'ave_score']].values
 
         # This finds the indices of the points (rows in X) that form the convex hull.
         try:
@@ -421,7 +433,7 @@ class PreferenceVisualization(RSSABase):
             return candidates
 
         # Extract the (score, ave_score) feature space
-        X = candidates[['user_score', 'ave_score']].values
+        X = candidates[['score', 'ave_score']].values
 
         # Assume scale_grid returns a list of N coordinates: [(x1, y1), (x2, y2), ...]
         grid_points = self.scale_grid(minval=1, maxval=5, num_divisions=int(np.sqrt(n)))
@@ -458,7 +470,7 @@ class PreferenceVisualization(RSSABase):
         """Cluster the items using the minimum spanning tree cut.
 
         Performs Single Linkage Clustering (equivalent to your MST cut) on the
-        2D score space (user_score, ave_score) and assigns cluster IDs.
+        2D score space (score, ave_score) and assigns cluster IDs.
 
         Args:
             candidates (pd.DataFrame): DataFrame containing item candidates.
@@ -470,7 +482,7 @@ class PreferenceVisualization(RSSABase):
         if candidates.shape[0] == 0:
             return candidates
 
-        X = candidates[['user_score', 'ave_score']].values
+        X = candidates[['score', 'ave_score']].values
 
         # Uses fast C/Fortran code to calculate distances and build the linkage matrix.
         linkage_matrix = linkage(X, method='single', metric='cityblock')
@@ -491,11 +503,11 @@ class PreferenceVisualization(RSSABase):
 
             if not cluster_df.empty:
                 # Find the center/centroid of the cluster for selection
-                mid_score = cluster_df['user_score'].mean()
+                mid_score = cluster_df['score'].mean()
                 mid_ave = cluster_df['ave_score'].mean()
 
                 # Calculate Manhattan distance from the mean center to find the closest item
-                cluster_df['dist_to_center'] = np.abs(cluster_df['user_score'] - mid_score) + np.abs(
+                cluster_df['dist_to_center'] = np.abs(cluster_df['score'] - mid_score) + np.abs(
                     cluster_df['ave_score'] - mid_ave
                 )
 
@@ -518,7 +530,7 @@ class PreferenceVisualization(RSSABase):
             _type_: _description_
         """
         scaled_items = items.copy()
-        scaled_items.rename(columns={'ave_score': 'community', 'user_score': 'user'}, inplace=True)
+        scaled_items.rename(columns={'ave_score': 'community', 'score': 'user'}, inplace=True)
         # Label the items based on the global average
         global_avg = np.mean([np.median(scaled_items['community']), np.median(scaled_items['user'])])
 

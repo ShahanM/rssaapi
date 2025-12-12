@@ -3,11 +3,11 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .base_schemas import BaseDBMixin
+from .base_schemas import DBMixin
 
 
-class ParticpantBaseSchema(BaseModel):
-    participant_type_id: uuid.UUID = Field(
+class StudyParticipantBase(BaseModel):
+    study_participant_type_id: uuid.UUID = Field(
         default=uuid.UUID('149078d0-cece-4b2c-81cd-a7df4f76d15a'),
         description="""
 		The UUID identifying the type of participant.
@@ -24,7 +24,10 @@ class ParticpantBaseSchema(BaseModel):
     current_page_id: Optional[uuid.UUID] = None
 
 
-class ParticipantSchema(ParticpantBaseSchema, BaseDBMixin):
+class StudyParticipantCreate(StudyParticipantBase):
+    pass
+
+class StudyParticipantRead(StudyParticipantBase, DBMixin):
     study_id: uuid.UUID
     condition_id: uuid.UUID
     current_status: str
@@ -33,7 +36,7 @@ class ParticipantSchema(ParticpantBaseSchema, BaseDBMixin):
         return self.model_dump_json().__hash__()
 
 
-class DemographicsBaseSchema(BaseModel):
+class DemographicsBase(BaseModel):
     age_range: str
     gender: str
     race: list[str]
@@ -57,5 +60,5 @@ class DemographicsBaseSchema(BaseModel):
         return data
 
 
-class DemographicsSchema(DemographicsBaseSchema, BaseDBMixin):
-    pass
+class DemographicsCreate(DemographicsBase):
+    model_config = {'from_attributes': True}

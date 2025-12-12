@@ -2,35 +2,34 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
-from rssa_api.data.schemas.base_schemas import BaseDBMixin
+from rssa_api.data.schemas.base_schemas import DBMixin
 from rssa_api.data.schemas.movie_schemas import MovieDetailSchema, MovieSchema
-from rssa_api.data.schemas.participant_response_schemas import RatedItemBaseSchema, RatedItemSchema
-from rssa_api.data.schemas.study_components import StudyConditionSchema
+from rssa_api.data.schemas.participant_response_schemas import RatedItem
+from rssa_api.data.schemas.study_components import StudyConditionRead
 
 
 class PrefVizItem(BaseModel):
-    item_id: str
+    id: str
     community_score: float
-    user_score: float
+    score: float
     community_label: int
-    user_label: int
+    label: int
     cluster: int = 0
 
 
 class PrefVizDemoRequestSchema(BaseModel):
     user_id: int
     user_condition: int
-    ratings: list[RatedItemSchema]
+    ratings: list[RatedItem]
     num_rec: int = 10
     algo: str
     randomize: bool
     init_sample_size: int
     min_rating_count: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     def __hash__(self):
         return self.model_dump_json().__hash__()
@@ -40,7 +39,7 @@ class PreferenceRequestSchema(BaseModel):
     user_id: uuid.UUID
     user_condition: uuid.UUID
     rec_type: Literal['baseline', 'reference', 'diverse']
-    ratings: list[RatedItemSchema]
+    ratings: list[RatedItem]
 
     def __hash__(self):
         return self.model_dump_json().__hash__()
@@ -58,8 +57,7 @@ class PrefVizDemoResponseSchema(BaseModel):
     metadata: PrefVizMetadata
     recommendations: list[PrefVizItem]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     def __hash__(self):
         return self.model_dump_json().__hash__()
@@ -89,14 +87,14 @@ class EmotionInputSchema(BaseModel):
     user_condition: uuid.UUID
     input_type: Literal['discrete', 'continuous']
     emotion_input: Union[list[EmotionDiscreteInputSchema], list[EmotionContinuousInputSchema]]
-    ratings: list[RatedItemSchema]
+    ratings: list[RatedItem]
     num_rec: int
 
 
 class RatingSchemaExperimental(BaseModel):
     user_id: int
     user_condition: int
-    ratings: list[RatedItemSchema]
+    ratings: list[RatedItem]
     rec_type: int
     num_rec: int = 10
     low_val: float = 0.3
@@ -108,7 +106,7 @@ class EmotionInputSchemaExperimental(BaseModel):
     condition_algo: int
     input_type: Literal['discrete', 'continuous']
     emotion_input: Union[list[EmotionDiscreteInputSchema], list[EmotionContinuousInputSchema]]
-    ratings: list[RatedItemSchema]
+    ratings: list[RatedItem]
     num_rec: int
     item_pool_size: int
     scale_vector: bool = False
@@ -126,7 +124,7 @@ class RecommendationRequestPayload(BaseModel):
     context_tag: str
     rec_type: Literal['baseline', 'reference', 'diverse']
 
-    ratings: list[RatedItemBaseSchema]
+    ratings: list[RatedItem]
 
 
 class Avatar(BaseModel):
@@ -141,23 +139,25 @@ class AdvisorProfileSchema(BaseModel):
     recommendation: MovieDetailSchema
     avatar: Optional[Avatar]
 
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            uuid.UUID: lambda v: str(v),
-            datetime: lambda v: v.isoformat(),
-        }
+    model_config = ConfigDict(
+        from_attributes=True,
+        # json_encoders={
+        #     uuid.UUID: lambda v: str(v),
+        #     datetime: lambda v: v.isoformat(),
+        # },
+    )
 
 
 class RecommendationJsonBaseSchema(BaseModel):
-    condition: Optional[StudyConditionSchema] = None
+    condition: Optional[StudyConditionRead] = None
 
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            uuid.UUID: lambda v: str(v),
-            datetime: lambda v: v.isoformat(),
-        }
+    model_config = ConfigDict(
+        from_attributes=True,
+        # json_encoders={
+        #     uuid.UUID: lambda v: str(v),
+        #     datetime: lambda v: v.isoformat(),
+        # },
+    )
 
 
 class RecommendationJsonPrefCommSchema(RecommendationJsonBaseSchema):
@@ -180,5 +180,5 @@ class RecommendationContextBaseSchema(BaseModel):
     recommendations_json: Any
 
 
-class RecommendationContextSchema(RecommendationContextBaseSchema, BaseDBMixin):
+class RecommendationContextSchema(RecommendationContextBaseSchema, DBMixin):
     pass

@@ -5,25 +5,25 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, ClassVar, Optional
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
-class BaseDBMixin(BaseModel):
+class DBMixin(BaseModel):
     """A mixin that provides database-related fields."""
 
     id: uuid.UUID = Field(..., description='Unique identifier for the resource.')
 
-    class Config:
-        """Pydantic configuration for BaseDBMixin."""
+    
+    model_config = ConfigDict(
+        from_attributes=True,
+        # json_encoders={
+        #     uuid.UUID: lambda v: str(v),
+        #     datetime: lambda v: v.isoformat(),
+        # },
+    )
 
-        from_attributes = True
-        json_encoders = {
-            uuid.UUID: lambda v: str(v),
-            datetime: lambda v: v.isoformat(),
-        }
 
-
-class BaseAdminMixin(BaseModel):
+class AuditMixin(BaseModel):
     """A mixin that provides admin-related fields."""
 
     created_at: Optional[datetime] = Field(
@@ -75,7 +75,7 @@ class SortDir(str, Enum):
     DESC = 'desc'
 
 
-class PreviewSchema(BaseDBMixin, BaseAdminMixin):
+class PreviewSchema(DBMixin, AuditMixin):
     """A schema for previewing resources with minimal information.
 
     _display_name_source_field: ClassVar[str] = 'name'
@@ -91,13 +91,7 @@ class BaseOrderedMixin(BaseModel):
     order_position: int
 
 
-class OrderedNavigationMixin(BaseOrderedMixin):
-    """A mixin that provides navigation fields for ordered items."""
-
-    next: Optional[uuid.UUID] = None
-
-
-class ReorderPayloadSchema(BaseOrderedMixin, BaseDBMixin):
+class ReorderPayloadSchema(BaseOrderedMixin, DBMixin):
     """A schema for reordering items in a list."""
 
     pass

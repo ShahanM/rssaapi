@@ -3,17 +3,18 @@ import uuid
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from rssa_api.auth.authorization import authorize_api_key_for_study, generate_jwt_token_for_payload
-from rssa_api.data.schemas.participant_schemas import ParticpantBaseSchema
-from rssa_api.data.schemas.study_components import StudyStepNavigationSchema
+from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
+from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepRead
 from rssa_api.data.services import (
     ParticipantStudySessionServiceDep,
     StudyConditionServiceDep,
     StudyParticipantMovieSessionServiceDep,
     StudyParticipantServiceDep,
     StudyStepServiceDep,
+    EnrollmentServiceDep,
 )
 
 
@@ -66,18 +67,19 @@ class ResumeResponseSchema(BaseModel):
     current_step_id: uuid.UUID
     current_page_id: Optional[uuid.UUID] = None
 
-    class Config:
-        from_attributes = True
-        json_encoders = {
-            uuid.UUID: lambda v: str(v),
-            datetime: lambda v: v.isoformat(),
-        }
+    model_config = ConfigDict(
+        from_attributes=True,
+        # json_encoders={
+        #     uuid.UUID: lambda v: str(v),
+        #     datetime: lambda v: v.isoformat(),
+        # },
+    )
 
 
 @router.get(
     '/{study_id}/steps/first',
     status_code=status.HTTP_200_OK,
-    response_model=StudyStepNavigationSchema,
+    response_model=NavigationWrapper[StudyStepRead],
     summary='Retrieves the first step of the study specified by the {study_id} url param.',
     description="""This is the first call made by a registered study when a study start is initiated.
     This is often the consent step. This endpoint expects an API Key to authorize the study, and the only endpoint
@@ -95,21 +97,27 @@ async def get_first_step(
     study_id: uuid.UUID,
     step_service: StudyStepServiceDep,
 ):
-    study_step = await step_service.get_first_study_step(study_id)
+    study_step = await step_service.get_first_with_navigation(study_id)
 
     if not study_step:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail='Something went wrong, could not find the entry point to the study.',
         )
-    study_step_dict = study_step.model_dump()
-    next_step = await step_service.get_next_step(study_step.id)
-    if not next_step:
-        study_step_dict['next'] = None
-    else:
-        study_step_dict['next'] = next_step.path
+    # study_step_dict = study_step.model_dump()
+    # next_step = await step_service.get_next_step(study_step.id)
+    # if not next_step:
+    # study_step_dict['next'] = None
+    # else:
+    # study_step_dict['next'] = next_step.path
+    validated_step = StudyStepRead.model_validate(study_step['current'])
+    study_step_dict = NavigationWrapper[StudyStepRead](
+        data=validated_step,
+        next_id=study_step['next_id'],
+        next_path=study_step['next_path'],
+    )
 
-    return StudyStepNavigationSchema.model_validate(study_step_dict)
+    return study_step_dict
 
 
 @router.get(
@@ -126,8 +134,8 @@ async def export_study_config(
     step_service: StudyStepServiceDep,
     condition_service: StudyConditionServiceDep,
 ):
-    steps = await step_service.get_study_steps(study_id)
-    conditions = await condition_service.get_study_conditions(study_id)
+    steps = await step_service.get_items_for_owner_as_ordered_list(study_id)
+    conditions = await condition_service.get_all_for_owner(study_id)
     config = {
         'study_id': study_id,
         'conditions': {con.name: con.id for con in conditions},
@@ -155,17 +163,19 @@ async def export_study_config(
 )
 async def create_new_participant_with_session(
     study_id: uuid.UUID,
-    new_participant: ParticpantBaseSchema,
-    participant_service: StudyParticipantServiceDep,
+    new_participant: StudyParticipantCreate,
+    enrollment_service: EnrollmentServiceDep,
+    # participant_service: StudyParticipantServiceDep,
     step_service: StudyStepServiceDep,
     session_service: ParticipantStudySessionServiceDep,
     movie_session_service: StudyParticipantMovieSessionServiceDep,
 ):
-    next_step = await step_service.get_next_step(new_participant.current_step_id)
-    if not next_step:
+    current_step = await step_service.get_with_navigation(new_participant.current_step_id)
+    if not current_step:
         raise HTTPException(status_code=500, detail='Could not find next step, study is configuration fault.')
-    new_participant.current_step_id = next_step.id
-    study_participant = await participant_service.create_study_participant(study_id, new_participant)
+    new_participant.current_step_id = current_step['next_id']
+    # study_participant = await participant_service.create_for_owner(study_id, new_participant)
+    study_participant = await enrollment_service.enroll_participant(study_id, new_participant)
     session = await session_service.create_session(study_participant.id)
     await movie_session_service.assign_pre_shuffled_list_participant(study_participant.id, 'ers')
     if session is None:
@@ -203,7 +213,7 @@ async def resume_study_session(
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Expired or invalid resume code.')
 
-    participant = await participant_service.get_participant(participant_session.participant_id)
+    participant = await participant_service.get(participant_session.study_participant_id)
 
     if participant is None or participant.study_id != study_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Resume code not valid for this study.')

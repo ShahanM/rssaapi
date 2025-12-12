@@ -23,7 +23,7 @@ import pandas as pd
 from lenskit.algorithms import als
 
 from rssa_api.core.config import MODELS_DIR
-from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 
 from .mf_base import RSSABase
 
@@ -66,7 +66,7 @@ class AlternateRS(RSSABase):
         return 10 ** len(str(max_count))
 
     def get_condition_prediction(
-        self, ratings: list[MovieLensRatingSchema], user_id: str, condition: int, num_rec: int
+        self, ratings: list[MovieLensRating], user_id: str, condition: int, num_rec: int
     ) -> list[str]:
         """
         Routes the request to the appropriate prediction method based on condition code.
@@ -85,7 +85,7 @@ class AlternateRS(RSSABase):
         """
         return self.prediction_functions[condition](ratings, user_id, num_rec)
 
-    def get_predictions(self, ratings: list[MovieLensRatingSchema], user_id: str) -> pd.DataFrame:
+    def get_predictions(self, ratings: list[MovieLensRating], user_id: str) -> pd.DataFrame:
         """
         Generates the user's predicted scores for all items, excluding items
         the user has already rated.
@@ -104,7 +104,7 @@ class AlternateRS(RSSABase):
 
         return _preds[~_preds['item'].isin(rated_items)]
 
-    def predict_user_top_n(self, ratings: list[MovieLensRatingSchema], user_id, n=10) -> list[int]:
+    def predict_user_top_n(self, ratings: list[MovieLensRating], user_id, n=10) -> list[int]:
         """
         Recommends the Top N highest predicted items (standard baseline).
 
@@ -119,7 +119,7 @@ class AlternateRS(RSSABase):
 
         return top_n_discounted['item'].astype(int).to_list()
 
-    def predict_user_hate_items(self, ratings: list[MovieLensRatingSchema], user_id, n=10) -> list[int]:
+    def predict_user_hate_items(self, ratings: list[MovieLensRating], user_id, n=10) -> list[int]:
         """
         Recommends items predicted high by the community average but low by the user
         (items the user will 'hate' relative to the general consensus).
@@ -140,7 +140,7 @@ class AlternateRS(RSSABase):
 
         return preds['item'].astype(int).to_list()
 
-    def predict_user_hip_items(self, ratings: list[MovieLensRatingSchema], user_id, n=10) -> list[int]:
+    def predict_user_hip_items(self, ratings: list[MovieLensRating], user_id, n=10) -> list[int]:
         """
         Recommends 'hip' items (items with high predicted score but low popularity/count).
 
@@ -161,7 +161,7 @@ class AlternateRS(RSSABase):
 
         return hip_items['item'].astype(int).to_list()
 
-    def predict_user_no_clue_items(self, ratings: list[MovieLensRatingSchema], user_id, n=10) -> list[int]:
+    def predict_user_no_clue_items(self, ratings: list[MovieLensRating], user_id, n=10) -> list[int]:
         """
         Recommends 'no clue' items (items with the highest prediction variance across
         resampled models, indicating high model uncertainty).
@@ -181,7 +181,7 @@ class AlternateRS(RSSABase):
 
         return resampled_df['item'].astype(int).to_list()
 
-    def predict_user_controversial_items(self, ratings: list[MovieLensRatingSchema], user_id, numRec=10) -> list[str]:
+    def predict_user_controversial_items(self, ratings: list[MovieLensRating], user_id, numRec=10) -> list[str]:
         """
         Recommends 'controversial' items (items with high variance in predicted scores
         among the K nearest neighbors, indicating high local disagreement).
@@ -210,7 +210,7 @@ class AlternateRS(RSSABase):
 
         return list(map(str, controversial_items['item_id']))
 
-    def _high_std(self, user_id: str, ratings: list[MovieLensRatingSchema]):
+    def _high_std(self, user_id: str, ratings: list[MovieLensRating]):
         """
         Calculates model uncertainty (standard deviation of predicted scores)
         across 20 resampled Matrix Factorization models.

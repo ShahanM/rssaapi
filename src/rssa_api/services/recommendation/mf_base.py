@@ -24,7 +24,7 @@ from lenskit.algorithms import als
 from lenskit.algorithms.mf_common import MFPredictor
 
 from rssa_api.core.config import MODELS_DIR
-from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 
 MFModelType = Union[als.BiasedMF, als.ImplicitMF]
 
@@ -180,32 +180,32 @@ class RSSABase:
 
         return Q_target_slice, valid_item_ids
 
-    def predict(self, user_id: str, ratings: list[MovieLensRatingSchema]) -> pd.DataFrame:
+    def predict(self, user_id: str, ratings: Optional[list[MovieLensRating]] = None) -> pd.DataFrame:
         """Generates predictions for a new (out-of-sample) user using the trained LensKit Pipeline.
 
         Args:
-            model (Pipeline): The trained pipeline object loaded from disk.
-            all_items_df (pd.DataFrame): DataFrame containing all candidate items.
             user_id (str): The new user's UUID (external ID).
-            ratings (pd.Series): The new user's interaction history, indexed by item ID.
+            ratings (Optional[list[MovieLensRating]]): The new user's interaction history, indexed by item ID.
 
         Returns:
             pd.DataFrame: DataFrame containing item and score columns.
         """
-        rated_items = np.array([rating.item_id for rating in ratings], dtype=np.int32)
-        new_ratings = pd.Series([rating.rating for rating in ratings], index=rated_items, dtype=np.float64)
-        itemset = self.item_popularity.item.unique()
-        als_preds = self.model.predict_for_user(user_id, itemset, new_ratings)
+        if ratings is not None:
+            rated_items = np.array([rating.item_id for rating in ratings], dtype=np.int32)
+            new_ratings = pd.Series([rating.rating for rating in ratings], index=rated_items, dtype=np.float64)
+        als_preds = self.model.predict_for_user(user_id, self.items, new_ratings)
+        als_preds = als_preds.sort_values(by='score', ascending=False)
 
         als_preds_df = als_preds.to_frame().reset_index()
-        als_preds_df.columns = ['item_id', 'score']
+        als_preds_df.columns = ['item', 'score']
+        als_preds_df['item'] = als_preds_df['item'].astype(int)
 
         return als_preds_df
 
     def predict_discounted(
         self,
         userid: str,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         factor: int,
         coeff: float = 0.5,
     ) -> pd.DataFrame:
@@ -233,7 +233,7 @@ class RSSABase:
 
         return als_preds
 
-    def get_user_feature_vector(self, ratings: list[MovieLensRatingSchema]) -> Optional[np.ndarray]:
+    def get_user_feature_vector(self, ratings: list[MovieLensRating]) -> Optional[np.ndarray]:
         """Projects the new user's ratings into the latent feature space to obtain the user feature vector.
 
         Args:

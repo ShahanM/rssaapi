@@ -1,10 +1,12 @@
+"""Router for study steps endpoints."""
+
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 
 from rssa_api.auth.authorization import validate_api_key
-from rssa_api.data.schemas.study_components import PageNavigationSchema, StudyStepNavigationSchema
+from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepPageRead, StudyStepRead
 from rssa_api.data.services import StudyStepPageServiceDep, StudyStepServiceDep
 
 router = APIRouter(
@@ -16,19 +18,11 @@ router = APIRouter(
 
 @router.get(
     '/{step_id}',
-    response_model=StudyStepNavigationSchema,
-    summary='Get the step specified by an ID',
-    description="""
-	Retrieves the step specified by an ID.
-
-	- This endpoint is used by a frontend study application to get the current step details.
-	- Responds with a **404 error** if the step ID does not exist. This should never happen.
-	""",
-    response_description='The study step.',
+    response_model=NavigationWrapper[StudyStepRead],
 )
 async def get_study_step(
     step_id: uuid.UUID,
-    service: StudyStepServiceDep,
+    step_service: StudyStepServiceDep,
     page_service: StudyStepPageServiceDep,
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
 ):
@@ -36,48 +30,67 @@ async def get_study_step(
 
     Args:
             step_id: The UUID of the study step to retrieve.
-            service: The dependency-injected study step service.
+            step_service: The dependency-injected study step service.
+            page_service: The dependency-injected study step page service.
+            study_id: The UUID of the study to which the step must belong.
 
     Returns:
             StudyStepSchema: The study step object if found.
-
-    Raises:
-            HTTPException: 404 if the study step is not found. However, this should never be raised since there are other
-                    exception that will be through before we get here.
     """
-    step = await service.get_step_with_navigation(step_id)
-    if step is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Step not found!')
-    if step.study_id != study_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Step not valid for this study.')
+    step_result = await step_service.get_with_navigation(step_id)
+    if not step_result:
+        raise HTTPException(status_code=404, detail='Study step not found.')
+    validated_step = StudyStepRead.model_validate(step_result['current'])
 
-    if step.step_type == 'survey':
-        first_page = await page_service.get_first_page_in_step(step_id)
-        if first_page:
-            step.survey_api_root = str(first_page.id)
+    if validated_step.study_id != study_id:
+        raise HTTPException(status_code=403, detail='Study step does not belong to the authorized study.')
+
+    page_result = await page_service.get_first_with_navigation(step_id)
+
+    root_page_info = None
+    if page_result:
+        root_page_info = NavigationWrapper[StudyStepPageRead](
+            data=page_result['current'],
+            next_id=page_result['next_id'],
+            next_path=page_result['next_path'],
+        )
+    validated_step.root_page_info = root_page_info
+    step = NavigationWrapper[StudyStepRead](
+        data=validated_step,
+        next_id=step_result['next_id'],
+        next_path=step_result['next_path'],
+    )
 
     return step
 
 
-@router.get('/{step_id}/pages/first', response_model=PageNavigationSchema)
+@router.get('/{step_id}/pages/first', response_model=NavigationWrapper[StudyStepPageRead])
 async def get_first_page_endpoint(
     step_id: uuid.UUID,
-    service: StudyStepPageServiceDep,
+    page_service: StudyStepPageServiceDep,
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
 ):
     """Convenient routing to the StudySteps resources to access survey pages.
 
     Args:
-            step_id: The UUID for StudyStep
+            step_id: The UUID for StudyStep.
+            page_service: The dependency-injected study step page service.
+            study_id: The UUID of the study to which the step must belong.
 
     Returns:
             SurveyPageSchema: The full content of the first survey page for the survey step.
     """
-    first_page = await service.get_first_page_with_navigation(step_id)
-    if not first_page:
+    page_result = await page_service.get_first_with_navigation(step_id)
+    if not page_result:
         raise HTTPException(status_code=404, detail='No first page found for this step or step not in study.')
 
-    if first_page.study_id != study_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Step not valid for this study.')
+    validated_page = StudyStepPageRead.model_validate(page_result['current'])
 
+    if validated_page.study_id != study_id:
+        raise HTTPException(status_code=403, detail='Study step page does not belong to the authorized study.')
+    first_page = NavigationWrapper[StudyStepPageRead](
+        data=validated_page,
+        next_id=page_result['next_id'],
+        next_path=page_result['next_path'],
+    )
     return first_page

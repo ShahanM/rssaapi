@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import validate_study_participant
 from rssa_api.data.schemas.participant_response_schemas import (
-    ParticipantContentRatingPayload,
-    RatedItemSchema,
+    ParticipantRatingBase,
+    ParticipantRatingRead,
+    ParticipantRatingUpdate,
 )
 from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
 from rssa_api.data.services.participant_responses.response_service import ParticipantResponseService
@@ -25,13 +26,13 @@ ratings_router = APIRouter(
 @ratings_router.post(
     '/',
     status_code=status.HTTP_201_CREATED,
-    response_model=RatedItemSchema,
+    response_model=ParticipantRatingRead,
     summary='',
     description='',
     response_description='',
 )
 async def create_content_Rating(
-    rating: ParticipantContentRatingPayload,
+    rating: ParticipantRatingBase,
     service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
@@ -45,7 +46,7 @@ async def create_content_Rating(
     Returns:
         The created content rating.
     """
-    content_rating = await service.create_response(id_token['sid'], id_token['pid'], rating)
+    content_rating = await service.create_response(rating, id_token['sid'], id_token['pid'])
 
     return content_rating
 
@@ -57,7 +58,7 @@ async def create_content_Rating(
 )
 async def update_content_rating(
     rating_id: uuid.UUID,
-    item_rating: RatedItemSchema,
+    item_rating: ParticipantRatingUpdate,
     service: ParticipantResponseServiceDep,
     _: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
@@ -73,8 +74,19 @@ async def update_content_rating(
         HTTPException: If there is a version conflict during the update.
     """
     client_version = item_rating.version
+    update_data = item_rating.model_dump(exclude={'version'})
+    
+    # Flatten rated_item if present because DB model is flat
+    if 'rated_item' in update_data and update_data['rated_item']:
+        ri = update_data.pop('rated_item')
+        # update_data.update(ri) # Or be explicit
+        if 'item_id' in ri:
+            update_data['item_id'] = ri['item_id']
+        if 'rating' in ri:
+            update_data['rating'] = ri['rating']
+
     update_successful = await service.update_response(
-        ResponseType.CONTENT_RATING, rating_id, item_rating.model_dump(exclude={'version'}), client_version
+        ResponseType.CONTENT_RATING, rating_id, update_data, client_version
     )
 
     if not update_successful:
@@ -86,15 +98,15 @@ async def update_content_rating(
 
 @ratings_router.get(
     '/',  # FIXME: This should be page_id but currently we do not support pages for non-survey steps
-    response_model=list[Any],
+    response_model=list[ParticipantRatingRead],
     summary='',
     description='',
     response_description='',
 )
 async def get_user_ratings(
-    page_id: uuid.UUID,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     service: ParticipantResponseServiceDep,
+    page_id: uuid.UUID = None,
 ):
     """Retrieve all content ratings for a study participant.
 

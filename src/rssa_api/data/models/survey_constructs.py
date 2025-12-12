@@ -129,6 +129,6 @@ class SurveyScaleLevel(DBBaseOrderedModel, BaseModelMixin):
     order_position: Mapped[int] = mapped_column(nullable=False)
 
     created_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey('users.id'))
-    scale_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_scales.id'), nullable=False)
+    survey_scale_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('survey_scales.id'), nullable=False)
 
     survey_scale: Mapped['SurveyScale'] = relationship('SurveyScale', back_populates='survey_scale_levels')

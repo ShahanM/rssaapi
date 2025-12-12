@@ -85,7 +85,7 @@ class StudyParticipantContextMixin:
     )
     study_step_page_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey('step_pages.id'),
+        ForeignKey('study_step_pages.id'),
         nullable=True,
         comment='The specific page where the recommendation list was displayed (optional).',
     )

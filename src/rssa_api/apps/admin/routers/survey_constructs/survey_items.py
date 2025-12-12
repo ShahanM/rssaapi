@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.survey_constructs import ConstructItemSchema
+from rssa_api.data.schemas.survey_components import SurveyItemRead
 from rssa_api.data.services import SurveyItemServiceDep
 
 from ...docs import ADMIN_CONSTRUCT_ITEMS_TAG
@@ -17,15 +17,16 @@ router = APIRouter(
     tags=[ADMIN_CONSTRUCT_ITEMS_TAG],
     dependencies=[
         Depends(get_auth0_authenticated_user),
-        Depends(require_permissions('read:constructs')),
+        Depends(require_permissions('read:items', 'admin:all')),
     ],
 )
 
 
-@router.get('/{item_id}', response_model=ConstructItemSchema)
+@router.get('/{item_id}', response_model=SurveyItemRead)
 async def get_item(
     item_id: uuid.UUID,
     service: SurveyItemServiceDep,
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('read:items', 'admin:all'))],
 ):
     """Retrieve a survey construct item by its ID.
 
@@ -34,37 +35,45 @@ async def get_item(
         service: The SurveyItemService dependency.
 
     Returns:
-        The ConstructItemSchema representing the requested item.
+        The SurveyItemRead representing the requested item.
     """
-    item_in_db = await service.get_construct_item(item_id)
+    item_in_db = await service.get(item_id)
 
-    return ConstructItemSchema.model_validate(item_in_db)
+    return SurveyItemRead.model_validate(item_in_db)
 
 
-@router.delete('/{item_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    '/{item_id}',
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Update a survey item.',
+    description="""
+    Updates an existing survey item with the provided fields.
+    """,
+    response_description='HTTP 204 NO CONTENT on success.',
+)
+async def update_item(
+    item_id: uuid.UUID,
+    payload: dict[str, str],
+    service: SurveyItemServiceDep,
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
+):
+    await service.update(item_id, payload)
+    return {}
+
+
+@router.delete(
+    '/{item_id}',
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Delete a survey item.',
+    description="""
+    Deletes a survey item by its ID.
+    """,
+    response_description='HTTP 204 NO CONTENT on success.',
+)
 async def delete_construct_item(
     item_id: uuid.UUID,
     service: SurveyItemServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:items', 'admin:all'))],
 ):
-    """Deletes a survey construct item by its ID.
-
-    Args:
-        item_id: The UUID of the construct item to delete.
-        service: The SurveyItemService dependency.
-        user: The authenticated user performing the deletion.
-
-    Raises:
-        HTTPException: If the user does not have sufficient permissions.
-
-    Returns:
-        An empty response with HTTP 204 status code upon successful deletion.
-    """
-    is_super_admin = 'admin:all' in user.permissions
-    if not is_super_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to perform that action.'
-        )
-    await service.delete_construct_item(item_id)
-
-    return {'status': 'success'}
+    await service.delete(item_id)
+    return {}

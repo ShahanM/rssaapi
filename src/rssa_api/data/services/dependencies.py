@@ -9,9 +9,6 @@ from rssa_api.data.repositories import (
     ParticipantRatingRepositoryDep,
     ParticipantStudyInteractionResponseRepositoryDep,
     ParticipantSurveyResponseRepositoryDep,
-    StudyStepPageContentRepositoryDep,
-    StudyStepPageRepositoryDep,
-    StudyStepRepositoryDep,
 )
 from rssa_api.data.repositories.content_dependencies import get_movie_repository
 from rssa_api.data.repositories.dependencies import (
@@ -37,25 +34,22 @@ from rssa_api.data.repositories.dependencies import (
 from rssa_api.data.services.items import MovieService
 from rssa_api.data.services.participant_responses import ParticipantResponseService
 from rssa_api.data.services.study_admin import ApiKeyService, PreShuffledMovieService, UserService
-from rssa_api.data.services.study_components import (
+from rssa_api.data.services.study_participants import (
+    EnrollmentService,
+    FeedbackService,
+    ParticipantStudySessionService,
+    StudyParticipantMovieSessionService,
+)
+
+from .study_components import (
     StudyConditionService,
+    StudyParticipantService,
     StudyService,
     StudyStepPageContentService,
     StudyStepPageService,
     StudyStepService,
 )
-from rssa_api.data.services.study_participants import (
-    FeedbackService,
-    ParticipantStudySessionService,
-    StudyParticipantMovieSessionService,
-    StudyParticipantService,
-)
-from rssa_api.data.services.survey_constructs import (
-    SurveyConstructService,
-    SurveyItemService,
-    SurveyScaleLevelService,
-    SurveyScaleService,
-)
+from .survey_components import SurveyConstructService, SurveyItemService, SurveyScaleLevelService, SurveyScaleService
 
 S = TypeVar('S')  # Generic service type
 R = TypeVar('R')  # Generic repository type
@@ -89,6 +83,9 @@ StudyServiceDep = Annotated[StudyService, Depends(get_study_service)]
 get_study_step_service = get_simple_service(StudyStepService, get_study_step_repository)
 StudyStepServiceDep = Annotated[StudyStepService, Depends(get_study_step_service)]
 
+get_study_step_page_service = get_simple_service(StudyStepPageService, get_study_step_page_repository)
+StudyStepPageServiceDep = Annotated[StudyStepPageService, Depends(get_study_step_page_service)]
+
 get_study_step_page_content_service = get_simple_service(
     StudyStepPageContentService, get_study_step_page_content_repository
 )
@@ -98,16 +95,16 @@ get_study_condition_service = get_simple_service(StudyConditionService, get_stud
 StudyConditionServiceDep = Annotated[StudyConditionService, Depends(get_study_condition_service)]
 
 
-def get_study_step_page_service(
-    step_repo: StudyStepRepositoryDep,
-    page_repo: StudyStepPageRepositoryDep,
-    ctnt_repo: StudyStepPageContentRepositoryDep,
-) -> StudyStepPageService:
-    """Get StepPageService dependency."""
-    return StudyStepPageService(page_repo, ctnt_repo, step_repo)
+# def get_study_step_page_service(
+#     step_repo: StudyStepRepositoryDep,
+#     page_repo: StudyStepPageRepositoryDep,
+#     ctnt_repo: StudyStepPageContentRepositoryDep,
+# ) -> StudyStepPageService:
+#     """Get StepPageService dependency."""
+#     return StudyStepPageService(page_repo, ctnt_repo, step_repo)
 
 
-StudyStepPageServiceDep = Annotated[StudyStepPageService, Depends(get_study_step_page_service)]
+# StudyStepPageServiceDep = Annotated[StudyStepPageService, Depends(get_study_step_page_service)]
 
 
 # Survey construct services
@@ -128,19 +125,30 @@ SurveyScaleLevelServiceDep = Annotated[SurveyScaleLevelService, Depends(get_surv
 
 
 # Study participant services
-def get_study_participant_service(
+def get_enrollment_service(
     participant_repo=Depends(get_study_participant_repository),
     study_condition_repo=Depends(get_study_condition_repository),
+    # demographics_repo=Depends(get_participant_demographic_repository),
+    # recommendation_context_repo=Depends(get_participant_recommendation_context_repository),
+) -> EnrollmentService:
+    """Get ParticipantService dependency."""
+    return EnrollmentService(
+        participant_repo,
+        study_condition_repo,
+        # demographics_repo,
+        # recommendation_context_repo,
+    )
+
+
+EnrollmentServiceDep = Annotated[EnrollmentService, Depends(get_enrollment_service)]
+
+def get_study_participant_service(
+    participant_repo=Depends(get_study_participant_repository),
     demographics_repo=Depends(get_participant_demographic_repository),
     recommendation_context_repo=Depends(get_participant_recommendation_context_repository),
 ) -> StudyParticipantService:
-    """Get ParticipantService dependency."""
-    return StudyParticipantService(
-        participant_repo,
-        study_condition_repo,
-        demographics_repo,
-        recommendation_context_repo,
-    )
+    """Get StudyParticipantService dependency."""
+    return StudyParticipantService(participant_repo, demographics_repo, recommendation_context_repo)
 
 
 StudyParticipantServiceDep = Annotated[StudyParticipantService, Depends(get_study_participant_service)]

@@ -22,12 +22,12 @@ from numpy.typing import ArrayLike
 from scipy.spatial import distance
 from sklearn.preprocessing import MinMaxScaler
 
-from rssa_api.data.schemas.participant_response_schemas import MovieLensRatingSchema
 from rssa_api.data.schemas.preferences_schemas import (
     EmotionContinuousInputSchema,
     EmotionDiscreteInputSchema,
 )
-from rssa_api.services.recommenders.mf_base import RSSABase
+from rssa_api.services.recommendation.mf_base import RSSABase
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 
 
 class EmotionsRS(RSSABase):
@@ -110,7 +110,7 @@ class EmotionsRS(RSSABase):
         if self.norm == 'L2':
             return distance.euclidean(u, v)
 
-    def predict_topN(self, user_id: str, ratings: list[MovieLensRatingSchema], n: int) -> list[int]:
+    def predict_topN(self, user_id: str, ratings: list[MovieLensRating], n: int) -> list[int]:
         """
         Predicts the top N items for a user, filtering out already-rated items.
 
@@ -131,7 +131,7 @@ class EmotionsRS(RSSABase):
     def predict_diverseN(
         self,
         user_id: str,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         num_rec: int,
         item_pool_size: int,
         sampling_size: int,
@@ -158,7 +158,7 @@ class EmotionsRS(RSSABase):
 
     def _get_candidate_item(
         self,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         user_id: str,
         item_pool_size: int,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -187,7 +187,7 @@ class EmotionsRS(RSSABase):
 
     def _predict_tuned_topN(
         self,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         user_id: str,
         user_emotion_tags: list[str],
         user_emotion_vals: list[float],
@@ -311,7 +311,7 @@ class EmotionsRS(RSSABase):
     def predict_discrete_tuned_topN(
         self,
         user_id: str,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         emotion_input: list[EmotionDiscreteInputSchema],
         num_rec: int,
         scale_vector: bool,
@@ -358,7 +358,7 @@ class EmotionsRS(RSSABase):
 
     def predict_continuous_tuned_topN(
         self,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         user_id,
         emotion_input: list[EmotionContinuousInputSchema],
         num_rec: int,
@@ -415,7 +415,7 @@ class EmotionsRS(RSSABase):
 
     def _predict_tuned_diverseN(
         self,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         user_id,
         user_emotion_tags: list[str],
         user_emotion_vals: list[float],
@@ -543,7 +543,7 @@ class EmotionsRS(RSSABase):
 
     def predict_discrete_tuned_diverseN(
         self,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         user_id: str,
         emotion_input: list[EmotionDiscreteInputSchema],
         num_rec: int,
@@ -597,7 +597,7 @@ class EmotionsRS(RSSABase):
 
     def _predict_diverseN_by_emotion(
         self,
-        ratings: list[MovieLensRatingSchema],
+        ratings: list[MovieLensRating],
         user_id: str,
         item_pool_size: int,
         sampling_size: int,
