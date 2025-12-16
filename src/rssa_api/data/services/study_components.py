@@ -32,6 +32,7 @@ from rssa_api.data.schemas.preferences_schemas import RecommendationContextBaseS
 from rssa_api.data.services.base_ordered_service import BaseOrderedService
 from rssa_api.data.services.base_scoped_service import BaseScopedService
 from rssa_api.data.services.navigation_mixin import NavigationMixin
+from rssa_api.data.repositories.base_repo import RepoQueryOptions
 
 
 class StudyService(BaseScopedService[Study, StudyRepository]):
@@ -166,8 +167,14 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
     async def get_recommndation_context_by_participant_context(
         self, study_id: uuid.UUID, participant_id: uuid.UUID, context_tag: str
     ) -> Optional[RecommendationContextSchema]:
-        rec_ctx = await self.recommendation_context_repo.get_by_fields(
-            [('study_id', study_id), ('participant_id', participant_id), ('context_tag', context_tag)]
+        rec_ctx = await self.recommendation_context_repo.find_many(
+            RepoQueryOptions(
+                filters={
+                    'study_id': study_id,
+                    'participant_id': participant_id,
+                    'context_tag': context_tag,
+                }
+            )
         )
 
         if not rec_ctx:

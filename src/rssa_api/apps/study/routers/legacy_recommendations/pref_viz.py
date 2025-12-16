@@ -20,7 +20,7 @@ from rssa_api.data.schemas.preferences_schemas import (
 )
 from rssa_api.data.services import MovieServiceDep, StudyConditionServiceDep, StudyParticipantServiceDep
 from rssa_api.docs.metadata import RSTagsEnum as Tags
-from rssa_api.services.recommendation.prev_viz_service import PreferenceVisualization
+from rssa_api.services.recommendation.legacy_prev_viz_service import PreferenceVisualization
 
 BIASED_MODEL_PATH = 'biased_als_ml32m'
 router = APIRouter(

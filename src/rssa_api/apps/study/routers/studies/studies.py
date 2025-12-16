@@ -9,12 +9,12 @@ from rssa_api.auth.authorization import authorize_api_key_for_study, generate_jw
 from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
 from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepRead
 from rssa_api.data.services import (
+    EnrollmentServiceDep,
     ParticipantStudySessionServiceDep,
     StudyConditionServiceDep,
     StudyParticipantMovieSessionServiceDep,
     StudyParticipantServiceDep,
     StudyStepServiceDep,
-    EnrollmentServiceDep,
 )
 
 

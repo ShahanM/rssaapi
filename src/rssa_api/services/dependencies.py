@@ -1,13 +1,17 @@
-from rssa_api.data.repositories.dependencies import (
-    StudyParticipantRepositoryDep,
-    ParticipantRatingRepositoryDep,
-    ParticipantStudyInteractionResponseRepositoryDep,
-    ParticipantRecommendationContextRepositoryDep,
-)
-from rssa_api.data.repositories.content_dependencies import MovieRepositoryDep
-from .recommender_service import RecommenderService
-from fastapi import Depends
 from typing import Annotated
+
+from fastapi import Depends
+
+from rssa_api.data.repositories.content_dependencies import MovieRepositoryDep
+from rssa_api.data.repositories.dependencies import (
+    ParticipantRatingRepositoryDep,
+    ParticipantRecommendationContextRepositoryDep,
+    ParticipantStudyInteractionResponseRepositoryDep,
+    StudyParticipantRepositoryDep,
+)
+
+from .recommender_service import RecommenderService
+
 
 def get_recommender_service(
     participant_repo: StudyParticipantRepositoryDep,

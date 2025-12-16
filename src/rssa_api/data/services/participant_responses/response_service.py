@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from enum import Enum
 from functools import singledispatchmethod
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
 
 from rssa_api.data.models.participant_responses import (
     ParticipantFreeformResponse,
@@ -27,7 +27,6 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantStudyInteractionResponseRead,
     ParticipantSurveyResponseCreate,
     ParticipantSurveyResponseRead,
-    RatedItem,
 )
 from rssa_api.data.utility import convert_datetime_to_str, convert_uuids_to_str
 
@@ -101,7 +100,11 @@ class ParticipantResponseService:
         return self.strategy_map[response_type]
 
     async def get_response_for_page(
-        self, response_type: ResponseType, study_id: uuid.UUID, participant_id: uuid.UUID, page_id: Optional[uuid.UUID] = None
+        self,
+        response_type: ResponseType,
+        study_id: uuid.UUID,
+        participant_id: uuid.UUID,
+        page_id: Optional[uuid.UUID] = None,
     ) -> list[ResponseSchemaType]:
         """Retrieve a participant response by its type and associated identifiers.
 
@@ -117,19 +120,24 @@ class ParticipantResponseService:
         repo, schema_cls = self._get_strategy(response_type)
 
         from rssa_api.data.repositories.base_repo import RepoQueryOptions
+
         filters = {
             'study_participant_id': participant_id,
             'study_id': study_id,
         }
         if page_id is not None:
-             filters['study_step_page_id'] = page_id
-        
+            filters['study_step_page_id'] = page_id
+
         repo_options = RepoQueryOptions(filters=filters)
         response_items = await repo.find_many(repo_options)
         return [schema_cls.model_validate(resitm) for resitm in response_items]
 
     async def get_response_for_step(
-        self, response_type: ResponseType, study_id: uuid.UUID, participant_id: uuid.UUID, step_id: Optional[uuid.UUID] = None
+        self,
+        response_type: ResponseType,
+        study_id: uuid.UUID,
+        participant_id: uuid.UUID,
+        step_id: Optional[uuid.UUID] = None,
     ) -> list[ResponseSchemaType]:
         """Retrieve a participant response by its type and step identifier.
 
@@ -145,13 +153,14 @@ class ParticipantResponseService:
         repo, schema_cls = self._get_strategy(response_type)
 
         from rssa_api.data.repositories.base_repo import RepoQueryOptions
+
         filters = {
             'study_participant_id': participant_id,
             'study_id': study_id,
         }
         if step_id is not None:
-             filters['study_step_id'] = step_id
-        
+            filters['study_step_id'] = step_id
+
         repo_options = RepoQueryOptions(filters=filters)
         response_items = await repo.find_many(repo_options)
         return [schema_cls.model_validate(resitm) for resitm in response_items]
@@ -201,16 +210,8 @@ class ParticipantResponseService:
             scale_max=5,
         )
 
-        await self.rating_repo.create(content_rating)
-        # Construct ParticipantRatingRead manually since DB model is flat and Schema is nested
-        return ParticipantRatingRead(
-            id=content_rating.id,
-            study_step_id=content_rating.study_step_id,
-            study_step_page_id=content_rating.study_step_page_id,
-            context_tag=content_rating.context_tag,
-            rated_item=RatedItem(item_id=content_rating.item_id, rating=content_rating.rating),
-            version=content_rating.version
-        )
+        new_rating = await self.rating_repo.create(content_rating)
+        return ParticipantRatingRead.model_validate(new_rating)
 
     @create_response.register
     async def _(
@@ -236,7 +237,7 @@ class ParticipantResponseService:
     ) -> ParticipantFreeformResponseRead:
         """Creates or updates a single freeform text response."""
         from rssa_api.data.repositories.base_repo import RepoQueryOptions
-        
+
         # Check for existing response relative to generic context tag constraint
         # Constraint: (study_id, study_participant_id, context_tag)
         existing = await self.text_repo.find_one(
@@ -244,7 +245,7 @@ class ParticipantResponseService:
                 filters={
                     'study_id': study_id,
                     'study_participant_id': participant_id,
-                    'context_tag': text_response_data.context_tag
+                    'context_tag': text_response_data.context_tag,
                 }
             )
         )
@@ -253,12 +254,12 @@ class ParticipantResponseService:
             # Update
             updated_fields = {
                 'response_text': text_response_data.response_text,
-                'updated_at': datetime.now(timezone.utc)
+                'updated_at': datetime.now(timezone.utc),
             }
             # Handle study_step_id update if provided? Model has it.
             if text_response_data.study_step_id:
-                  updated_fields['study_step_id'] = text_response_data.study_step_id
-            
+                updated_fields['study_step_id'] = text_response_data.study_step_id
+
             result = await self.text_repo.update(existing.id, updated_fields)
             return ParticipantFreeformResponseRead.model_validate(result)
 
@@ -266,7 +267,6 @@ class ParticipantResponseService:
             study_id=study_id,
             study_participant_id=participant_id,
             study_step_id=text_response_data.study_step_id,
-
             context_tag=text_response_data.context_tag,
             response_text=text_response_data.response_text,
             updated_at=datetime.now(timezone.utc),

@@ -16,8 +16,9 @@ class MovieRepository(BaseRepository[Movie]):
     """
 
     LOAD_EMOTIONS = (selectinload(Movie.emotions),)
+    LOAD_RECOMMENDATION_TEXT = (selectinload(Movie.recommendations_text),)
 
-    LOAD_FULL_DETAILS = (
+    LOAD_ALL = (
         selectinload(Movie.emotions),
         selectinload(Movie.recommendations_text),
     )

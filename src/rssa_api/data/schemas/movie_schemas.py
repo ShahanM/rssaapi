@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 
 from rssa_api.data.schemas.base_schemas import DBMixin
 

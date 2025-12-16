@@ -73,10 +73,6 @@ class ParticipantRating(BaseModelMixin, DBBaseParticipantResponseModel):
     scale_min: Mapped[int] = mapped_column()
     scale_max: Mapped[int] = mapped_column()
 
-    __table_args__ = (
-        UniqueConstraint('study_id', 'study_participant_id', 'item_id', name='uq_participant_ratings_item'),
-    )
-
     @property
     def rated_item(self) -> dict:
         """Returns the rated item as a dictionary for schema validation."""

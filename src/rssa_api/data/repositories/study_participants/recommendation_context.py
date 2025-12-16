@@ -1,7 +1,5 @@
 """Repository for ParticipantRecommendationContext model."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from rssa_api.data.models.study_participants import ParticipantRecommendationContext
 from rssa_api.data.repositories.participant_responses.base_participant_response_repo import (
     BaseParticipantResponseRepository,
@@ -12,11 +10,3 @@ class ParticipantRecommendationContextRepository(BaseParticipantResponseReposito
     """Repository for ParticipantRecommendationContext model."""
 
     pass
-
-    # def __init__(self, db: AsyncSession):
-    #     """Initialize the ParticipantRecommendationContextRepository.
-
-    #     Args:
-    #         db: The database session.
-    #     """
-    #     super().__init__(db, ParticipantRecommendationContext)

@@ -123,7 +123,7 @@ class ParticipantRecommendationContext(DBBaseParticipantResponseModel, BaseModel
         recommendations_json: JSON field storing recommendation context data.
     """
 
-    __tablename__ = 'participant_recommendation_context'
+    __tablename__ = 'participant_recommendation_contexts'
 
     recommendations_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
 

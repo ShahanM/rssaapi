@@ -5,9 +5,11 @@ from typing import Any, Optional, Protocol
 from aiobotocore.session import get_session
 from botocore.exceptions import ClientError
 
+from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 from rssa_api.data.schemas.recommendations import (
     EnrichedRecResponse,
     RecommendationResponse,
+    ResponseWrapper,
     StandardRecResponse,
 )
 
@@ -22,8 +24,10 @@ class RecommendationStrategy(Protocol):
 
 class RawAdvisorResponse:
     """Wraps raw advisor data from Lambda for downstream hydration."""
+
     def __init__(self, advisors: dict):
         self.advisors = advisors
+
 
 class LambdaStrategy:
     """Invokes an AWS Lambda function for recommendations."""
@@ -55,39 +59,35 @@ class LambdaStrategy:
                     # SAM usually does "StackName-LogicalID-Suffix".
                     # We'll check if the logical name exists anywhere in the function name.
                     if self.logical_function_name in fname:
-                        log.info(f"Resolved Lambda {self.logical_function_name} -> {fname}")
+                        log.info(f'Resolved Lambda {self.logical_function_name} -> {fname}')
                         self.resolved_function_name = fname
                         return fname
-            
-            log.warning(f"Could not resolve full name for {self.logical_function_name}. Using as-is.")
+
+            log.warning(f'Could not resolve full name for {self.logical_function_name}. Using as-is.')
             self.resolved_function_name = self.logical_function_name
             return self.logical_function_name
 
         except Exception as e:
-            log.error(f"Error resolving lambda name: {e}")
+            log.error(f'Error resolving lambda name: {e}')
             return self.logical_function_name
 
     async def recommend(
-        self, user_id: str, ratings: list[Any], limit: int, run_config: Optional[dict] = None
-    ) -> RecommendationResponse:
-        """
-        Invokes the Lambda function.
-        """
+        self, user_id: str, ratings: list[MovieLensRating], limit: int, run_config: Optional[dict] = None
+    ) -> ResponseWrapper:
+        """Invokes the Lambda function."""
         # Construct Payload
         payload = self.payload_template.copy()
         if run_config:
             payload.update(run_config)
 
         payload['user_id'] = str(user_id)
-        payload['limit'] = limit  # Ensure limit is passed
-        
         # Ratings: list of {item_id: str, rating: float}
         payload['ratings'] = [r.model_dump() for r in ratings]
+        payload['limit'] = limit  # Ensure limit is passed
 
         # Invoke Lambda
         try:
             async with self._session.create_client('lambda', region_name=self.region_name) as client:
-                
                 real_function_name = await self._resolve_function_name(client)
 
                 response = await client.invoke(
@@ -102,39 +102,54 @@ class LambdaStrategy:
 
                 if 'FunctionError' in response:
                     error_msg = response_data.get('errorMessage', 'Unknown Lambda Error')
-                    log.error(f"Lambda {real_function_name} failed: {error_msg}")
-                    raise RuntimeError(f"Recommendation Engine Error: {error_msg}")
+                    log.error(f'Lambda {real_function_name} failed: {error_msg}')
+                    raise RuntimeError(f'Recommendation Engine Error: {error_msg}')
 
                 # Parse Response
-                log.info(f"Lambda Raw Response: {response_data}")
+                log.info(f'Lambda Raw Response: {response_data}')
 
                 # 1. unwrapping body if necessary
-                body_data = response_data
-                if isinstance(response_data, dict) and 'body' in response_data:
-                    body = response_data['body']
-                    if isinstance(body, str):
-                        body_data = json.loads(body)
-                    else:
-                        body_data = body
+                log.info(f'Response: {response_data}')
 
-                # 2. Check for Community Advisors
-                if isinstance(body_data, dict) and 'advisors' in body_data:
-                     # This is a community advisor response
-                     log.info("Detected Community Advisors response")
-                     return RawAdvisorResponse(advisors=body_data['advisors'])
+                return ResponseWrapper.model_validate_json(response_data['body'])
 
-                # 3. Default: Handle lists or dicts with 'items'
-                items = []
-                if isinstance(body_data, list):
-                    items = body_data
-                elif isinstance(body_data, dict):
-                     if 'items' in body_data:
-                        items = body_data['items']
+                # FIXME: this is a placeholder for testing
+                # return ResponseWrapper(
+                #     response_type='standard',
+                #     items=[],
+                #     total_count=7,
+                # )
+                # if isinstance(response_data, dict) and 'body' in response_data:
+                #     body = response_data['body']
+                #     if isinstance(body, str):
+                #         body_data = json.loads(body)
+                #     else:
+                #         body_data = body
 
-                log.info(f"Parsed Items: {items}")
-                
-                return StandardRecResponse(items=items, total_count=len(items))
+                # # 2. Check for Community Advisors
+                # if isinstance(body_data, dict) and 'advisors' in body_data:
+                #     # This is a community advisor response
+                #     log.info('Detected Community Advisors response')
+                #     return RawAdvisorResponse(advisors=body_data['advisors'])
+
+                # # 3. Check for Community Comparison (Pref Viz)
+                # if isinstance(body_data, dict) and body_data.get('response_type') == 'community_comparison':
+                #     log.info('Detected Community Comparison response')
+                #     log.info(f'Community Comparison Response: {body_data}')
+                #     return body_data
+
+                # # 4. Default: Handle lists or dicts with 'items'
+                # items = []
+                # if isinstance(body_data, list):
+                #     items = body_data
+                # elif isinstance(body_data, dict):
+                #     if 'items' in body_data:
+                #         items = body_data['items']
+
+                # log.info(f'Parsed Items: {items}')
+
+                # return StandardRecResponse(items=items, total_count=len(items))
 
         except Exception as e:
-            log.error(f"Error invoking Lambda strategy {self.logical_function_name}: {e}")
+            log.error(f'Error invoking Lambda strategy {self.logical_function_name}: {e}')
             raise e

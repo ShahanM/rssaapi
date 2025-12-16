@@ -1,7 +1,5 @@
 """Repository for ParticipantStudySession model."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from rssa_api.data.models.study_participants import ParticipantStudySession
 from rssa_api.data.repositories.base_repo import BaseRepository
 
