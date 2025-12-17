@@ -68,19 +68,19 @@ class DynamicPayload(BaseModel):
     model_config = {'extra': 'allow'}
 
 
-class ParticipantStudyInteractionResponseBase(BaseModel, ParticipantResponseContextMixin):
+class ParticipantStudyInteractionResponseBase(BaseModel):
     payload_json: DynamicPayload
 
 
-class ParticipantStudyInteractionResponseCreate(ParticipantStudyInteractionResponseBase):
+class ParticipantStudyInteractionResponseCreate(ParticipantStudyInteractionResponseBase, ParticipantResponseContextMixin):
     pass
 
 
-class ParticipantStudyInteractionResponseRead(ParticipantStudyInteractionResponseBase, VersionMixin, DBMixin):
+class ParticipantStudyInteractionResponseRead(ParticipantStudyInteractionResponseCreate, VersionMixin, DBMixin):
     pass
 
 
-class ParticipantStudyInteractionResponseUpdate(ParticipantStudyInteractionResponseRead):
+class ParticipantStudyInteractionResponseUpdate(ParticipantStudyInteractionResponseBase, DBMixin, VersionMixin):
     pass
 
 

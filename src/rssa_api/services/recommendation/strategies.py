@@ -51,7 +51,6 @@ class LambdaStrategy:
         try:
             # List functions and look for a match
             # This is a bit expensive, so we cache it.
-            # In a production environment, we might prefer passing the full name via env vars.
             paginator = client.get_paginator('list_functions')
             async for page in paginator.paginate():
                 for func in page['Functions']:
@@ -81,7 +80,6 @@ class LambdaStrategy:
             payload.update(run_config)
 
         payload['user_id'] = str(user_id)
-        # Ratings: list of {item_id: str, rating: float}
         payload['ratings'] = [r.model_dump() for r in ratings]
         payload['limit'] = limit  # Ensure limit is passed
 
@@ -119,36 +117,6 @@ class LambdaStrategy:
                 #     items=[],
                 #     total_count=7,
                 # )
-                # if isinstance(response_data, dict) and 'body' in response_data:
-                #     body = response_data['body']
-                #     if isinstance(body, str):
-                #         body_data = json.loads(body)
-                #     else:
-                #         body_data = body
-
-                # # 2. Check for Community Advisors
-                # if isinstance(body_data, dict) and 'advisors' in body_data:
-                #     # This is a community advisor response
-                #     log.info('Detected Community Advisors response')
-                #     return RawAdvisorResponse(advisors=body_data['advisors'])
-
-                # # 3. Check for Community Comparison (Pref Viz)
-                # if isinstance(body_data, dict) and body_data.get('response_type') == 'community_comparison':
-                #     log.info('Detected Community Comparison response')
-                #     log.info(f'Community Comparison Response: {body_data}')
-                #     return body_data
-
-                # # 4. Default: Handle lists or dicts with 'items'
-                # items = []
-                # if isinstance(body_data, list):
-                #     items = body_data
-                # elif isinstance(body_data, dict):
-                #     if 'items' in body_data:
-                #         items = body_data['items']
-
-                # log.info(f'Parsed Items: {items}')
-
-                # return StandardRecResponse(items=items, total_count=len(items))
 
         except Exception as e:
             log.error(f'Error invoking Lambda strategy {self.logical_function_name}: {e}')

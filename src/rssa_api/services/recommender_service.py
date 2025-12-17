@@ -117,15 +117,18 @@ class RecommenderService:
                     filters={
                         'study_participant_id': study_participant_id,
                         'study_id': study_id,
-                        'study_step_id': step_id,
                         'context_tag': context_tag,
                     }
                 )
             )
             if existing_ctx:
+                log.info(f'Found existing context for {study_id} {study_participant_id} {step_id} {context_tag}')
                 result = ResponseWrapper.model_validate(existing_ctx.recommendations_json)
                 return await self._process_recommendation_result(result)
+        
+        log.info(f'No existing context found for {study_id} {study_participant_id} {step_id} {context_tag}')
 
+        # Gather participant info
         participant = await self.study_participant_repository.find_one(
             RepoQueryOptions(
                 ids=[study_participant_id], load_options=StudyParticipantRepository.LOAD_ASSIGNED_CONDITION
@@ -137,10 +140,7 @@ class RecommenderService:
         algorithm_key = participant.study_condition.recommender_key
         limit = participant.study_condition.recommendation_count
 
-        strategy = REGISTRY.get(algorithm_key)
-        if not strategy:
-            raise ValueError(f'No strategy found for key: {algorithm_key}')
-
+        # Gather participant ratings
         ratings_models = await self.participant_rating_repository.find_many(
             RepoQueryOptions(filters={'study_participant_id': study_participant_id})
         )
@@ -153,6 +153,11 @@ class RecommenderService:
                 ratings.append(MovieLensRating(item_id=movie_map[r.item_id], rating=r.rating))
             else:
                 log.warning(f'Rating for item {r.item_id} skipped: Movie not found in DB')
+
+        # Select the right strategy
+        strategy = REGISTRY.get(algorithm_key)
+        if not strategy:
+            raise ValueError(f'No strategy found for key: {algorithm_key}')
 
         try:
             # Record Interaction (Side Effect)
@@ -229,7 +234,7 @@ class RecommenderService:
         if result.response_type == 'community_advisors':
             return await self._enrich_advisor_response(result)
 
-        if result.response_type == 'community_scores':
+        if result.response_type == 'community_comparison':
             return await self._enrich_pref_viz_response(result)
 
         raise KeyError('Result response_type key did not match any known types.')
@@ -263,13 +268,13 @@ class RecommenderService:
         for score_item in response.items:
             score_item = cast(CommunityScoreRecItem, score_item)
             comm_scores.append(score_item)
-            all_rec_ids.add(score_item.item_id)
+            all_rec_ids.add(score_item.item)
 
-        movies = await self._enrich_with_moviedata(list(all_rec_ids))
+        movies = await self._enrich_with_moviedata([str(mid) for mid in all_rec_ids])
         movies_dict = {int(m.movielens_id): m for m in movies}
         return {
-            score_item.item_id: EnrichedCommunityScoreItem(
-                item=movies_dict[int(score_item.item_id)], **score_item.model_dump(exclude={'item_id'})
+            score_item.item: EnrichedCommunityScoreItem(
+                item=movies_dict[int(score_item.item)], **score_item.model_dump(exclude={'item'})
             )
             for score_item in comm_scores
         }

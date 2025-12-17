@@ -38,7 +38,7 @@ class EnrichedRecResponse(BaseModel):
 
 
 class CommunityScoreRecItem(BaseModel):
-    item_id: Union[str, int]
+    item: Union[str, int]
     community_score: float
     score: float
     community_label: int
@@ -55,11 +55,11 @@ class EnrichedCommunityScoreItem(BaseModel):
     cluster: int = 0
 
 
-RecUnionType = Union[AdvisorRecItem, CommunityScoreRecItem, int]
+RecUnionType = Union[AdvisorRecItem, CommunityScoreRecItem, int, str]
 
 
 class ResponseWrapper(BaseModel):
-    response_type: Literal['standard', 'community_advisors', 'community_scores']
+    response_type: Literal['standard', 'community_advisors', 'community_comparison']
     items: list[RecUnionType]
     # total_count: int # FIXME: We eventually want this but it is not very important right now.
 
