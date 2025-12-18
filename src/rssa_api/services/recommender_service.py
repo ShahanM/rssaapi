@@ -1,15 +1,10 @@
-import json
 import logging
 import uuid
 from datetime import datetime
-from random import shuffle
-from re import M
 from typing import Optional, cast
 
-from sqlalchemy.orm import joinedload
-
 from rssa_api.data.models.participant_responses import ParticipantStudyInteractionResponse
-from rssa_api.data.models.study_participants import ParticipantRecommendationContext, StudyParticipant
+from rssa_api.data.models.study_participants import ParticipantRecommendationContext
 from rssa_api.data.repositories.base_repo import RepoQueryOptions
 from rssa_api.data.repositories.items.movies import MovieRepository
 from rssa_api.data.repositories.participant_responses import (
@@ -125,7 +120,7 @@ class RecommenderService:
                 log.info(f'Found existing context for {study_id} {study_participant_id} {step_id} {context_tag}')
                 result = ResponseWrapper.model_validate(existing_ctx.recommendations_json)
                 return await self._process_recommendation_result(result)
-        
+
         log.info(f'No existing context found for {study_id} {study_participant_id} {step_id} {context_tag}')
 
         # Gather participant info
@@ -162,52 +157,54 @@ class RecommenderService:
         try:
             # Record Interaction (Side Effect)
             if context_data and context_data.get('emotion_input'):
-                try:
-                    step_id_str = context_data.get('step_id')
-                    if step_id_str:
-                        step_id = uuid.UUID(str(step_id_str))
-                        context_tag = 'emotion_tuning'
+                await self._upsert_interaction(participant.study_id, participant.id, context_data)
+                # try:
+                #     step_id_str = context_data.get('step_id')
+                #     if step_id_str:
+                #         step_id = uuid.UUID(str(step_id_str))
+                #         context_tag = 'emotion_tuning'
 
-                        # Check for existing interaction
-                        existing_interaction = await self.participant_interaction_repository.find_one(
-                            RepoQueryOptions(
-                                filters={
-                                    'study_participant_id': study_participant_id,
-                                    'context_tag': context_tag,
-                                    'study_step_id': step_id,
-                                }
-                            )
-                        )
+                #         # Check for existing interaction
+                #         existing_interaction = await self.participant_interaction_repository.find_one(
+                #             RepoQueryOptions(
+                #                 filters={
+                #                     'study_participant_id': study_participant_id,
+                #                     'context_tag': context_tag,
+                #                     'study_step_id': step_id,
+                #                 }
+                #             )
+                #         )
 
-                        new_entry = {
-                            'timestamp': datetime.now().isoformat(),
-                            'emotion_input': context_data['emotion_input'],
-                        }
+                #         new_entry = {
+                #             'timestamp': datetime.now().isoformat(),
+                #             'emotion_input': context_data['emotion_input'],
+                #         }
 
-                        if existing_interaction:
-                            current_payload = existing_interaction.payload_json
-                            history = current_payload.get('history', [])
-                            if not isinstance(history, list):
-                                history = []
-                            history.append(new_entry)
+                #         if existing_interaction:
+                #             current_payload = existing_interaction.payload_json
+                #             history = current_payload.get('history', [])
+                #             if not isinstance(history, list):
+                #                 history = []
+                #             history.append(new_entry)
 
-                            updated_payload = {**current_payload, 'history': history}
-                            await self.participant_interaction_repository.update(
-                                existing_interaction.id, {'payload_json': updated_payload}
-                            )
-                        else:
-                            payload = ParticipantStudyInteractionResponse(
-                                study_id=participant.study_id,
-                                study_participant_id=participant.id,
-                                study_step_id=step_id,
-                                context_tag=context_tag,
-                                payload_json=DynamicPayload(extra={'history': [new_entry]}),
-                            )
-                            await self.participant_interaction_repository.create(payload)
+                #             updated_payload = {**current_payload, 'history': history}
+                #             await self.participant_interaction_repository.update(
+                #                 existing_interaction.id, {'payload_json': updated_payload}
+                #             )
+                #         else:
+                #             payload = ParticipantStudyInteractionResponse(
+                #                 study_id=participant.study_id,
+                #                 study_participant_id=participant.id,
+                #                 study_step_id=step_id,
+                #                 context_tag=context_tag,
+                #                 payload_json=DynamicPayload(extra={'history': [new_entry]}),
+                #             )
+                #             await self.participant_interaction_repository.create(payload)
 
-                except Exception as e:
-                    log.error(f'Failed to record interaction: {e}')
+                # except Exception as e:
+                #     log.error(f'Failed to record interaction: {e}')
 
+            log.info(f'LIMIT ===> {limit}')
             result = await strategy.recommend(
                 user_id=str(study_participant_id), ratings=ratings, limit=limit, run_config=context_data
             )
@@ -216,8 +213,8 @@ class RecommenderService:
             rec_ctx = ParticipantRecommendationContext(
                 study_id=study_id,
                 study_step_id=step_id,
-                study_step_page_id=step_page_id,  # Might be None, schema allows it
-                study_participant_id=study_participant_id,  # Correct field name for Model
+                study_step_page_id=step_page_id,
+                study_participant_id=study_participant_id,
                 context_tag=context_tag,
                 recommendations_json=result.model_dump(),
             )
@@ -265,6 +262,7 @@ class RecommenderService:
     async def _enrich_pref_viz_response(self, response: ResponseWrapper) -> RecommendationResponse:
         all_rec_ids = set()
         comm_scores = []
+        log.info(f'ITEM LENGTH {len(response.items)}')
         for score_item in response.items:
             score_item = cast(CommunityScoreRecItem, score_item)
             comm_scores.append(score_item)
@@ -284,3 +282,50 @@ class RecommenderService:
         movies = await self.movie_repository.find_many(options)
 
         return [MovieDetailSchema.model_validate(movie) for movie in movies]
+
+    async def _upsert_interaction(self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict):
+        try:
+            step_id_str = context_data.get('step_id')
+            if step_id_str:
+                step_id = uuid.UUID(str(step_id_str))
+                context_tag = 'emotion_tuning'
+
+                # Check for existing interaction
+                existing_interaction = await self.participant_interaction_repository.find_one(
+                    RepoQueryOptions(
+                        filters={
+                            'study_participant_id': study_participant_id,
+                            'context_tag': context_tag,
+                            'study_step_id': step_id,
+                        }
+                    )
+                )
+
+                new_entry = {
+                    'timestamp': datetime.now().isoformat(),
+                    'emotion_input': context_data['emotion_input'],
+                }
+
+                if existing_interaction:
+                    current_payload = existing_interaction.payload_json
+                    history = current_payload.get('history', [])
+                    if not isinstance(history, list):
+                        history = []
+                    history.append(new_entry)
+
+                    updated_payload = {**current_payload, 'history': history}
+                    await self.participant_interaction_repository.update(
+                        existing_interaction.id, {'payload_json': updated_payload}
+                    )
+                else:
+                    payload = ParticipantStudyInteractionResponse(
+                        study_id=study_id,
+                        study_participant_id=study_participant_id,
+                        study_step_id=step_id,
+                        context_tag=context_tag,
+                        payload_json=DynamicPayload(extra={'history': [new_entry]}),
+                    )
+                    await self.participant_interaction_repository.create(payload)
+
+        except Exception as e:
+            log.error(f'Failed to record interaction: {e}')

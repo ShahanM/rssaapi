@@ -3,14 +3,11 @@ import logging
 from typing import Any, Optional, Protocol
 
 from aiobotocore.session import get_session
-from botocore.exceptions import ClientError
 
 from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 from rssa_api.data.schemas.recommendations import (
-    EnrichedRecResponse,
     RecommendationResponse,
     ResponseWrapper,
-    StandardRecResponse,
 )
 
 log = logging.getLogger(__name__)
@@ -87,14 +84,13 @@ class LambdaStrategy:
         try:
             async with self._session.create_client('lambda', region_name=self.region_name) as client:
                 real_function_name = await self._resolve_function_name(client)
-
+                log.info(f'Payload {payload} sent.')
                 response = await client.invoke(
                     FunctionName=real_function_name,
                     InvocationType='RequestResponse',
                     Payload=json.dumps(payload),
                 )
 
-                # Read Response
                 payload_stream = await response['Payload'].read()
                 response_data = json.loads(payload_stream)
 
@@ -103,11 +99,7 @@ class LambdaStrategy:
                     log.error(f'Lambda {real_function_name} failed: {error_msg}')
                     raise RuntimeError(f'Recommendation Engine Error: {error_msg}')
 
-                # Parse Response
                 log.info(f'Lambda Raw Response: {response_data}')
-
-                # 1. unwrapping body if necessary
-                log.info(f'Response: {response_data}')
 
                 return ResponseWrapper.model_validate_json(response_data['body'])
 
