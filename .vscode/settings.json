@@ -1,12 +1,17 @@
 {
-	"python.analysis.typeCheckingMode": "basic",
-	"editor.formatOnSave": false,
-	"python.analysis.extraPaths": ["./src"],
+	"python.analysis.typeCheckingMode": "standard",
+	"editor.formatOnSave": true,
+	"python.analysis.extraPaths": [
+		"./src"
+	],
 	"python.analysis.autoImportCompletions": true,
 	"python.analysis.autoSearchPaths": true,
 	"python.analysis.aiCodeActions": {
 		"implementAbstractClasses": true,
 		"generateSymbol": true,
 		"convertFormatString": true
-	}
+	},
+	"python-envs.pythonProjects": [],
+	"python.useEnvironmentsExtension": false,
+	"editor.defaultFormatter": "charliermarsh.ruff"
 }

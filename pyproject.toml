@@ -1,12 +1,12 @@
 [tool.ruff]
 line-length = 120
-target-version = "py38"
+target-version = "py311"
 exclude = ["__init__.py"]
 fix = true
 
 [tool.ruff.lint]
 ignore = [
-	# "W191",  # indentation contains tabs
+	"W191",  # indentation contains tabs
 	"B008", # function call in default argument
 ]
 select = [
@@ -16,16 +16,67 @@ select = [
 	"I",  # isort
 	"C",  # flake8-comprehensions
 	"B",  # flake8-bugbear
-	"UP", # pyupgrade
+	"UP", # pyupgrade,
+	"D",  # pydocstyle
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "single"
-# indent-style = "tab"
 docstring-code-format = true
 
 [tool.pylint.main]
 load-plugins = ["pylint_sqlalchemy"]
 
+[project]
+name = "rssa-api"
+version = "0.6"
+description = ""
+authors = [
+    {name = "Shahan M Iqbal",email = "mehtabi@clemson.edu"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "cryptography>=46.0.3",
+    # "aiobotocore>=3.0.0",
+    # "aiosqlite>=0.21.0",
+    # "async-lru>=2.0.5",
+    # "asyncpg>=0.31.0",
+    # "cryptography>=46.0.3",
+    # "fastapi>=0.120.0",
+    # "httpx>=0.28.1",
+    # "joblib>=1.5.2",
+    # "pydantic>=2.12.3",
+    # "pytest-asyncio>=1.2.0",
+    # "python-dotenv>=1.2.1",
+    # "python-jose>=3.5.0",
+    # "scikit-learn>=1.6.1",
+    # "sqlalchemy>=2.0.45",
+    # "uvicorn>=0.38.0",
+    "fastapi>=0.128.0",
+    "python-jose>=3.5.0",
+    "sqlalchemy>=2.0.45",
+    "uvicorn>=0.40.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    # "pylint-sqlalchemy>=0.3.0",
+    # "pytest>=8.4.2",
+    # "pytest-asyncio>=1.2.0",
+    # "ruff>=0.14.2",
+    "ruff>=0.14.10",
+]
+
 [tool.setuptools]
-packages = ["src"]
+package-dir = {"" = "src"}
+packages = ["rssa_api"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src"]
