@@ -10,7 +10,7 @@ async def test_admin_routers_structure():
     """
     from rssa_api.apps.admin.routers.survey_constructs import survey_constructs
     from rssa_api.apps.admin.routers.survey_constructs import survey_items
-    from rssa_api.apps.admin.routers.study_componenets import studies
+    from rssa_api.apps.admin.routers.study_components import studies
     from rssa_api.apps.admin.routers import users
     from rssa_api.apps.admin.routers import api_keys
     from rssa_api.apps.admin.routers import movies
