@@ -19,7 +19,7 @@ from rssa_api.data.models.survey_constructs import SurveyScaleLevel
 
 
 # TODO: This table will be removed from the participant response flow. It will be used for testing and dev feedback.
-# In the future, to disentable feedback from participant responses, the sutdy_participant_id foreign key needs to be
+# In the future, to disentangle feedback from participant responses, the study_participant_id foreign key needs to be
 # dropped, and should be replaced with a text field for email or user identifier.
 class Feedback(BaseModelMixin, DBBaseParticipantResponseModel):
     """Stores participant feedback for a study.

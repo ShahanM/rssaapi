@@ -31,7 +31,7 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Helper function register all global excpetion handlers
+# Helper function register all global exception handlers
 def register_global_exception_handlers(app_instance: FastAPI):
     app_instance.exception_handler(IntegrityError)(integrity_error_handler)
     app_instance.exception_handler(SQLAlchemyError)(sqlalchemy_error_handler)

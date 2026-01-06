@@ -89,7 +89,7 @@ def get_service(
 
     Args:
         service_constructor: Class of the Service (e.g. StudyService)
-        *repo_constructors: One or more repositories in order accepted by the servuce constructor.
+        *repo_constructors: One or more repositories in order accepted by the service constructor.
     """
 
     def _factory(db: Annotated[AsyncSession, Depends(get_db)]) -> S:

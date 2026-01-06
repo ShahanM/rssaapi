@@ -41,7 +41,7 @@ print(f'{ROOT_PATH}/study/openapi.json')
 async def custom_swagger_ui_html_cdn():
     return get_swagger_ui_html(
         openapi_url=f'{ROOT_PATH}/study/openapi.json',
-        title=f'{api.title} - Swagger U',
+        title=f'{api.title} - Swagger UI',
         # swagger_ui_dark.css CDN link
         swagger_css_url='https://cdn.jsdelivr.net/gh/Itz-fork/Fastapi-Swagger-UI-Dark/assets/swagger_ui_dark.min.css',
     )

@@ -64,7 +64,7 @@ AVATARS = {
     },
     'fox': {
         'src': 'fox',
-        'alt': 'An image of a dox representing Anonymous Fox',
+        'alt': 'An image of a fox representing Anonymous Fox',
         'name': 'Anonymous Fox',
     },
     'tiger': {
