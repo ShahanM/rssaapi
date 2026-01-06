@@ -182,7 +182,7 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
         subset: str,
         seed: int = 144,
     ) -> None:
-        random.seed = seed
+        random.seed(seed)
         random.shuffle(movie_ids)
 
         preshuffled_list = PreShuffledMovieList(movie_ids=movie_ids, subset=subset, seed=seed)
