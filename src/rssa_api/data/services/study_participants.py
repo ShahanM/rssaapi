@@ -47,7 +47,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
 
         if not study_conditions:
             raise ValueError(f'No study conditions found for study ID: {study_id}')
-        # FIXME: make this dynamic weighted choice so that we always have n particpants for each of the k conditions
+        # FIXME: make this dynamic weighted choice so that we always have n participants for each of the k conditions
         # n%k = 0 => n_i = n_k = n/k for all i \in [1, ..., k], where n_i is the participant count in the i'th condition
         # n%k != 0 => n_i = n_k = (n-(n%k))/k & m_j = m_(k-(n%k)) = 1,
         # where n_i, and m_j are the number of participants in the i'th and j'th conditions respectively and i != j
