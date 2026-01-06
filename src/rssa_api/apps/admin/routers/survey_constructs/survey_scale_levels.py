@@ -28,4 +28,4 @@ async def delete_scale_level(
             status_code=status.HTTP_403_FORBIDDEN, detail='You do not have permissions to perform that action.'
         )
 
-    await service.delete_scale_level(level_id)
+    await service.delete(level_id)
