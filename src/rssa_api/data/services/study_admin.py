@@ -199,7 +199,7 @@ class UserService(BaseService[User, UserRepository]):
         return await self.repo.find_one(RepoQueryOptions(filters={'auth0_sub': token_user}))
 
     async def create_user_from_auth0(self, token_user: Auth0UserSchema) -> User:
-        new_user = User(auth0_sub=Auth0UserSchema.sub)
+        new_user = User(auth0_sub=token_user.sub)
 
         await self.repo.create(new_user)
 
