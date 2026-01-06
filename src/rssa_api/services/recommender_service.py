@@ -1,20 +1,22 @@
+import asyncio
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional, cast
+from typing import Any, cast
 
-from rssa_api.data.models.participant_responses import ParticipantStudyInteractionResponse
-from rssa_api.data.models.study_participants import ParticipantRecommendationContext
-from rssa_api.data.repositories.base_repo import RepoQueryOptions
-from rssa_api.data.repositories.items.movies import MovieRepository
-from rssa_api.data.repositories.participant_responses import (
+from rssa_storage.moviedb.repositories import MovieRepository
+from rssa_storage.rssadb.models.study_participants import ParticipantRecommendationContext
+from rssa_storage.rssadb.repositories.participant_responses import (
     ParticipantRatingRepository,
+    ParticipantStudyInteractionResponse,
     ParticipantStudyInteractionResponseRepository,
 )
-from rssa_api.data.repositories.study_participants.recommendation_context import (
+from rssa_storage.rssadb.repositories.study_participants import (
     ParticipantRecommendationContextRepository,
+    StudyParticipantRepository,
 )
-from rssa_api.data.repositories.study_participants.study_participants import StudyParticipantRepository
+from rssa_storage.shared import RepoQueryOptions
+
 from rssa_api.data.schemas.movie_schemas import MovieDetailSchema
 from rssa_api.data.schemas.participant_response_schemas import (
     DynamicPayload,
@@ -81,6 +83,7 @@ class RecommenderService:
         movie_repository: MovieRepository,
         participant_interaction_repository: ParticipantStudyInteractionResponseRepository,
         recommendation_context_repository: ParticipantRecommendationContextRepository,
+        ttl_seconds: int = 300,
     ):
         self.study_participant_repository = study_participant_repository
         self.participant_rating_repository = participant_rating_repository
@@ -88,38 +91,45 @@ class RecommenderService:
         self.participant_interaction_repository = participant_interaction_repository
         self.recommendation_context_repository = recommendation_context_repository
 
+        self.ttl = ttl_seconds
+        self._cache: dict[str, dict[str, Any]] = {}  # caching results for ttl seconds
+        self._in_flight: dict[str, asyncio.Future] = {}  # caching currently running tasks
+
     async def get_recommendations(
-        self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: Optional[dict] = None
+        self, ratings: list[MovieLensRating], limit: int, context_data: dict
     ) -> RecommendationResponse:
-        step_id = None
-        context_tag = None
-        step_page_id = None
+        pass
 
-        if context_data:
-            step_id_str = context_data.get('step_id')
-            if step_id_str:
-                step_id = uuid.UUID(str(step_id_str))
+    async def get_recommendations_for_study_participant(
+        self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict
+    ) -> RecommendationResponse:
+        step_id = context_data.get('step_id')
+        context_tag = context_data.get('context_tag')
+        step_page_id = context_data.get('step_page_id')
 
-            context_tag = context_data.get('context_tag')
-            step_page_id_str = context_data.get('step_page_id')
-            if step_page_id_str:
-                step_page_id = uuid.UUID(str(step_page_id_str))
+        if not step_id or not context_tag:
+            raise ValueError('Step ID and context tag are required')
+
+        step_id = uuid.UUID(str(step_id))
+        context_tag = str(context_tag)
+        if step_page_id:
+            step_page_id = uuid.UUID(str(step_page_id))
 
         result = None
-        if step_id and context_tag:
-            existing_ctx = await self.recommendation_context_repository.find_one(
-                RepoQueryOptions(
-                    filters={
-                        'study_participant_id': study_participant_id,
-                        'study_id': study_id,
-                        'context_tag': context_tag,
-                    }
-                )
+
+        existing_ctx = await self.recommendation_context_repository.find_one(
+            RepoQueryOptions(
+                filters={
+                    'study_participant_id': study_participant_id,
+                    'study_id': study_id,
+                    'context_tag': context_tag,
+                }
             )
-            if existing_ctx:
-                log.info(f'Found existing context for {study_id} {study_participant_id} {step_id} {context_tag}')
-                result = ResponseWrapper.model_validate(existing_ctx.recommendations_json)
-                return await self._process_recommendation_result(result)
+        )
+        if existing_ctx:
+            log.info(f'Found existing context for {study_id} {study_participant_id} {step_id} {context_tag}')
+            result = ResponseWrapper.model_validate(existing_ctx.recommendations_json)
+            return await self._process_recommendation_result(result)
 
         log.info(f'No existing context found for {study_id} {study_participant_id} {step_id} {context_tag}')
 
@@ -156,59 +166,12 @@ class RecommenderService:
 
         try:
             # Record Interaction (Side Effect)
-            if context_data and context_data.get('emotion_input'):
+            if context_data.get('emotion_input'):
                 await self._upsert_interaction(participant.study_id, participant.id, context_data)
-                # try:
-                #     step_id_str = context_data.get('step_id')
-                #     if step_id_str:
-                #         step_id = uuid.UUID(str(step_id_str))
-                #         context_tag = 'emotion_tuning'
 
-                #         # Check for existing interaction
-                #         existing_interaction = await self.participant_interaction_repository.find_one(
-                #             RepoQueryOptions(
-                #                 filters={
-                #                     'study_participant_id': study_participant_id,
-                #                     'context_tag': context_tag,
-                #                     'study_step_id': step_id,
-                #                 }
-                #             )
-                #         )
-
-                #         new_entry = {
-                #             'timestamp': datetime.now().isoformat(),
-                #             'emotion_input': context_data['emotion_input'],
-                #         }
-
-                #         if existing_interaction:
-                #             current_payload = existing_interaction.payload_json
-                #             history = current_payload.get('history', [])
-                #             if not isinstance(history, list):
-                #                 history = []
-                #             history.append(new_entry)
-
-                #             updated_payload = {**current_payload, 'history': history}
-                #             await self.participant_interaction_repository.update(
-                #                 existing_interaction.id, {'payload_json': updated_payload}
-                #             )
-                #         else:
-                #             payload = ParticipantStudyInteractionResponse(
-                #                 study_id=participant.study_id,
-                #                 study_participant_id=participant.id,
-                #                 study_step_id=step_id,
-                #                 context_tag=context_tag,
-                #                 payload_json=DynamicPayload(extra={'history': [new_entry]}),
-                #             )
-                #             await self.participant_interaction_repository.create(payload)
-
-                # except Exception as e:
-                #     log.error(f'Failed to record interaction: {e}')
-
-            log.info(f'LIMIT ===> {limit}')
             result = await strategy.recommend(
                 user_id=str(study_participant_id), ratings=ratings, limit=limit, run_config=context_data
             )
-            log.info(f'Result in recommender_service.py (Line 231): {result}')
 
             rec_ctx = ParticipantRecommendationContext(
                 study_id=study_id,
@@ -278,17 +241,19 @@ class RecommenderService:
         }
 
     async def _enrich_with_moviedata(self, movielens_ids: list[str]) -> list[MovieDetailSchema]:
+        movielens_ids = [str(mid) for mid in movielens_ids]
         options = RepoQueryOptions(filters={'movielens_id': movielens_ids}, load_options=MovieRepository.LOAD_ALL)
         movies = await self.movie_repository.find_many(options)
+        movie_map = {movie.movielens_id: MovieDetailSchema.model_validate(movie) for movie in movies}
 
-        return [MovieDetailSchema.model_validate(movie) for movie in movies]
+        return [movie_map[mid] for mid in movielens_ids]  # we must preserve original order, since they are ranked
 
     async def _upsert_interaction(self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict):
         try:
             step_id_str = context_data.get('step_id')
             if step_id_str:
                 step_id = uuid.UUID(str(step_id_str))
-                context_tag = 'emotion_tuning'
+                context_tag = context_data.get('tuning_tag', 'emotion_tuning')
 
                 # Check for existing interaction
                 existing_interaction = await self.participant_interaction_repository.find_one(
@@ -323,7 +288,7 @@ class RecommenderService:
                         study_participant_id=study_participant_id,
                         study_step_id=step_id,
                         context_tag=context_tag,
-                        payload_json=DynamicPayload(extra={'history': [new_entry]}),
+                        payload_json=DynamicPayload(extra={'history': [new_entry]}).model_dump(),
                     )
                     await self.participant_interaction_repository.create(payload)
 

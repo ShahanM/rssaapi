@@ -4,36 +4,34 @@ The ApiKeyService class is used to manage the API key to register and
 authenticate frontend study applications.
 """
 
+import random
 import secrets
 import uuid
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 
 from async_lru import alru_cache
 from cryptography.fernet import Fernet
+from rssa_storage.rssadb.models.participant_movie_sequence import PreShuffledMovieList
+from rssa_storage.rssadb.models.study_components import ApiKey, User
+from rssa_storage.rssadb.repositories.study_admin import ApiKeyRepository, PreShuffledMovieRepository, UserRepository
+from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.config import get_env_var
-from rssa_api.data.models.study_components import ApiKey
-from rssa_api.data.repositories.study_admin import ApiKeyRepository
+from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.study_components import ApiKeyRead
+from rssa_api.data.services.base_service import BaseService
 from rssa_api.data.utility import sa_obj_to_dict
 
 ENCRYPTION_KEY = get_env_var('RSSA_MASTER_ENCRYPTION_KEY')
 
 
-class ApiKeyService:
+class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
     """Service for managing API keys for studies.
 
     This service handles the creation, validation, and retrieval of API keys.
     Keys are encrypted using Fernet symmetric encryption.
     """
-
-    def __init__(self, api_key_repo: ApiKeyRepository):
-        """Initializes the ApiKeyService.
-
-        Args:
-            api_key_repo: The repository for API key data access.
-        """
-        self.repo = api_key_repo
 
     def generate_key_and_hash(self) -> tuple[str, str]:
         """Generate a secure random API key and its encrypted version.
@@ -71,10 +69,8 @@ class ApiKeyService:
         # current_active_keys = await self.repo.get_all_by_fields(
         #     [('study_id', study_id), ('user_id', user_id), ('is_active', True)]
         # )
-        from rssa_api.data.repositories.base_repo import RepoQueryOptions
-        repo_options = RepoQueryOptions(
-            filters={'study_id': study_id, 'user_id': user_id, 'is_active': True}
-        )
+
+        repo_options = RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id, 'is_active': True})
         current_active_keys = await self.repo.find_many(repo_options)
         await self._invalidate_keys(current_active_keys)
 
@@ -118,10 +114,10 @@ class ApiKeyService:
             A list of ApiKeyRead objects, each including the plain-text key.
         """
         # api_keys = await self.repo.get_all_by_fields([('study_id', study_id), ('user_id', user_id)])
-        from rssa_api.data.repositories.base_repo import RepoQueryOptions
+
         repo_options = RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id})
         api_keys = await self.repo.find_many(repo_options)
-        
+
         api_key_dicts = []
         if api_keys:
             fernet = Fernet(ENCRYPTION_KEY.encode())
@@ -161,7 +157,6 @@ class ApiKeyService:
 
         """
         # key_record = await self.repo.get(api_key_id)
-        from rssa_api.data.repositories.base_repo import RepoQueryOptions
         key_record = await self.repo.find_one(RepoQueryOptions(filters={'id': api_key_id}))
         if not key_record:
             return None
@@ -175,3 +170,37 @@ class ApiKeyService:
             return None
 
         return key_record
+
+
+class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovieRepository]):
+    def __init__(self, shuffled_movie_repo: PreShuffledMovieRepository):
+        self.shuffled_movie_repo = shuffled_movie_repo
+
+    async def create_pre_shuffled_movie_list(
+        self,
+        movie_ids: list[uuid.UUID],
+        subset: str,
+        seed: int = 144,
+    ) -> None:
+        random.seed = seed
+        random.shuffle(movie_ids)
+
+        preshuffled_list = PreShuffledMovieList(movie_ids=movie_ids, subset=subset, seed=seed)
+
+        await self.shuffled_movie_repo.create(preshuffled_list)
+
+
+class UserService(BaseService[User, UserRepository]):
+    def __init__(self, user_repo: UserRepository):
+        self.repo = user_repo
+
+    async def get_user_by_auth0_sub(self, token_user: str) -> Optional[User]:
+        # return await self.repo.get_by_field('auth0_sub', token_user)
+        return await self.repo.find_one(RepoQueryOptions(filters={'auth0_sub': token_user}))
+
+    async def create_user_from_auth0(self, token_user: Auth0UserSchema) -> User:
+        new_user = User(auth0_sub=Auth0UserSchema.sub)
+
+        await self.repo.create(new_user)
+
+        return new_user

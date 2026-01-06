@@ -1,12 +1,12 @@
 """Base class for services that are scoped to a specific owner/parent ID."""
 
 import uuid
-from typing import Any, Optional, Sequence, Type, TypeVar, overload
+from collections.abc import Sequence
+from typing import Any, Optional, TypeVar, overload
 
 from pydantic import BaseModel
+from rssa_storage.shared import BaseRepository, RepoQueryOptions
 from sqlalchemy.sql.base import ExecutableOption
-
-from rssa_api.data.repositories.base_repo import BaseRepository, RepoQueryOptions
 
 from .base_service import BaseService
 
@@ -25,7 +25,7 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         self,
         owner_id: uuid.UUID,
         item_id: uuid.UUID,
-        schema: Type[SchemaType],
+        schema: type[SchemaType],
         options: Optional[Sequence[ExecutableOption]] = None,
     ) -> Optional[SchemaType]: ...
 
@@ -42,11 +42,10 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         self,
         owner_id: uuid.UUID,
         item_id: uuid.UUID,
-        schema: Optional[Type[SchemaType]] = None,
+        schema: Optional[type[SchemaType]] = None,
         options: Optional[Sequence[ExecutableOption]] = None,
     ) -> Optional[Any]:
         """Get an item, but ONLY if it belongs to the owner."""
-        # item = await self.repo.get(item_id, options)
         repo_options = RepoQueryOptions(
             filters={'id': item_id},
             load_options=options or [],
@@ -69,26 +68,16 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         owner_id: uuid.UUID,
         limit: int,
         offset: int,
-        schema: Optional[Type[SchemaType]] = None,
+        schema: Optional[type[SchemaType]] = None,
         sort_by: Optional[str] = None,
         sort_dir: Optional[str] = None,
         search: Optional[str] = None,
     ) -> list[Any]:
         """Fetch list explicitly scoped to the owner."""
-        # scope_filter = [(self.scope_field, owner_id)]
         scope_filter = {self.scope_field: owner_id}
 
         search_cols = getattr(self.repo, 'SEARCHABLE_COLUMNS', [])
 
-        # items = await self.repo.get_paged(
-        #     limit=limit,
-        #     offset=offset,
-        #     sort_by=sort_by,
-        #     sort_dir=sort_dir,
-        #     filter_str=search,
-        #     filter_cols=search_cols,
-        #     filters=scope_filter,
-        # )
         repo_options = RepoQueryOptions(
             limit=limit,
             offset=offset,
@@ -101,7 +90,7 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         items = await self.repo.find_many(repo_options)
 
         if not schema:
-            return items
+            return list(items)
         return [schema.model_validate(item) for item in items]
 
     async def create_for_owner(self, owner_id: uuid.UUID, schema: BaseModel, **kwargs) -> ModelType:
@@ -111,7 +100,6 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
 
     async def count_for_owner(self, owner_id: uuid.UUID, search: Optional[str] = None) -> int:
         """Count items explicitly scoped to the owner."""
-        # scope_filter = [(self.scope_field, owner_id)]
         scope_filter = {self.scope_field: owner_id}
         search_cols = getattr(self.repo, 'SEARCHABLE_COLUMNS', [])
 
@@ -124,12 +112,11 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
     async def get_all_for_owner(
         self,
         owner_id: uuid.UUID,
-        schema: Optional[Type[SchemaType]] = None,
+        schema: Optional[type[SchemaType]] = None,
     ) -> list[Any]:
         """Get all items for a specific owner."""
-        # items = await self.repo.get_all_by_field(self.scope_field, owner_id)
         repo_options = RepoQueryOptions(filters={self.scope_field: owner_id})
         items = await self.repo.find_many(repo_options)
         if not schema:
-            return items
+            return list(items)
         return [schema.model_validate(item) for item in items]

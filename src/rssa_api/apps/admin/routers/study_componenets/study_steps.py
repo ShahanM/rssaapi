@@ -68,11 +68,10 @@ async def create_page_for_step(
         'description': created_page.description,
         'title': created_page.title,
         'instructions': created_page.instructions,
-        'created_by_id': created_page.created_by_id,
         'study_id': created_page.study_id,
         'study_step_id': created_page.study_step_id,
         'order_position': created_page.order_position,
-        'study_step_page_contents': []
+        'study_step_page_contents': [],
     }
 
     return StudyStepPageRead.model_validate(page_dict)

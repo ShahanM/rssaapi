@@ -13,7 +13,6 @@ class DBMixin(BaseModel):
 
     id: uuid.UUID = Field(..., description='Unique identifier for the resource.')
 
-    
     model_config = ConfigDict(
         from_attributes=True,
         # json_encoders={
@@ -31,7 +30,6 @@ class AuditMixin(BaseModel):
         description='This is the timestamp logged at database insertion.',
     )
     updated_at: Optional[datetime] = Field(..., description='This is the timestamp logged during last update.')
-    created_by_id: Optional[uuid.UUID] = Field(..., description='Id of the user who created this resource instance.')
 
 
 class DisplayNameMixin:

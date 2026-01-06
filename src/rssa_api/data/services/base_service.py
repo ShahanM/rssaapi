@@ -1,11 +1,10 @@
 """Base service providing common CRUD operations."""
 
 import uuid
-from typing import Any, Generic, Optional, Type, TypeVar, overload
+from typing import Any, Generic, Optional, TypeVar, overload
 
 from pydantic import BaseModel
-
-from rssa_api.data.repositories.base_repo import BaseRepository, RepoQueryOptions
+from rssa_storage.shared import BaseRepository, RepoQueryOptions
 
 ModelType = TypeVar('ModelType')
 RepoType = TypeVar('RepoType', bound='BaseRepository')
@@ -35,7 +34,7 @@ class BaseService(Generic[ModelType, RepoType]):
         return await self.repo.create(model_instance)
 
     @overload
-    async def get(self, id: uuid.UUID, schema: Type[SchemaType]) -> Optional[SchemaType]: ...
+    async def get(self, id: uuid.UUID, schema: type[SchemaType]) -> Optional[SchemaType]: ...
 
     @overload
     async def get(self, id: uuid.UUID, schema: None = None) -> Optional[ModelType]: ...
@@ -43,7 +42,7 @@ class BaseService(Generic[ModelType, RepoType]):
     async def get(
         self,
         id: uuid.UUID,
-        schema: Optional[Type[SchemaType]] = None,
+        schema: Optional[type[SchemaType]] = None,
     ) -> Any:
         """Basic get by ID.
 
@@ -54,7 +53,6 @@ class BaseService(Generic[ModelType, RepoType]):
         Returns:
             The model instance or validated schema, or None if not found.
         """
-        # data_obj = await self.repo.get(id)
         data_obj = await self.repo.find_one(RepoQueryOptions(filters={'id': id}))
 
         if not data_obj:
@@ -65,12 +63,12 @@ class BaseService(Generic[ModelType, RepoType]):
         return data_obj
 
     @overload
-    async def get_detailed(self, id: uuid.UUID, schema: Type[SchemaType]) -> Optional[SchemaType]: ...
+    async def get_detailed(self, id: uuid.UUID, schema: type[SchemaType]) -> Optional[SchemaType]: ...
 
     @overload
     async def get_detailed(self, id: uuid.UUID, schema: None = None) -> Optional[ModelType]: ...
 
-    async def get_detailed(self, id: uuid.UUID, schema: Optional[Type[SchemaType]] = None) -> Any:
+    async def get_detailed(self, id: uuid.UUID, schema: Optional[type[SchemaType]] = None) -> Any:
         """Get by ID, using the Repository's LOAD_FULL_DETAILS configuration if it exists.
 
         Args:
@@ -120,7 +118,7 @@ class BaseService(Generic[ModelType, RepoType]):
         self,
         limit: int,
         offset: int,
-        schema: Type[SchemaType],
+        schema: type[SchemaType],
         sort_by: Optional[str] = None,
         sort_dir: Optional[str] = None,
         search: Optional[str] = None,
@@ -175,7 +173,7 @@ class BaseService(Generic[ModelType, RepoType]):
 
         if schema:
             return [schema.model_validate(obj) for obj in data_objs]
-        return data_objs
+        return list(data_objs)
 
     async def count(self, search: Optional[str] = None) -> int:
         """Generic count, using SEARCHABLE_COLUMNS from repo.

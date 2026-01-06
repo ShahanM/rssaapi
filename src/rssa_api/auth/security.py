@@ -1,4 +1,4 @@
-from typing import Annotated, Union
+from typing import Annotated
 
 import httpx
 from async_lru import alru_cache
@@ -6,11 +6,10 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
 from jose.exceptions import JWTClaimsError, JWTError
+from rssa_storage.rssadb.models.study_components import User
 
-from rssa_api.data.models.study_components import User
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.services.dependencies import get_user_service
-from rssa_api.data.services.study_admin import UserService
+from rssa_api.data.services.dependencies import UserServiceDep
 
 from . import config as cfg
 
@@ -57,7 +56,7 @@ async def validate_auth0_token(token: str) -> Auth0UserSchema:
 
 
 async def get_auth0_authenticated_user(
-    credentials: Annotated[Union[HTTPAuthorizationCredentials, None], Security(bearer_scheme)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
 ) -> Auth0UserSchema:
     """Dependency that validates the Auth0 token and returns the Auth0 user profile."""
     if credentials is None:
@@ -67,7 +66,7 @@ async def get_auth0_authenticated_user(
 
 async def get_current_user(
     token_user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
-    user_service: Annotated[UserService, Depends(get_user_service)],
+    user_service: UserServiceDep,
 ) -> User:
     """Dependency that takes the validated Auth0 user and returns the local database user."""
     db_user = await user_service.get_user_by_auth0_sub(token_user.sub)

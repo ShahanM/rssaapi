@@ -79,7 +79,7 @@ async def get_current_participant(
     if participant is None:
         raise credentials_exception
 
-    return participant
+    return StudyParticipantRead.model_validate(participant)
 
 
 async def validate_study_participant(

@@ -1,23 +1,25 @@
 """Service layer for managing participant responses in studies."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from functools import singledispatchmethod
-from typing import Any, Optional, Union
+from typing import Any
 
-from rssa_api.data.models.participant_responses import (
+from rssa_storage.rssadb.models.participant_responses import (
     ParticipantFreeformResponse,
     ParticipantRating,
     ParticipantStudyInteractionResponse,
     ParticipantSurveyResponse,
 )
-from rssa_api.data.repositories.participant_responses import (
+from rssa_storage.rssadb.repositories.participant_responses import (
     ParticipantFreeformResponseRepository,
     ParticipantRatingRepository,
     ParticipantStudyInteractionResponseRepository,
     ParticipantSurveyResponseRepository,
 )
+from rssa_storage.shared import RepoQueryOptions
+
 from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantFreeformResponseCreate,
     ParticipantFreeformResponseRead,
@@ -30,18 +32,19 @@ from rssa_api.data.schemas.participant_response_schemas import (
 )
 from rssa_api.data.utility import convert_datetime_to_str, convert_uuids_to_str
 
-ResponseCreateUnionType = Union[
-    ParticipantSurveyResponseCreate,
-    ParticipantStudyInteractionResponseCreate,
-    ParticipantRatingBase,
-    ParticipantFreeformResponseCreate,
-]
-ResponseSchemaType = Union[
-    ParticipantSurveyResponseRead,
-    ParticipantStudyInteractionResponseRead,
-    ParticipantRatingRead,
-    ParticipantFreeformResponseRead,
-]
+ResponseCreateUnionType = (
+    ParticipantSurveyResponseCreate
+    | ParticipantStudyInteractionResponseCreate
+    | ParticipantRatingBase
+    | ParticipantFreeformResponseCreate
+)
+
+ResponseSchemaType = (
+    ParticipantSurveyResponseRead
+    | ParticipantStudyInteractionResponseRead
+    | ParticipantRatingRead
+    | ParticipantFreeformResponseRead
+)
 
 
 class ResponseType(str, Enum):
@@ -104,7 +107,7 @@ class ParticipantResponseService:
         response_type: ResponseType,
         study_id: uuid.UUID,
         participant_id: uuid.UUID,
-        page_id: Optional[uuid.UUID] = None,
+        page_id: uuid.UUID | None = None,
     ) -> list[ResponseSchemaType]:
         """Retrieve a participant response by its type and associated identifiers.
 
@@ -118,8 +121,6 @@ class ParticipantResponseService:
             The corresponding response schema object, or None if not found.
         """
         repo, schema_cls = self._get_strategy(response_type)
-
-        from rssa_api.data.repositories.base_repo import RepoQueryOptions
 
         filters = {
             'study_participant_id': participant_id,
@@ -137,7 +138,7 @@ class ParticipantResponseService:
         response_type: ResponseType,
         study_id: uuid.UUID,
         participant_id: uuid.UUID,
-        step_id: Optional[uuid.UUID] = None,
+        step_id: uuid.UUID | None = None,
     ) -> list[ResponseSchemaType]:
         """Retrieve a participant response by its type and step identifier.
 
@@ -151,8 +152,6 @@ class ParticipantResponseService:
             The corresponding response schema object, or None if not found.
         """
         repo, schema_cls = self._get_strategy(response_type)
-
-        from rssa_api.data.repositories.base_repo import RepoQueryOptions
 
         filters = {
             'study_participant_id': participant_id,
@@ -236,8 +235,6 @@ class ParticipantResponseService:
         self, text_response_data: ParticipantFreeformResponseCreate, study_id: uuid.UUID, participant_id: uuid.UUID
     ) -> ParticipantFreeformResponseRead:
         """Creates or updates a single freeform text response."""
-        from rssa_api.data.repositories.base_repo import RepoQueryOptions
-
         # Check for existing response relative to generic context tag constraint
         # Constraint: (study_id, study_participant_id, context_tag)
         existing = await self.text_repo.find_one(
@@ -254,7 +251,7 @@ class ParticipantResponseService:
             # Update
             updated_fields = {
                 'response_text': text_response_data.response_text,
-                'updated_at': datetime.now(timezone.utc),
+                'updated_at': datetime.now(UTC),
             }
             # Handle study_step_id update if provided? Model has it.
             if text_response_data.study_step_id:
@@ -269,7 +266,7 @@ class ParticipantResponseService:
             study_step_id=text_response_data.study_step_id,
             context_tag=text_response_data.context_tag,
             response_text=text_response_data.response_text,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
             version=1,
         )
         await self.text_repo.create(new_response)

@@ -18,7 +18,7 @@ from .dependencies import (
 	ParticipantResponseServiceDep,
 	EnrollmentServiceDep
 )
-from .participant_responses import ResponseType
+from .response_service import ResponseType
 
 __all__ = [
 	'ApiKeyServiceDep', 

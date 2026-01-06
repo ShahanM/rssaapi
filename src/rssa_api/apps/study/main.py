@@ -6,7 +6,6 @@ from fastapi.openapi.docs import get_swagger_ui_html
 
 from rssa_api.config import ROOT_PATH
 
-from .routers.legacy_recommendations import alt_algo, iers, pref_comm, pref_viz
 from .routers.recommendations import router as recommendations_router
 from .routers.studies import feedback, movies, pages, participant, steps, studies
 from .routers.studies.participant_responses import participant_responses
@@ -62,8 +61,8 @@ api.include_router(pages.router)
 Recommender API Routers
 """
 api.include_router(recommendations_router)
-api.include_router(alt_algo.router)
-api.include_router(pref_viz.router)
-api.include_router(iers.router)
-api.include_router(pref_comm.router)
+# api.include_router(alt_algo.router)
+# api.include_router(pref_viz.router)
+# api.include_router(iers.router)
+# api.include_router(pref_comm.router)
 api.include_router(participant_responses.router)

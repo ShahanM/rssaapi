@@ -1,16 +1,18 @@
 """Mixin to add 'Next/Previous' navigation logic to any BaseOrderedService."""
 
 import uuid
-from typing import Any, Optional, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
-from rssa_api.data.models.rssa_base_models import DBBaseOrderedModel
-from rssa_api.data.repositories.base_ordered_repo import BaseOrderedRepository
+from rssa_storage.shared import BaseOrderedRepository
+from rssa_storage.shared.db_utils import SharedOrderedModel
 
-OrderedModelType = TypeVar('OrderedModelType', bound=DBBaseOrderedModel)
-OrderedRepoType = TypeVar('OrderedRepoType', bound=BaseOrderedRepository, covariant=True)
+OrderedModelType = TypeVar('OrderedModelType', bound=SharedOrderedModel)
+CovariantOrderedModelType = TypeVar('CovariantOrderedModelType', bound=SharedOrderedModel, covariant=True)
+
+OrderedRepoType = TypeVar('OrderedRepoType', bound=BaseOrderedRepository)
 
 
-class ServiceProtocol(Protocol[OrderedModelType, OrderedRepoType]):
+class ServiceProtocol(Protocol[CovariantOrderedModelType, OrderedRepoType]):
     """Protocol to enforce required attributes/methods for the NavigationMixin.
 
     Requires:
@@ -20,11 +22,11 @@ class ServiceProtocol(Protocol[OrderedModelType, OrderedRepoType]):
 
     repo: OrderedRepoType
 
-    async def get(self, id: uuid.UUID) -> Optional[OrderedModelType]:
+    async def get(self, id: uuid.UUID) -> CovariantOrderedModelType | None:
         """Fetch an item by its ID."""
         ...
 
-    async def get_detailed(self, id: uuid.UUID) -> Optional[OrderedModelType]:
+    async def get_detailed(self, id: uuid.UUID) -> CovariantOrderedModelType | None:
         """Fetch an item by its ID with details."""
         ...
 
@@ -37,7 +39,7 @@ class NavigationMixin(ServiceProtocol[OrderedModelType, OrderedRepoType]):
                 2. self.get() (standard fetch)
     """
 
-    async def get_with_navigation(self, current_id: uuid.UUID) -> Optional[dict[str, Any]]:
+    async def get_with_navigation(self, current_id: uuid.UUID) -> dict[str, Any] | None:
         """Fetches the current item AND the ID of the next item in the sequence."""
         current_item = await self.get_detailed(current_id)
         if not current_item:
@@ -51,7 +53,7 @@ class NavigationMixin(ServiceProtocol[OrderedModelType, OrderedRepoType]):
             'next_path': next['path'],
         }
 
-    async def get_first_with_navigation(self, parent_id: uuid.UUID) -> Optional[dict[str, Any]]:
+    async def get_first_with_navigation(self, parent_id: uuid.UUID) -> dict[str, Any] | None:
         """Fetches the first item under a parent AND the ID of the next item in the sequence."""
         load_options = getattr(self.repo, 'LOAD_FULL_DETAILS', None)
         first_item = await self.repo.get_first_ordered_instance(parent_id, load_options=load_options)

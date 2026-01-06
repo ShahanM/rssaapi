@@ -1,7 +1,4 @@
 from .dependencies import (
-	StudyStepRepositoryDep,
-	StudyStepPageRepositoryDep,
-	StudyStepPageContentRepositoryDep,
 	ParticipantSurveyResponseRepositoryDep,
 	ParticipantStudyInteractionResponseRepositoryDep,
 	ParticipantRatingRepositoryDep,
@@ -9,9 +6,6 @@ from .dependencies import (
 )
 
 __all__ = [
-	'StudyStepRepositoryDep', 
-	'StudyStepPageRepositoryDep', 
-	'StudyStepPageContentRepositoryDep',
 	'ParticipantSurveyResponseRepositoryDep',
 	'ParticipantStudyInteractionResponseRepositoryDep',
 	'ParticipantRatingRepositoryDep',

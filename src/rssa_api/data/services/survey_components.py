@@ -1,12 +1,13 @@
 """Service layer for survey constructs, items, scales, and scale levels."""
 
-from rssa_api.data.models.survey_constructs import SurveyConstruct, SurveyItem, SurveyScale, SurveyScaleLevel
-from rssa_api.data.repositories.survey_components import (
+from rssa_storage.rssadb.models.survey_constructs import SurveyConstruct, SurveyItem, SurveyScale, SurveyScaleLevel
+from rssa_storage.rssadb.repositories.survey_components import (
     SurveyConstructRepository,
     SurveyItemRepository,
     SurveyScaleLevelRepository,
     SurveyScaleRepository,
 )
+
 from rssa_api.data.services.base_ordered_service import BaseOrderedService
 from rssa_api.data.services.base_service import BaseService
 

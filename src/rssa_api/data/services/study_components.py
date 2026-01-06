@@ -1,7 +1,8 @@
 import uuid
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Any, Optional
 
-from rssa_api.data.models.study_components import (
+from rssa_storage.rssadb.models.study_components import (
     Study,
     StudyCondition,
     StudyStep,
@@ -9,30 +10,31 @@ from rssa_api.data.models.study_components import (
     StudyStepPageContent,
     User,
 )
-from rssa_api.data.models.study_participants import StudyParticipant
-from rssa_api.data.repositories.study_components import (
+from rssa_storage.rssadb.models.study_participants import (
+    Demographic,
+    ParticipantRecommendationContext,
+    StudyParticipant,
+)
+from rssa_storage.rssadb.repositories.study_components import (
     StudyConditionRepository,
     StudyRepository,
     StudyStepPageContentRepository,
     StudyStepPageRepository,
     StudyStepRepository,
 )
-from rssa_api.data.repositories.study_participants import StudyParticipantRepository
-from rssa_api.data.schemas.study_components import ConditionCountSchema
-from datetime import datetime, timezone
-from typing import Any
-
-from rssa_api.data.models.study_participants import Demographic, ParticipantRecommendationContext
-from rssa_api.data.repositories.study_participants import (
+from rssa_storage.rssadb.repositories.study_participants import (
     ParticipantDemographicRepository,
     ParticipantRecommendationContextRepository,
+    StudyParticipantRepository,
 )
+from rssa_storage.shared import RepoQueryOptions
+
 from rssa_api.data.schemas.participant_schemas import DemographicsCreate
 from rssa_api.data.schemas.preferences_schemas import RecommendationContextBaseSchema, RecommendationContextSchema
+from rssa_api.data.schemas.study_components import ConditionCountSchema
 from rssa_api.data.services.base_ordered_service import BaseOrderedService
 from rssa_api.data.services.base_scoped_service import BaseScopedService
 from rssa_api.data.services.navigation_mixin import NavigationMixin
-from rssa_api.data.repositories.base_repo import RepoQueryOptions
 
 
 class StudyService(BaseScopedService[Study, StudyRepository]):

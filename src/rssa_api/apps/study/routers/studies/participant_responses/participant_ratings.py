@@ -15,7 +15,6 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantRatingUpdate,
 )
 from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
-from rssa_api.data.services.participant_responses.response_service import ParticipantResponseService
 
 ratings_router = APIRouter(
     prefix='/ratings',
@@ -75,7 +74,7 @@ async def update_content_rating(
     """
     client_version = item_rating.version
     update_data = item_rating.model_dump(exclude={'version'})
-    
+
     # Flatten rated_item if present because DB model is flat
     if 'rated_item' in update_data and update_data['rated_item']:
         ri = update_data.pop('rated_item')
@@ -106,7 +105,7 @@ async def update_content_rating(
 async def get_user_ratings(
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     service: ParticipantResponseServiceDep,
-    page_id: uuid.UUID = None,
+    page_id: uuid.UUID | None = None,
 ):
     """Retrieve all content ratings for a study participant.
 

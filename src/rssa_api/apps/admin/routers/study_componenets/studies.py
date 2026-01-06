@@ -299,7 +299,6 @@ async def create_study_condition(
     current_user: Annotated[User, Depends(get_current_user)],
     user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'create:conditions'))],
 ):
-    new_condition.created_by_id = current_user.id
     condition = await condition_service.create_for_owner(study_id, new_condition)
 
     return condition
