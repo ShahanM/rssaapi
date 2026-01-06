@@ -18,7 +18,7 @@ router = APIRouter(
 
 
 @router.post('/demographics', response_model=DemographicsCreate, status_code=status.HTTP_201_CREATED)
-async def create_particpant_demographic_info(
+async def create_participant_demographic_info(
     demographic_data: DemographicsCreate,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     participant_service: StudyParticipantServiceDep,
