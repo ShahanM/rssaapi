@@ -1,6 +1,4 @@
 import uuid
-from collections.abc import Sequence
-from typing import Any, Optional, Union
 
 from async_lru import alru_cache
 from rssa_storage.moviedb.models.movies import Movie
@@ -38,7 +36,7 @@ class MovieService(BaseService[Movie, MovieRepository]):
         movies = await self.movie_repo.find_many(RepoQueryOptions(filters={'movielens_id': movielens_ids}))
         return list(movies)
 
-    async def get_movie_by_movielens_id(self, movielens_id: str) -> Optional[Movie]:
+    async def get_movie_by_movielens_id(self, movielens_id: str) -> Movie | None:
         return await self.movie_repo.find_one(RepoQueryOptions(filters={'movielens_id': movielens_id}))
 
     async def get_movie_details_by_movielens_id(self, movielens_id: str) -> MovieDetailSchema:
@@ -47,7 +45,7 @@ class MovieService(BaseService[Movie, MovieRepository]):
         )
         return MovieDetailSchema.model_validate(movie)
 
-    async def get_movie_by_imdb_id(self, imdb_id: str) -> Optional[Movie]:
+    async def get_movie_by_imdb_id(self, imdb_id: str) -> Movie | None:
         parsed_id = imdb_id[2:] if imdb_id[:2].lower() == 'tt' else imdb_id
 
         return await self.movie_repo.find_one(RepoQueryOptions(filters={'imdb_id': parsed_id}))

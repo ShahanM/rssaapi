@@ -1,10 +1,9 @@
 """Service for models that have an inherent order."""
 
 import uuid
-from typing import Any, Optional, TypeVar, overload
+from typing import Any, TypeVar, overload
 
 from pydantic import BaseModel
-
 from rssa_storage.shared import BaseOrderedRepository
 
 from rssa_api.data.services.base_scoped_service import BaseScopedService
@@ -61,7 +60,7 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
         self,
         owner_id: uuid.UUID,
         schema: type[SchemaType],
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -69,14 +68,14 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
         self,
         owner_id: uuid.UUID,
         schema: None = None,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> list[OrderedModelType]: ...
 
     async def get_items_for_owner_as_ordered_list(
         self,
         owner_id: uuid.UUID,
-        schema: Optional[type[SchemaType]] = None,
-        limit: Optional[int] = None,
+        schema: type[SchemaType] | None = None,
+        limit: int | None = None,
     ) -> list[Any]:
         """Get all items for a specific owner as an ordered list.
 

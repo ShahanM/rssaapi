@@ -1,8 +1,6 @@
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
-
-from sqlalchemy.exc import IntegrityError
+from datetime import UTC, datetime
+from typing import Any
 
 from rssa_storage.rssadb.models.study_components import (
     Study,
@@ -10,7 +8,6 @@ from rssa_storage.rssadb.models.study_components import (
     StudyStep,
     StudyStepPage,
     StudyStepPageContent,
-    User,
 )
 from rssa_storage.rssadb.models.study_participants import (
     Demographic,
@@ -31,6 +28,7 @@ from rssa_storage.rssadb.repositories.study_participants import (
 )
 from rssa_storage.shared import RepoQueryOptions
 from rssa_storage.shared.generators import generate_ref_code
+from sqlalchemy.exc import IntegrityError
 
 from rssa_api.data.schemas.participant_schemas import DemographicsCreate
 from rssa_api.data.schemas.preferences_schemas import RecommendationContextBaseSchema, RecommendationContextSchema
@@ -71,12 +69,12 @@ class StudyConditionService(BaseScopedService[StudyCondition, StudyConditionRepo
         for attempt_count in range(1, 102):
             if short_code not in existing_codes:
                 break
-            
+
             # If we exceeded 100 attempts, use the fallback
             if attempt_count > 100:
                 short_code = f'{short_code}-{attempt_count}'
                 break
-            
+
             short_code = generate_ref_code()
 
         # 3. Inject into kwargs and Create
@@ -111,7 +109,7 @@ class StudyStepService(
     scope_field = 'study_id'
 
     async def validate_step_path_uniqueness(
-        self, study_id: uuid.UUID, path: str, exclude_step_id: Optional[uuid.UUID] = None
+        self, study_id: uuid.UUID, path: str, exclude_step_id: uuid.UUID | None = None
     ) -> bool:
         """Validate that a study step path is unique within a study.
 
@@ -158,7 +156,10 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
 
     async def get_participant_with_condition(self, participant_id: uuid.UUID) -> StudyParticipant | None:
         return await self.repo.find_one(
-            RepoQueryOptions(ids=[participant_id], load_options=StudyParticipantRepository.LOAD_CONDITION_AND_TYPE,)
+            RepoQueryOptions(
+                ids=[participant_id],
+                load_options=StudyParticipantRepository.LOAD_CONDITION_AND_TYPE,
+            )
         )
 
     async def create_demographic_info(
@@ -174,7 +175,7 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
             education=demographic_data.education,
             country=demographic_data.country,
             state_region=demographic_data.state_region,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
             version=1,
         )
         await self.demographics_repo.create(demographic_obj)
@@ -208,7 +209,7 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
 
     async def get_recommndation_context_by_participant_context(
         self, study_id: uuid.UUID, participant_id: uuid.UUID, context_tag: str
-    ) -> Optional[RecommendationContextSchema]:
+    ) -> RecommendationContextSchema | None:
         rec_ctx = await self.recommendation_context_repo.find_many(
             RepoQueryOptions(
                 filters={

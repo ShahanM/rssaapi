@@ -11,8 +11,8 @@ from rssa_storage.rssadb.repositories.study_participants import (
     StudyParticipantRepository,
 )
 
-from rssa_api.data.moviedb import get_repository as movie_repo_factory
-from rssa_api.data.rssadb import get_repository as rssa_repo_factory
+from rssa_api.data.sources.moviedb import get_repository as movie_repo_factory
+from rssa_api.data.sources.rssadb import get_repository as rssa_repo_factory
 
 from .recommender_service import RecommenderService
 

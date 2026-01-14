@@ -8,7 +8,6 @@ import random
 import secrets
 import uuid
 from collections.abc import Sequence
-from typing import Optional
 
 from async_lru import alru_cache
 from cryptography.fernet import Fernet
@@ -17,7 +16,7 @@ from rssa_storage.rssadb.models.study_components import ApiKey, User
 from rssa_storage.rssadb.repositories.study_admin import ApiKeyRepository, PreShuffledMovieRepository, UserRepository
 from rssa_storage.shared import RepoQueryOptions
 
-from rssa_api.config import get_env_var
+from rssa_api.core.config import get_env_var
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.study_components import ApiKeyRead
 from rssa_api.data.services.base_service import BaseService
@@ -141,7 +140,7 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
         return [ApiKeyRead.model_validate(api_key) for api_key in api_key_dicts]
 
     @alru_cache(maxsize=128)
-    async def validate_api_key(self, api_key_id: uuid.UUID, api_key_secret: str) -> Optional[ApiKey]:
+    async def validate_api_key(self, api_key_id: uuid.UUID, api_key_secret: str) -> ApiKey | None:
         """Validate API key against a provided key secret.
 
         This method looks up an api_key from the database using the provided key id.
@@ -194,7 +193,7 @@ class UserService(BaseService[User, UserRepository]):
     def __init__(self, user_repo: UserRepository):
         self.repo = user_repo
 
-    async def get_user_by_auth0_sub(self, token_user: str) -> Optional[User]:
+    async def get_user_by_auth0_sub(self, token_user: str) -> User | None:
         # return await self.repo.get_by_field('auth0_sub', token_user)
         return await self.repo.find_one(RepoQueryOptions(filters={'auth0_sub': token_user}))
 

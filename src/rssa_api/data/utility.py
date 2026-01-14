@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime
 from typing import Any
+from sqlalchemy import inspect
 
 
 def sa_obj_to_dict(obj):
-    from sqlalchemy import inspect
-
+    """Converts a SQLAlchemy object to a dictionary."""
     return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
 
 

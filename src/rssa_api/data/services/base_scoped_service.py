@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Sequence
-from typing import Any, Optional, TypeVar, overload
+from typing import Any, TypeVar, overload
 
 from pydantic import BaseModel
 from rssa_storage.shared import BaseRepository, RepoQueryOptions
@@ -26,8 +26,8 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         owner_id: uuid.UUID,
         item_id: uuid.UUID,
         schema: type[SchemaType],
-        options: Optional[Sequence[ExecutableOption]] = None,
-    ) -> Optional[SchemaType]: ...
+        options: Sequence[ExecutableOption] | None = None,
+    ) -> SchemaType | None: ...
 
     @overload
     async def get_for_owner(
@@ -35,16 +35,16 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         owner_id: uuid.UUID,
         item_id: uuid.UUID,
         schema: None = None,
-        options: Optional[Sequence[ExecutableOption]] = None,
-    ) -> Optional[ModelType]: ...
+        options: Sequence[ExecutableOption] | None = None,
+    ) -> ModelType | None: ...
 
     async def get_for_owner(
         self,
         owner_id: uuid.UUID,
         item_id: uuid.UUID,
-        schema: Optional[type[SchemaType]] = None,
-        options: Optional[Sequence[ExecutableOption]] = None,
-    ) -> Optional[Any]:
+        schema: type[SchemaType] | None = None,
+        options: Sequence[ExecutableOption] | None = None,
+    ) -> Any | None:
         """Get an item, but ONLY if it belongs to the owner."""
         repo_options = RepoQueryOptions(
             filters={'id': item_id},
@@ -68,10 +68,10 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         owner_id: uuid.UUID,
         limit: int,
         offset: int,
-        schema: Optional[type[SchemaType]] = None,
-        sort_by: Optional[str] = None,
-        sort_dir: Optional[str] = None,
-        search: Optional[str] = None,
+        schema: type[SchemaType] | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
+        search: str | None = None,
     ) -> list[Any]:
         """Fetch list explicitly scoped to the owner."""
         scope_filter = {self.scope_field: owner_id}
@@ -98,7 +98,7 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         kwargs.update({self.scope_field: owner_id})
         return await self.create(schema, **kwargs)
 
-    async def count_for_owner(self, owner_id: uuid.UUID, search: Optional[str] = None) -> int:
+    async def count_for_owner(self, owner_id: uuid.UUID, search: str | None = None) -> int:
         """Count items explicitly scoped to the owner."""
         scope_filter = {self.scope_field: owner_id}
         search_cols = getattr(self.repo, 'SEARCHABLE_COLUMNS', [])
@@ -112,7 +112,7 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
     async def get_all_for_owner(
         self,
         owner_id: uuid.UUID,
-        schema: Optional[type[SchemaType]] = None,
+        schema: type[SchemaType] | None = None,
     ) -> list[Any]:
         """Get all items for a specific owner."""
         repo_options = RepoQueryOptions(filters={self.scope_field: owner_id})

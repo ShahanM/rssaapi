@@ -19,9 +19,3 @@ movie_deps = DependencyFactory(db_provider=movie_db)
 
 get_repository = movie_deps.get_repository
 get_service = movie_deps.get_service
-
-
-# async def get_db():
-#     """Asynchronous generator to yield a database session."""
-#     async for session in generic_get_db(AsyncSessionLocal):
-#         yield session

@@ -5,7 +5,7 @@ from typing import TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-import rssa_api.config as cfg
+import rssa_api.core.config as cfg
 
 
 def create_db_components(db_name_env_key: str, echo: bool = False):
@@ -31,14 +31,17 @@ class BaseDatabaseContext:
     """Generic Asynchronous context manager for Database sessions."""
 
     def __init__(self, session_factory):
+        """Initialize the database context with a session factory."""
         self.session_factory = session_factory
         self.session = None
 
     async def __aenter__(self) -> AsyncSession:
+        """Create a new database session."""
         self.session = self.session_factory()
         return self.session
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Close the database session."""
         if self.session:
             if exc_type:
                 await self.session.rollback()
