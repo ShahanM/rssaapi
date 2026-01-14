@@ -1,6 +1,8 @@
+"""Authentication related schemas."""
+
 # in a file like 'core/schemas.py'
-from typing import Any
 import uuid
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -15,6 +17,8 @@ class Auth0UserSchema(BaseModel):
 
 
 class UserSchema(BaseModel):
+    """Schema for a User."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID

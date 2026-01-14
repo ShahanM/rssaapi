@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -25,11 +25,11 @@ class DBMixin(BaseModel):
 class AuditMixin(BaseModel):
     """A mixin that provides admin-related fields."""
 
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         ...,
         description='This is the timestamp logged at database insertion.',
     )
-    updated_at: Optional[datetime] = Field(..., description='This is the timestamp logged during last update.')
+    updated_at: datetime | None = Field(..., description='This is the timestamp logged during last update.')
 
 
 class DisplayNameMixin:

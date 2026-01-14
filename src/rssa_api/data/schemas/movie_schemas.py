@@ -1,13 +1,16 @@
+"""Movie related schemas."""
+
 import uuid
 from datetime import datetime
-from typing import Any, List, Optional
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel
 
 from rssa_api.data.schemas.base_schemas import DBMixin
 
 
 class EmotionsSchema(DBMixin):
+    """Schema for movie emotions."""
+
     movie_id: uuid.UUID
     movielens_id: str
     anger: float
@@ -21,63 +24,79 @@ class EmotionsSchema(DBMixin):
 
 
 class RecommendationTextSchema(DBMixin):
+    """Schema for recommendation text associated with a movie."""
+
     movie_id: uuid.UUID
     formal: str
     informal: str
-    source: Optional[str]
-    model: Optional[str]
+    source: str | None
+    model: str | None
     created_at: datetime
     updated_at: datetime
 
 
 class MovieSchema(DBMixin):
-    imdb_id: Optional[str]
-    tmdb_id: Optional[str]
+    """Base schema for a Movie."""
+
+    imdb_id: str | None
+    tmdb_id: str | None
     movielens_id: str
 
     title: str
     year: int
     ave_rating: float
 
-    imdb_avg_rating: Optional[float]
-    imdb_rate_count: Optional[int]
+    imdb_avg_rating: float | None
+    imdb_rate_count: int | None
 
-    tmdb_avg_rating: Optional[float]
-    tmdb_rate_count: Optional[int]
+    tmdb_avg_rating: float | None
+    tmdb_rate_count: int | None
 
     genre: str
-    director: Optional[str]
+    director: str | None
     cast: str
     description: str
     poster: str
-    tmdb_poster: Optional[str] = ''
-    poster_identifier: Optional[str] = ''
+    tmdb_poster: str | None = ''
+    poster_identifier: str | None = ''
 
 
 class ERSMovieSchema(MovieSchema):
+    """Movie schema including emotions."""
+
     emotions: EmotionsSchema
 
 
 class MovieSearchRequest(BaseModel):
+    """Request schema for searching movies."""
+
     query: str
 
 
 class MovieSearchResponse(BaseModel):
-    exact_match: List[MovieSchema] = []
-    near_matches: List[MovieSchema] = []
+    """Response schema for movie search results."""
+
+    exact_match: list[MovieSchema] = []
+    near_matches: list[MovieSchema] = []
 
 
 class MovieDetailSchema(MovieSchema):
-    emotions: Optional[EmotionsSchema] = None
-    recommendations_text: Optional[RecommendationTextSchema] = None
+    """Detailed movie schema including emotions and recommendation text."""
+
+    emotions: EmotionsSchema | None = None
+    recommendations_text: RecommendationTextSchema | None = None
 
 
 class PaginatedMovieList(BaseModel):
+    """Schema for a paginated list of movies."""
+
     data: list[MovieDetailSchema]
     count: int
 
 
 class ReviewItem(BaseModel):
+    """Schema for a single movie review."""
+
     text: str
     helpful: int
     unhelpful: int
@@ -85,5 +104,7 @@ class ReviewItem(BaseModel):
 
 
 class ImdbReviewsPayloadSchema(BaseModel):
+    """Payload schema for IMDB reviews."""
+
     imdb_id: str
     reviews: list[ReviewItem]
