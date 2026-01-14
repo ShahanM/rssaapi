@@ -1,19 +1,14 @@
 import pytest
-from httpx import AsyncClient
-from fastapi import status
+
 
 @pytest.mark.asyncio
 async def test_admin_routers_structure():
-    """
-    Simple test to verify that the admin routers can be imported and have the expected structure.
+    """Simple test to verify that the admin routers can be imported and have the expected structure.
     This is a basic sanity check.
     """
-    from rssa_api.apps.admin.routers.survey_constructs import survey_constructs
-    from rssa_api.apps.admin.routers.survey_constructs import survey_items
+    from rssa_api.apps.admin.routers import api_keys, movies, users
     from rssa_api.apps.admin.routers.study_components import studies
-    from rssa_api.apps.admin.routers import users
-    from rssa_api.apps.admin.routers import api_keys
-    from rssa_api.apps.admin.routers import movies
+    from rssa_api.apps.admin.routers.survey_constructs import survey_constructs, survey_items
 
     assert survey_constructs.router is not None
     assert survey_items.router is not None

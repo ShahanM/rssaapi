@@ -2,10 +2,9 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import HTTPException
+from rssa_storage.rssadb.models.study_components import StudyCondition
+from rssa_storage.rssadb.models.study_participants import StudyParticipant
 
-from rssa_api.data.models.study_components import StudyCondition
-from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.services.dependencies import EnrollmentService
 
 
@@ -59,13 +58,14 @@ async def test_enroll_participant_success(service, mock_condition_repo, mock_par
     def create_side_effect(x):
         x.id = uuid.uuid4()
         return x
+
     mock_participant_repo.create.side_effect = create_side_effect
 
     from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
-    
+
     new_participant = StudyParticipantCreate(
         study_participant_type_id=uuid.uuid4(),
-        external_id="test_external_id",
+        external_id='test_external_id',
         study_id=study_id,
         current_step_id=uuid.uuid4(),
     )
@@ -99,10 +99,10 @@ async def test_enroll_participant_fails_no_conditions(service, mock_condition_re
     mock_condition_repo.find_many.return_value = []
 
     from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
-    
+
     new_participant = StudyParticipantCreate(
         study_participant_type_id=uuid.uuid4(),
-        external_id="test_external_id",
+        external_id='test_external_id',
         study_id=study_id,
         current_step_id=uuid.uuid4(),
     )
