@@ -126,7 +126,9 @@ def require_permissions(*scopes: str) -> Callable[[Auth0UserSchema], Auth0UserSc
         Callable[[Auth0UserSchema], Auth0UserSchema]: A dependency function that validates permissions.
     """
 
-    def check_permission_inner(user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)]) -> Auth0UserSchema:
+    def check_permission_inner(
+        user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+    ) -> Auth0UserSchema:
         if not any(scope in user.permissions for scope in scopes):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,

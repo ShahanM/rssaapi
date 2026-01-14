@@ -272,7 +272,5 @@ async def search_users(search_query: str | None = None, page: int = 0, per_page:
     url = f'https://{cfg.AUTH0_DOMAIN}/api/v2/users'
 
     async with httpx.AsyncClient(headers=headers) as client:
-        response_json = await _handle_auth0_request(
-            client, 'GET', url, 'searching users', params=params
-        )
+        response_json = await _handle_auth0_request(client, 'GET', url, 'searching users', params=params)
         return response_json if isinstance(response_json, list) else []
