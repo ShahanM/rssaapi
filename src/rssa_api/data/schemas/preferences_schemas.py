@@ -165,10 +165,6 @@ class AdvisorProfileSchema(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,
-        # json_encoders={
-        #     uuid.UUID: lambda v: str(v),
-        #     datetime: lambda v: v.isoformat(),
-        # },
     )
 
 
@@ -179,10 +175,6 @@ class RecommendationJsonBaseSchema(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,
-        # json_encoders={
-        #     uuid.UUID: lambda v: str(v),
-        #     datetime: lambda v: v.isoformat(),
-        # },
     )
 
 
