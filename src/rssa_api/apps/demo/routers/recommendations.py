@@ -1,16 +1,15 @@
 from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Body, Depends
+
 from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 from rssa_api.data.schemas.preferences_schemas import (
     AdvisorProfileSchema,
     Avatar,
 )
-from rssa_api.data.services.content_dependencies import get_movie_service as movie_service
+from rssa_api.data.schemas.recommendations import EnrichedResponseWrapper
 from rssa_api.docs.metadata import RSTagsEnum as Tags
 from rssa_api.services.dependencies import RecommenderServiceDep
-from rssa_api.data.schemas.recommendations import RecommendationResponse
-
 
 router = APIRouter(
     prefix='/recommendations',
@@ -18,7 +17,7 @@ router = APIRouter(
 )
 
 
-@router.post('/', response_model=RecommendationResponse)
+@router.post('/', response_model=EnrichedResponseWrapper)
 async def get_recommendations(
     recommender_service: RecommenderServiceDep,
     ratings: list[MovieLensRating],
@@ -33,9 +32,8 @@ async def get_recommendations(
         limit: Number of recommendations to fetch.
         context_data: Optional dictionary for dynamic algorithm parameters (e.g. emotion inputs).
     """
-    response: RecommendationResponse = await recommender_service.get_recommendations(
+    response: EnrichedResponseWrapper = await recommender_service.get_recommendations(
         ratings=ratings, limit=limit, context_data=context_data
     )
 
     return response
-

@@ -174,7 +174,7 @@ async def create_new_participant_with_session(
     if not current_step:
         raise HTTPException(status_code=500, detail='Could not find next step, study is configuration fault.')
     new_participant.current_step_id = current_step['next_id']
-    # study_participant = await participant_service.create_for_owner(study_id, new_participant)
+
     study_participant = await enrollment_service.enroll_participant(study_id, new_participant)
     session = await session_service.create_session(study_participant.id)
     await movie_session_service.assign_pre_shuffled_list_participant(study_participant.id, 'ers')

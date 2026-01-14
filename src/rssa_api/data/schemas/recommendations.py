@@ -69,9 +69,10 @@ class ResponseWrapper(BaseModel):
 
 # RecommendationResponse = Union[StandardRecResponse, EnrichedRecResponse]
 
-RecommendationResponse = Union[
-    dict[int, Union[EnrichedAdvisorRecItem, EnrichedCommunityScoreItem]], list[MovieDetailSchema]
-]
+EnrichedRecUnionType = dict[int, EnrichedAdvisorRecItem | EnrichedCommunityScoreItem | MovieDetailSchema] | list[MovieDetailSchema]
+class EnrichedResponseWrapper(BaseModel):
+    rec_type: Literal['standard', 'community_advisors', 'community_comparison']
+    items: EnrichedRecUnionType
 
 
 class TuningPayload(BaseModel):

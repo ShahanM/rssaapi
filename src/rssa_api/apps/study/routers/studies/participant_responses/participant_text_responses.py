@@ -4,7 +4,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import get_current_participant, validate_api_key, validate_study_participant
-from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantFreeformResponseCreate,
     ParticipantFreeformResponseRead,
@@ -35,9 +34,7 @@ async def create_freeform_text_response(
     Returns:
         The created text response.
     """
-    created_response = await service.create_response(
-        text_response, id_token['sid'], id_token['pid']
-    )
+    created_response = await service.create_response(text_response, id_token['sid'], id_token['pid'])
     return created_response
 
 

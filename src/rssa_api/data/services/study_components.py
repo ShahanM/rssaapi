@@ -2,6 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from sqlalchemy.exc import IntegrityError
+
 from rssa_storage.rssadb.models.study_components import (
     Study,
     StudyCondition,
@@ -28,6 +30,7 @@ from rssa_storage.rssadb.repositories.study_participants import (
     StudyParticipantRepository,
 )
 from rssa_storage.shared import RepoQueryOptions
+from rssa_storage.shared.generators import generate_ref_code
 
 from rssa_api.data.schemas.participant_schemas import DemographicsCreate
 from rssa_api.data.schemas.preferences_schemas import RecommendationContextBaseSchema, RecommendationContextSchema
@@ -47,6 +50,38 @@ class StudyConditionService(BaseScopedService[StudyCondition, StudyConditionRepo
     """Service for managing study conditions."""
 
     scope_field = 'study_id'
+
+    async def create_for_owner(self, owner_id: uuid.UUID, schema: Any, **kwargs) -> StudyCondition:
+        # Optimistic Phase: Try to create using model default
+        for _ in range(5):
+            try:
+                return await super().create_for_owner(owner_id, schema, **kwargs)
+            except IntegrityError:
+                continue
+
+        # Fallback Phase: Manual Generation
+        # 1. Fetch all existing conditions for this study (owner)
+        existing_conditions = await self.get_all_for_owner(owner_id)
+        existing_codes = {c.short_code for c in existing_conditions}
+
+        # 2. Attempt to generate a unique code
+        short_code = generate_ref_code()
+
+        # Retry up to 100 times
+        for attempt_count in range(1, 102):
+            if short_code not in existing_codes:
+                break
+            
+            # If we exceeded 100 attempts, use the fallback
+            if attempt_count > 100:
+                short_code = f'{short_code}-{attempt_count}'
+                break
+            
+            short_code = generate_ref_code()
+
+        # 3. Inject into kwargs and Create
+        kwargs['short_code'] = short_code
+        return await super().create_for_owner(owner_id, schema, **kwargs)
 
     async def get_participant_count_by_condition(
         self,
@@ -120,6 +155,11 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
         super().__init__(participant_repo)
         self.demographics_repo = demographics_repo
         self.recommendation_context_repo = recommendation_context_repo
+
+    async def get_participant_with_condition(self, participant_id: uuid.UUID) -> StudyParticipant | None:
+        return await self.repo.find_one(
+            RepoQueryOptions(ids=[participant_id], load_options=StudyParticipantRepository.LOAD_CONDITION_AND_TYPE,)
+        )
 
     async def create_demographic_info(
         self, participant_id: uuid.UUID, demographic_data: DemographicsCreate

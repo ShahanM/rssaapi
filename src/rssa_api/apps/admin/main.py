@@ -4,8 +4,6 @@ from datetime import datetime
 from fastapi import FastAPI
 from starlette.types import ASGIApp
 
-from rssa_api.middlewares.access_logger import DashboardAccessLogMiddleware
-
 from .docs import admin_tags_metadata
 from .routers import movies as movie_admin
 from .routers import users as admin_users

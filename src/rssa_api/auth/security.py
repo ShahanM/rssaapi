@@ -6,9 +6,8 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
 from jose.exceptions import JWTClaimsError, JWTError
-from rssa_storage.rssadb.models.study_components import User
 
-from rssa_api.data.schemas import Auth0UserSchema
+from rssa_api.data.schemas.auth_schemas import Auth0UserSchema, UserSchema
 from rssa_api.data.services.dependencies import UserServiceDep
 
 from . import config as cfg
@@ -67,12 +66,12 @@ async def get_auth0_authenticated_user(
 async def get_current_user(
     token_user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     user_service: UserServiceDep,
-) -> User:
+) -> UserSchema:
     """Dependency that takes the validated Auth0 user and returns the local database user."""
     db_user = await user_service.get_user_by_auth0_sub(token_user.sub)
     if db_user is None:
         db_user = await user_service.create_user_from_auth0(token_user)
-    return db_user
+    return UserSchema.model_validate(db_user)
 
 
 def require_permissions(*scopes: str):

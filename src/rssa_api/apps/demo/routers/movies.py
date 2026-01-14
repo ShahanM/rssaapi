@@ -10,7 +10,6 @@ from rssa_api.data.schemas.movie_schemas import (
     PaginatedMovieList,
 )
 from rssa_api.data.services import MovieServiceDep
-from rssa_api.data.services.content_dependencies import get_movie_service
 from rssa_api.data.utility import sa_obj_to_dict
 
 router = APIRouter(

@@ -1,12 +1,13 @@
 import json
 import logging
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol, cast
 
 from aiobotocore.session import get_session
+from types_aiobotocore_lambda.client import LambdaClient
 
 from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
 from rssa_api.data.schemas.recommendations import (
-    RecommendationResponse,
+    EnrichedResponseWrapper,
     ResponseWrapper,
 )
 
@@ -15,8 +16,8 @@ log = logging.getLogger(__name__)
 
 class RecommendationStrategy(Protocol):
     async def recommend(
-        self, user_id: str, ratings: list[Any], limit: int, run_config: Optional[dict] = None
-    ) -> RecommendationResponse: ...
+        self, user_id: str, ratings: list[Any], limit: int, run_config: dict | None = None
+    ) -> EnrichedResponseWrapper: ...
 
 
 class RawAdvisorResponse:
@@ -31,7 +32,7 @@ class LambdaStrategy:
 
     def __init__(self, function_name: str, payload_template: dict, region_name: str = 'us-east-1'):
         self.logical_function_name = function_name
-        self.resolved_function_name: Optional[str] = None
+        self.resolved_function_name: str | None = None
         self.payload_template = payload_template
         self.region_name = region_name
         self._session = get_session()
@@ -68,10 +69,9 @@ class LambdaStrategy:
             return self.logical_function_name
 
     async def recommend(
-        self, user_id: str, ratings: list[MovieLensRating], limit: int, run_config: Optional[dict] = None
+        self, user_id: str, ratings: list[MovieLensRating], limit: int, run_config: dict | None = None
     ) -> ResponseWrapper:
         """Invokes the Lambda function."""
-        # Construct Payload
         payload = self.payload_template.copy()
         if run_config:
             payload.update(run_config)
@@ -83,9 +83,10 @@ class LambdaStrategy:
         # Invoke Lambda
         try:
             async with self._session.create_client('lambda', region_name=self.region_name) as client:
-                real_function_name = await self._resolve_function_name(client)
+                lambda_client = cast(LambdaClient, client)
+                real_function_name = await self._resolve_function_name(lambda_client)
                 log.info(f'Payload {payload} sent.')
-                response = await client.invoke(
+                response = await lambda_client.invoke(
                     FunctionName=real_function_name,
                     InvocationType='RequestResponse',
                     Payload=json.dumps(payload),
@@ -102,13 +103,6 @@ class LambdaStrategy:
                 log.info(f'Lambda Raw Response: {response_data}')
 
                 return ResponseWrapper.model_validate_json(response_data['body'])
-
-                # FIXME: this is a placeholder for testing
-                # return ResponseWrapper(
-                #     response_type='standard',
-                #     items=[],
-                #     total_count=7,
-                # )
 
         except Exception as e:
             log.error(f'Error invoking Lambda strategy {self.logical_function_name}: {e}')

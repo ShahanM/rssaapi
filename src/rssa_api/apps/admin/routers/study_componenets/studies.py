@@ -13,8 +13,8 @@ from rssa_api.auth.security import (
     get_current_user,
     require_permissions,
 )
-from rssa_api.data.models.study_components import User
 from rssa_api.data.schemas import Auth0UserSchema
+from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import (
     OrderedListItem,
     PreviewSchema,
@@ -97,7 +97,7 @@ async def get_studies(
         Auth0UserSchema,
         Depends(require_permissions('read:studies', 'admin:all', 'read:own_studies')),
     ],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
     page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
     page_size: int = Query(10, ge=1, le=100, description='The number of items per page'),
     sort_by: Optional[str] = Query(None, description='The field to sort by.'),
@@ -129,7 +129,7 @@ async def get_studies(
         )
     else:
         studies_from_db = await study_service.get_paged_for_owner(
-            owner_id=current_user.id,
+            owner_id=uuid.UUID(current_user.id),
             limit=page_size,
             offset=offset,
             schema=PreviewSchema,
@@ -169,7 +169,7 @@ async def get_study_detail(
         Auth0UserSchema,
         Depends(require_permissions('read:studies', 'admin:all', 'read:own_studies')),
     ],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Get a single instance of a study.
 
@@ -211,7 +211,7 @@ async def get_study_detail(
 async def create_study(
     new_study: StudyCreate,
     study_service: StudyServiceDep,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
     _: Annotated[None, Depends(require_permissions('create:studies', 'admin:all'))],
 ):
     """Create a new study instance.
@@ -227,7 +227,7 @@ async def create_study(
     Returns:
         The created study instance.
     """
-    created_study = await study_service.create_for_owner(current_user.id, new_study)
+    created_study = await study_service.create_for_owner(uuid.UUID(current_user.id), new_study)
 
     return StudyRead.model_validate(created_study)
 
@@ -296,7 +296,7 @@ async def create_study_condition(
     study_id: uuid.UUID,
     new_condition: StudyConditionCreate,
     condition_service: StudyConditionServiceDep,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
     user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'create:conditions'))],
 ):
     condition = await condition_service.create_for_owner(study_id, new_condition)
@@ -385,9 +385,9 @@ async def generate_study_api_key(
     study_id: uuid.UUID,
     new_api_key: ApiKeyCreate,
     key_service: ApiKeyServiceDep,
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[UserSchema, Depends(get_current_user)],
 ):
-    api_key = await key_service.create_api_key_for_study(study_id, new_api_key.description, user.id)
+    api_key = await key_service.create_api_key_for_study(study_id, new_api_key.description, uuid.UUID(user.id))
 
     return api_key
 
@@ -396,7 +396,7 @@ async def generate_study_api_key(
 async def get_api_keys(
     study_id: uuid.UUID,
     service: ApiKeyServiceDep,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     keys = await service.get_api_keys_for_study(study_id, current_user.id)
 

@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .base_schemas import DBMixin
+from .study_components import StudyConditionRead
 
 
 class StudyParticipantBase(BaseModel):
@@ -24,16 +25,32 @@ class StudyParticipantBase(BaseModel):
     current_page_id: Optional[uuid.UUID] = None
 
 
-class StudyParticipantCreate(StudyParticipantBase):
-    pass
+class StudyParticipantCreate(BaseModel):
+    participant_type_key: str
+    external_id: str
+    current_step_id: uuid.UUID
+    current_page_id: Optional[uuid.UUID] = None
+
 
 class StudyParticipantRead(StudyParticipantBase, DBMixin):
     study_id: uuid.UUID
-    condition_id: uuid.UUID
+    study_condition_id: uuid.UUID
     current_status: str
 
     def __hash__(self):
         return self.model_dump_json().__hash__()
+
+
+class StudyParticipantTypeRead(BaseModel):
+    id: uuid.UUID
+    key: str = Field(validation_alias='type')
+
+    model_config = {'from_attributes': True}
+
+
+class StudyParticipantReadWithCondition(StudyParticipantRead):
+    study_condition: "StudyConditionRead"
+    participant_type: StudyParticipantTypeRead = Field(validation_alias='study_participant_type')
 
 
 class DemographicsBase(BaseModel):

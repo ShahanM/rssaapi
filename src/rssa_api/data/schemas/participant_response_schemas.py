@@ -101,5 +101,5 @@ class ParticipantRatingRead(ParticipantRatingBase, VersionMixin, DBMixin):
     pass
 
 
-class ParticipantRatingUpdate(ParticipantRatingRead):
-    pass
+class ParticipantRatingUpdate(VersionMixin, DBMixin):
+    rated_item: RatedItem

@@ -62,6 +62,8 @@ class StudyConditionCreate(StudyConditionBase):
 
 
 class StudyConditionRead(StudyConditionBase, DBMixin, StudyParentMixin):
+    enabled: bool
+    short_code: str
     pass
 
 

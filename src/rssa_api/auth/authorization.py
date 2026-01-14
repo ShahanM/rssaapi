@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
@@ -68,7 +68,7 @@ async def get_current_participant(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        participant_id: Optional[str] = payload.get('sub')
+        participant_id: str | None = payload.get('sub')
         if participant_id is None:
             raise credentials_exception
     except JWTError as e:
