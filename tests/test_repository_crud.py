@@ -1,6 +1,8 @@
+"""Tests for generic repository CRUD operations."""
+
 import uuid
 from datetime import datetime
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from rssa_storage.rssadb.models.rssa_base_models import RssaBase as DBBaseModel
@@ -17,8 +19,12 @@ class MockModel(DBBaseModel):
 
 
 @pytest.mark.asyncio
-async def test_repository_crud_operations():
+async def test_repository_crud_operations() -> None:
+    """Verifies basic CRUD operations (Create, Update, Delete) in the base repository."""
     db_session = AsyncMock()
+
+    db_session.add = MagicMock()
+
     repo = BaseRepository(db_session, model=MockModel)
 
     # Test Create (Exists)

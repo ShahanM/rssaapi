@@ -1,3 +1,5 @@
+"""Tests for query scoping reproduction."""
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
@@ -9,7 +11,8 @@ from rssa_api.data.services.study_components import StudyStepService
 
 
 @pytest.mark.asyncio
-async def test_study_step_scoping_query_construction():
+async def test_study_step_scoping_query_construction() -> None:
+    """Verifies that the study step service constructs queries scoped by study_id."""
     # Mock DB session
     db_session = AsyncMock()
 

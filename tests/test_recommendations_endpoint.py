@@ -1,3 +1,5 @@
+"""Tests for the recommendations endpoint."""
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
@@ -6,15 +8,20 @@ import pytest
 from rssa_api.apps.study.main import api as study_api
 from rssa_api.auth.authorization import validate_study_participant
 from rssa_api.data.schemas.movie_schemas import EmotionsSchema, MovieDetailSchema
-from rssa_api.data.schemas.recommendations import EnrichedRecResponse
+from rssa_api.data.schemas.recommendations import EnrichedResponseWrapper
 from rssa_api.main import app
 from rssa_api.services.dependencies import get_recommender_service
 from rssa_api.services.recommender_service import RecommenderService
 
 
 @pytest.mark.asyncio
-async def test_recommendations_endpoint_returns_emotions(client, db_session):
+async def test_recommendations_endpoint_returns_emotions(client: MagicMock, db_session: MagicMock) -> None:
+    """Verifies that the recommendations endpoint correctly returns emotion data.
+
+    This test mocks the RecommenderService and ensures the API response structure matches expectations.
+    """
     # Setup Data
+    study_id = str(uuid.uuid4())
     user_id = str(uuid.uuid4())
 
     # Mock Response
@@ -69,17 +76,20 @@ async def test_recommendations_endpoint_returns_emotions(client, db_session):
         tmdb_popularity=1.0,
     )
 
-    response_obj = EnrichedRecResponse(recommendations=[movie_detail], total_count=1)
+    # response_obj = EnrichedRecResponse(items=[movie_detail], total_count=1, response_type='standard')
+    response_obj = EnrichedResponseWrapper(rec_type='standard', items={int(mock_movie.id): movie_detail})
 
     # Mock Service
     mock_service = AsyncMock(spec=RecommenderService)
-    mock_service.get_recommendations.return_value = response_obj
+    mock_service = AsyncMock(spec=RecommenderService)
+    # The endpoint calls get_recommendations_for_study_participant, not get_recommendations
+    mock_service.get_recommendations_for_study_participant.return_value = response_obj
 
     async def override_get_service():
         return mock_service
 
     async def override_validate(id_token: str = 'token'):
-        return {'pid': uuid.UUID(user_id)}
+        return {'pid': uuid.UUID(user_id), 'sid': uuid.UUID(study_id)}
 
     # Apply overrides
     # Override on study_api since it is the sub-application handling the request
@@ -96,15 +106,25 @@ async def test_recommendations_endpoint_returns_emotions(client, db_session):
     try:
         # Action
         response = await client.post(
-            '/study/recommendations/', json={'emotion_input': []}, headers={'Authorization': 'Bearer testtoken'}
+            '/study/recommendations/',
+            json={'emotion_input': []},
+            headers={
+                'Authorization': 'Bearer testtoken',
+            },
         )
 
         # Assertions
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
-        item = data[0]
+        assert isinstance(data, dict)
+        assert data['rec_type'] == 'standard'
+        assert len(data['items']) == 1
+
+        # Items is a dict keyed by movie ID
+        items_dict = data['items']
+        # Get the first item value
+        item = list(items_dict.values())[0]
+
         assert item['movielens_id'] == '101'
         assert 'emotions' in item
         assert item['emotions']['joy'] == 0.5

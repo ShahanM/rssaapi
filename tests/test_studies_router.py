@@ -1,3 +1,5 @@
+"""Tests for the studies router."""
+
 import uuid
 
 import pytest
@@ -6,12 +8,16 @@ from rssa_storage.rssadb.models.study_components import StudyStep
 
 from rssa_api.apps.study.main import api as study_api
 from rssa_api.auth.authorization import authorize_api_key_for_study
-from rssa_api.data.rssadb import rssa_db
+from rssa_api.data.sources.rssadb import rssa_db
 from rssa_api.main import app
 
 
 @pytest.mark.asyncio
-async def test_get_first_step(client: AsyncClient, db_session, seed_study, seed_user):
+async def test_get_first_step(client: AsyncClient, db_session, seed_study, seed_user) -> None:
+    """Verifies that the first step of a study can be retrieved.
+
+    Ensures correct routing and database interaction for study steps.
+    """
     # Seed step
     step_id = uuid.uuid4()
     step = StudyStep(

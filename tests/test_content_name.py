@@ -1,3 +1,5 @@
+"""Tests for content naming logic."""
+
 import uuid
 from unittest.mock import AsyncMock
 
@@ -10,7 +12,8 @@ from rssa_api.data.schemas.base_schemas import OrderedListItem
 
 
 @pytest.mark.asyncio
-async def test_study_step_page_content_name_property():
+async def test_study_step_page_content_name_property() -> None:
+    """Verifies the `name` property proxy on StudyStepPageContent."""
     # Create mock objects
     construct = SurveyConstruct(id=uuid.uuid4(), name='Test Construct', description='Desc')
     scale = SurveyScale(id=uuid.uuid4(), name='Test Scale')
@@ -47,7 +50,8 @@ async def test_study_step_page_content_name_property():
 
 
 @pytest.mark.asyncio
-async def test_repo_uses_load_options():
+async def test_repo_uses_load_options() -> None:
+    """Verifies that repository queries use load options for related fields."""
     db_session = AsyncMock()
     repo = StudyStepPageContentRepository(db_session)
 

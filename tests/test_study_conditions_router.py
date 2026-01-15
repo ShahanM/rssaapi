@@ -1,3 +1,5 @@
+"""Tests for the study conditions router."""
+
 import pytest
 from httpx import AsyncClient
 
@@ -8,7 +10,8 @@ from rssa_api.services.recommendation.registry import REGISTRY
 
 
 @pytest.mark.asyncio
-async def test_get_recommender_keys(client: AsyncClient):
+async def test_get_recommender_keys(client: AsyncClient) -> None:
+    """Verifies that the API correctly returns available recommender keys from the registry."""
     # Mock Auth0 user with required permissions
     async def override_get_auth0_authenticated_user():
         return Auth0UserSchema(sub='auth0|testadmin', email='admin@test.com', permissions=['admin:all'])
