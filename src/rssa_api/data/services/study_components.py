@@ -197,9 +197,9 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
         json_safe_dict = convert_datetime_to_str(json_safe_dict)
         rec_ctx = ParticipantRecommendationContext(
             study_id=study_id,
-            step_id=context_data.step_id,
-            step_page_id=context_data.step_page_id,
-            participant_id=participant_id,
+            study_step_id=context_data.step_id,
+            study_step_page_id=context_data.step_page_id,
+            study_participant_id=participant_id,
             context_tag=context_data.context_tag,
             recommendations_json=json_safe_dict,
         )

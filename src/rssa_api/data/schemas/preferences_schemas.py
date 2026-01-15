@@ -3,7 +3,7 @@
 import uuid
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from rssa_api.data.schemas.base_schemas import DBMixin
 from rssa_api.data.schemas.movie_schemas import MovieDetailSchema, MovieSchema
@@ -199,8 +199,8 @@ class RecommendationJsonPrefVizSchema(RecommendationJsonBaseSchema):
 class RecommendationContextBaseSchema(BaseModel):
     """Base schema for recommendation context."""
 
-    step_id: uuid.UUID
-    step_page_id: uuid.UUID | None = None
+    step_id: uuid.UUID = Field(validation_alias='study_step_id')
+    step_page_id: uuid.UUID | None = Field(default=None, validation_alias='study_step_page_id')
     context_tag: str
 
     recommendations_json: Any

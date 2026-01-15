@@ -1,3 +1,5 @@
+"""Service for handling recommendation logic."""
+
 import asyncio
 import logging
 import uuid
@@ -77,6 +79,8 @@ AVATARS = {
 
 
 class RecommenderService:
+    """Service for handling recommendation logic."""
+
     def __init__(
         self,
         study_participant_repository: StudyParticipantRepository,
@@ -99,6 +103,7 @@ class RecommenderService:
     async def get_recommendations(
         self, ratings: list[MovieLensRating], limit: int, context_data: dict[str, Any] | None = None
     ) -> EnrichedResponseWrapper:
+        """Get recommendations based on ratings."""
         if not context_data:
             # TODO: This will return the implicit top N.
             return []
@@ -109,6 +114,7 @@ class RecommenderService:
     async def get_recommendations_for_study_participant(
         self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict[str, Any]
     ) -> EnrichedResponseWrapper:
+        """Get recommendations for a study participant."""
         step_id = context_data.get('step_id')
         context_tag = context_data.get('context_tag')
         step_page_id = context_data.get('step_page_id')
@@ -236,6 +242,7 @@ class RecommenderService:
         return advisor_dict
 
     async def _enrich_pref_viz_response(self, response: ResponseWrapper) -> EnrichedRecUnionType:
+        """Helper to hydrate Preference Visualization responses with movie data."""
         all_rec_ids = set()
         comm_scores = []
         log.info(f'ITEM LENGTH {len(response.items)}')
@@ -254,6 +261,7 @@ class RecommenderService:
         }
 
     async def _enrich_with_moviedata(self, movielens_ids: list[str]) -> list[MovieDetailSchema]:
+        """Helper to enrich recommendations with movie data."""
         movielens_ids = [str(mid) for mid in movielens_ids]
         options = RepoQueryOptions(filters={'movielens_id': movielens_ids}, load_options=MovieRepository.LOAD_ALL)
         movies = await self.movie_repository.find_many(options)
@@ -262,6 +270,7 @@ class RecommenderService:
         return [movie_map[mid] for mid in movielens_ids]  # we must preserve original order, since they are ranked
 
     async def _upsert_interaction(self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict):
+        """Helper to upsert participant interactions."""
         try:
             step_id_str = context_data.get('step_id')
             if step_id_str:

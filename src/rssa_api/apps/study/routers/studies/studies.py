@@ -78,6 +78,7 @@ class ResumeResponseSchema(BaseModel):
 
     current_step_id: uuid.UUID
     current_page_id: uuid.UUID | None = None
+    token: str
 
     model_config = ConfigDict(from_attributes=True)
 
