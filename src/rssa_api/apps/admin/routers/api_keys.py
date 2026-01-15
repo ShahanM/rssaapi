@@ -1,12 +1,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
+from rssa_storage.rssadb.models.study_components import User
 
 from rssa_api.auth.security import get_auth0_authenticated_user, get_current_user
-from rssa_api.data.models.study_components import User
 from rssa_api.data.schemas.study_components import ApiKeyRead
-from rssa_api.data.services import ApiKeyServiceDep
+from rssa_api.data.services.dependencies import ApiKeyServiceDep
 
 router = APIRouter(
     prefix='/api-keys',

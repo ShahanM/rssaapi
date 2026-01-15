@@ -1,3 +1,5 @@
+"""Documentation metadata for the Admin API."""
+
 ADMIN_USERS_TAG = 'Users [Admin]'
 ADMIN_MOVIES_TAG = 'Movies [Admin]'
 ADMIN_STUDIES_TAG = 'Studies [Admin]'

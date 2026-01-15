@@ -1,4 +1,6 @@
-from typing import Annotated, Optional
+"""Router for managing users in the admin API."""
+
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -20,9 +22,7 @@ async def get_user_profile_endpoint(
     user_id: str,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
-    """
-    API endpoint to fetch a user's public profile information.
-    """
+    """API endpoint to fetch a user's public profile information."""
     profile = await get_user_profile_by_id(user_id)
     if not profile:
         raise HTTPException(status_code=404, detail='User profile not found.')
@@ -35,9 +35,7 @@ async def get_user_permissions(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     admin: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ):
-    """
-    API endpoint to fetch a user's permissions.
-    """
+    """API endpoint to fetch a user's permissions."""
     profile = await get_user_profile_by_id(user_id)
     if not profile:
         raise HTTPException(status_code=404, detail='User profile not found.')
@@ -52,10 +50,21 @@ async def get_user_permissions(
     """,
 )
 async def search_users_endpoint(
-    q: Optional[str] = None,
+    q: str | None = None,
     page: int = 0,
     per_page: int = 20,
     user: Auth0UserSchema = Depends(require_permissions('read:users')),
 ):
+    """Search for users in Auth0.
+
+    Args:
+        q: The search query string.
+        page: The page number (0-indexed).
+        per_page: The number of results per page.
+        user: Auth check.
+
+    Returns:
+        A dictionary containing the search results.
+    """
     users = await search_users(search_query=q, page=page, per_page=per_page)
     return users

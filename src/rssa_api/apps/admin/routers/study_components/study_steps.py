@@ -1,3 +1,5 @@
+"""Router for managing study steps in the admin API."""
+
 import logging
 import uuid
 from typing import Annotated
@@ -8,7 +10,7 @@ from rssa_api.auth.security import get_auth0_authenticated_user, require_permiss
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedListItem
 from rssa_api.data.schemas.study_components import StudyStepPageCreate, StudyStepPageRead, StudyStepRead
-from rssa_api.data.services import StudyStepPageServiceDep, StudyStepServiceDep
+from rssa_api.data.services.dependencies import StudyStepPageServiceDep, StudyStepServiceDep
 
 from ...docs import ADMIN_STUDY_STEPS_TAG
 
@@ -28,6 +30,19 @@ async def get_study_step(
     step_service: StudyStepServiceDep,
     _: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
+    """Get details of a specific study step.
+
+    Args:
+        step_id: The UUID of the step.
+        step_service: The study step service.
+        _: Auth check.
+
+    Raises:
+        HTTPException: If step is not found.
+
+    Returns:
+        The study step details.
+    """
     study_step = await step_service.get(step_id)
     if not study_step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
@@ -41,6 +56,17 @@ async def get_pages_for_study_step(
     page_service: StudyStepPageServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:pages', 'admin:all'))],
 ):
+    """Get pages associated with a study step.
+
+    Args:
+        step_id: The UUID of the step.
+        page_service: The page service.
+        page_service: The page service.
+        _: Auth check.
+
+    Returns:
+        A list of ordered pages for the step.
+    """
     pages_from_db = await page_service.get_items_for_owner_as_ordered_list(step_id)
 
     return [OrderedListItem.model_validate(p) for p in pages_from_db]
@@ -54,6 +80,21 @@ async def create_page_for_step(
     page_service: StudyStepPageServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('create:pages', 'admin:all'))],
 ):
+    """Create a new page for a study step.
+
+    Args:
+        step_id: The UUID of the step.
+        new_page: Data for the new page.
+        step_service: The study step service (to verify step exists).
+        page_service: The page service.
+        _: Auth check.
+
+    Raises:
+        HTTPException: If the step is not found.
+
+    Returns:
+        The created page details.
+    """
     step = await step_service.get(step_id)
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
@@ -84,6 +125,17 @@ async def update_study_step(
     step_service: StudyStepServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:steps', 'admin:all'))],
 ):
+    """Update a study step.
+
+    Args:
+        step_id: The UUID of the step to update.
+        payload: Fields to update.
+        step_service: The study step service.
+        _: Auth check.
+
+    Returns:
+        Status message.
+    """
     await step_service.update(step_id, payload)
 
     return {'Status': 'Success'}
@@ -95,6 +147,16 @@ async def delete_study_step(
     step_service: StudyStepServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:steps', 'admin:all'))],
 ):
+    """Delete a study step.
+
+    Args:
+        step_id: The UUID of the step to delete.
+        step_service: The study step service.
+        _: Auth check.
+
+    Returns:
+        Empty dictionary on success.
+    """
     await step_service.delete(step_id)
 
     return {}
