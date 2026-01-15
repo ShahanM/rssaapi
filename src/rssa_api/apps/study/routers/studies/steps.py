@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from rssa_api.auth.authorization import validate_api_key
 from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepPageRead, StudyStepRead
-from rssa_api.data.services import StudyStepPageServiceDep, StudyStepServiceDep
+from rssa_api.data.services.dependencies import StudyStepPageServiceDep, StudyStepServiceDep
 
 router = APIRouter(
     prefix='/steps',
@@ -29,13 +29,13 @@ async def get_study_step(
     """Retrieves a step from the database via the StudyStepService.
 
     Args:
-            step_id: The UUID of the study step to retrieve.
-            step_service: The dependency-injected study step service.
-            page_service: The dependency-injected study step page service.
-            study_id: The UUID of the study to which the step must belong.
+        step_id: The UUID of the study step to retrieve.
+        step_service: The dependency-injected study step service.
+        page_service: The dependency-injected study step page service.
+        study_id: The UUID of the study to which the step must belong.
 
     Returns:
-            StudyStepSchema: The study step object if found.
+        StudyStepSchema: The study step object if found.
     """
     step_result = await step_service.get_with_navigation(step_id)
     if not step_result:
@@ -73,12 +73,12 @@ async def get_first_page_endpoint(
     """Convenient routing to the StudySteps resources to access survey pages.
 
     Args:
-            step_id: The UUID for StudyStep.
-            page_service: The dependency-injected study step page service.
-            study_id: The UUID of the study to which the step must belong.
+        step_id: The UUID for StudyStep.
+        page_service: The dependency-injected study step page service.
+        study_id: The UUID of the study to which the step must belong.
 
     Returns:
-            SurveyPageSchema: The full content of the first survey page for the survey step.
+        SurveyPageSchema: The full content of the first survey page for the survey step.
     """
     page_result = await page_service.get_first_with_navigation(step_id)
     if not page_result:

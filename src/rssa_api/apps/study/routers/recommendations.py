@@ -1,3 +1,5 @@
+"""Router for recommendation endpoints."""
+
 import logging
 from typing import Annotated, Any
 
@@ -37,7 +39,5 @@ async def get_recommendations(
     response: EnrichedResponseWrapper = await recommender_service.get_recommendations_for_study_participant(
         study_id=id_token['sid'], study_participant_id=study_participant_id, context_data=context_data
     )
-
-    print('response', response)
 
     return response

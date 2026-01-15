@@ -1,19 +1,38 @@
+"""Pytest configuration and fixtures."""
+
+import uuid
 from collections.abc import AsyncGenerator
 
 import pytest_asyncio
+
+# Local imports
 from httpx import ASGITransport, AsyncClient
+
+# Import all models to ensure metadata is populated
+from rssa_storage.rssadb.models.rssa_base_models import RssaBase as DBBaseModel
+from rssa_storage.rssadb.models.study_components import Study, User
 
 # Patch PostgreSQL ARRAY for SQLite
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.pool import StaticPool
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.types import ARRAY, JSON
 
+from rssa_api.data.sources.rssadb import rssa_db
+from rssa_api.main import app
 
-@compiles(postgresql.ARRAY, 'sqlite')
+
 @compiles(ARRAY, 'sqlite')
 def compile_array(element, compiler, **kw):
+    """Compiles PostgreSQL ARRAY type to JSON for SQLite compatibility."""
+    return 'JSON'
+
+
+@compiles(postgresql.JSONB, 'sqlite')
+def compile_jsonb(element, compiler, **kw):
+    """Compiles PostgreSQL JSONB type to JSON for SQLite compatibility."""
     return 'JSON'
 
 
@@ -21,18 +40,19 @@ postgresql.JSONB = JSON
 
 # Import the app
 # Import all models to ensure metadata is populated
-from rssa_storage.rssadb.models.rssa_base_models import RssaBase as DBBaseModel
-from sqlalchemy.schema import UniqueConstraint
 
-from rssa_api.data.rssadb import rssa_db
-from rssa_api.main import app
 
 # SQLite in-memory database URL for testing
 SQLALCHEMY_DATABASE_URL = 'sqlite+aiosqlite:///:memory:'
 
 
 @pytest_asyncio.fixture(scope='session', loop_scope='session')
-async def db_engine():
+async def db_engine() -> AsyncGenerator[AsyncEngine, None]:
+    """Creates a test database engine (SQLite in-memory).
+
+    Yields:
+        AsyncEngine: The SQLAlchemy async engine.
+    """
     engine = create_async_engine(
         SQLALCHEMY_DATABASE_URL,
         connect_args={'check_same_thread': False},
@@ -57,7 +77,17 @@ async def db_engine():
 
 
 @pytest_asyncio.fixture(scope='function')
-async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+    """Creates a new database session for a test.
+
+    Rolls back the transaction after the test completes.
+
+    Args:
+        db_engine: The async database engine.
+
+    Yields:
+        AsyncSession: The database session.
+    """
     connection = await db_engine.connect()
     transaction = await connection.begin()
 
@@ -72,7 +102,18 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture(scope='function')
-async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """Creates a robust AsyncClient for API testing.
+
+    Overrides the database dependency to use the test session.
+
+    Args:
+        db_session: The test database session.
+
+    Yields:
+        AsyncClient: The HTTP client.
+    """
+
     async def override_get_db():
         yield db_session
 
@@ -85,13 +126,16 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
 
 
-import uuid
-
-from rssa_storage.rssadb.models.study_components import Study, User
-
-
 @pytest_asyncio.fixture
-async def seed_user(db_session):
+async def seed_user(db_session: AsyncSession) -> User:
+    """Seeds a test user into the database.
+
+    Args:
+        db_session: The database session.
+
+    Returns:
+        User: The created user object.
+    """
     user_id = uuid.uuid4()
     user = User(id=user_id, auth0_sub='auth0|testuser')
     db_session.add(user)
@@ -100,7 +144,16 @@ async def seed_user(db_session):
 
 
 @pytest_asyncio.fixture
-async def seed_study(db_session, seed_user):
+async def seed_study(db_session: AsyncSession, seed_user: User) -> Study:
+    """Seeds a test study into the database.
+
+    Args:
+        db_session: The database session.
+        seed_user: The study owner.
+
+    Returns:
+        Study: The created study object.
+    """
     study_id = uuid.uuid4()
     study = Study(
         id=study_id,

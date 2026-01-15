@@ -1,3 +1,5 @@
+"""Router for study page endpoints."""
+
 import uuid
 from typing import Annotated
 
@@ -5,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import validate_api_key
 from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepPageRead
-from rssa_api.data.services import StudyStepPageServiceDep
+from rssa_api.data.services.dependencies import StudyStepPageServiceDep
 
 router = APIRouter(
     prefix='/pages',
@@ -23,6 +25,16 @@ async def get_step_page_details(
     page_service: StudyStepPageServiceDep,
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
 ):
+    """Get details for a specific page.
+
+    Args:
+        page_id: UUID of the page.
+        page_service: Service for page operations.
+        study_id: Authorized study UUID.
+
+    Returns:
+        Page details with navigation info.
+    """
     page_result = await page_service.get_with_navigation(page_id)
     if page_result is None:
         raise HTTPException(

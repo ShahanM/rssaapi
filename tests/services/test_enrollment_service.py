@@ -1,16 +1,19 @@
+"""Tests for the EnrollmentService."""
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from rssa_storage.rssadb.models.study_components import StudyCondition
-from rssa_storage.rssadb.models.study_participants import StudyParticipant
+from rssa_storage.rssadb.models.study_participants import StudyParticipant, StudyParticipantType
 
 from rssa_api.data.services.dependencies import EnrollmentService
-
 
 # ---------------------------------------------------------
 # Fixtures: Setup the Mocks once for all tests
 # ---------------------------------------------------------
+
+
 @pytest.fixture
 def mock_participant_repo():
     # AsyncMock is required for 'await repo.create()'
@@ -24,12 +27,21 @@ def mock_condition_repo():
 
 
 @pytest.fixture
-def service(mock_participant_repo, mock_condition_repo):
+def mock_participant_type_repo():
+    return AsyncMock()
+
+
+@pytest.fixture
+def service(mock_participant_repo, mock_participant_type_repo, mock_condition_repo):
     """Initialize the service with the MOCKED repositories.
 
     No real database connection is created!
     """
-    return EnrollmentService(participant_repo=mock_participant_repo, study_condition_repo=mock_condition_repo)
+    return EnrollmentService(
+        participant_repo=mock_participant_repo,
+        participant_type_repo=mock_participant_type_repo,
+        study_condition_repo=mock_condition_repo,
+    )
 
 
 # ---------------------------------------------------------
@@ -38,7 +50,12 @@ def service(mock_participant_repo, mock_condition_repo):
 
 
 @pytest.mark.asyncio
-async def test_enroll_participant_success(service, mock_condition_repo, mock_participant_repo):
+async def test_enroll_participant_success(
+    service: EnrollmentService,
+    mock_participant_repo: AsyncMock,
+    mock_participant_type_repo: AsyncMock,
+    mock_condition_repo: AsyncMock,
+) -> None:
     """Scenario: Conditions exist, enrollment should succeed."""
     # 1. SETUP
     study_id = uuid.uuid4()
@@ -53,6 +70,9 @@ async def test_enroll_participant_success(service, mock_condition_repo, mock_par
     # Tell the mock repo: "When find_many is called, return this list"
     mock_condition_repo.find_many.return_value = [cond_a, cond_b]
 
+    # Tell the mock participant type repo: "When find_one is called, return this list"
+    mock_participant_type_repo.find_one.return_value = MagicMock(spec=StudyParticipantType)
+
     # Tell the mock participant repo to just return whatever it is given (simulating create)
     # And set an ID
     def create_side_effect(x):
@@ -64,10 +84,11 @@ async def test_enroll_participant_success(service, mock_condition_repo, mock_par
     from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
 
     new_participant = StudyParticipantCreate(
-        study_participant_type_id=uuid.uuid4(),
+        participant_type_key='test',
         external_id='test_external_id',
         study_id=study_id,
         current_step_id=uuid.uuid4(),
+        current_page_id=None,
     )
 
     # 2. EXECUTE
@@ -89,7 +110,9 @@ async def test_enroll_participant_success(service, mock_condition_repo, mock_par
 
 
 @pytest.mark.asyncio
-async def test_enroll_participant_fails_no_conditions(service, mock_condition_repo, mock_participant_repo):
+async def test_enroll_participant_fails_no_conditions(
+    service: EnrollmentService, mock_condition_repo: AsyncMock, mock_participant_repo: AsyncMock
+) -> None:
     """Scenario: No active conditions found for study. Should raise 400."""
     # 1. SETUP
     study_id = uuid.uuid4()
@@ -101,7 +124,7 @@ async def test_enroll_participant_fails_no_conditions(service, mock_condition_re
     from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
 
     new_participant = StudyParticipantCreate(
-        study_participant_type_id=uuid.uuid4(),
+        participant_type_key='test',
         external_id='test_external_id',
         study_id=study_id,
         current_step_id=uuid.uuid4(),

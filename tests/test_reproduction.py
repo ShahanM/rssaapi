@@ -1,3 +1,5 @@
+"""Tests reproducing specific service behaviors."""
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
@@ -44,7 +46,8 @@ class MockOrderedService(BaseOrderedService[MockOrderedModel, MockOrderedRepo]):
 
 
 @pytest.mark.asyncio
-async def test_base_scoped_service_methods():
+async def test_base_scoped_service_methods() -> None:
+    """Verifies base scoped service methods (get_for_owner, paged, etc)."""
     db = AsyncMock()
     # Mock db.execute result
     mock_result = MagicMock()
@@ -66,8 +69,12 @@ async def test_base_scoped_service_methods():
 
 
 @pytest.mark.asyncio
-async def test_base_ordered_service_methods():
+async def test_base_ordered_service_methods() -> None:
+    """Verifies base ordered service methods (create_for_owner, get ordered list)."""
     db = AsyncMock()
+
+    db.add = MagicMock()
+
     # Mock db.execute result
     mock_result = MagicMock()
     mock_result.scalars.return_value.first.return_value = MockOrderedModel(order_position=1)

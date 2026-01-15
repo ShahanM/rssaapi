@@ -4,9 +4,9 @@ Handles endpoints related to participant content ratings.
 """
 
 import uuid
-from typing import Annotated, Any
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from rssa_api.auth.authorization import validate_study_participant
 from rssa_api.data.schemas.participant_response_schemas import (
@@ -14,7 +14,8 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantRatingRead,
     ParticipantRatingUpdate,
 )
-from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
+from rssa_api.data.services import ResponseType
+from rssa_api.data.services.dependencies import ParticipantResponseServiceDep
 
 ratings_router = APIRouter(
     prefix='/ratings',
@@ -105,13 +106,14 @@ async def update_content_rating(
 async def get_user_ratings(
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     service: ParticipantResponseServiceDep,
-    page_id: uuid.UUID | None = None,
+    page_id: uuid.UUID = Query(...),
 ):
     """Retrieve all content ratings for a study participant.
 
     Args:
         id_token: The validated study and participant IDs.
         service: The participant response service.
+        page_id: UUID of the page to retrieve ratings for.
 
     Returns:
         A list of content ratings for the participant.

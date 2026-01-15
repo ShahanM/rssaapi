@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, status
 from rssa_api.auth.authorization import get_current_participant, validate_api_key
 from rssa_api.data.schemas.participant_response_schemas import FeedbackBaseSchema, FeedbackSchema
 from rssa_api.data.schemas.participant_schemas import StudyParticipantRead
-from rssa_api.data.services import FeedbackServiceDep
+from rssa_api.data.services.dependencies import FeedbackServiceDep
 
 router = APIRouter(
     prefix='/feedbacks',

@@ -1,3 +1,5 @@
+"""Tests for the StudyStepRepository."""
+
 import uuid
 from unittest.mock import AsyncMock
 
@@ -7,7 +9,8 @@ from rssa_storage.rssadb.repositories.study_components import StudyStepRepositor
 
 
 @pytest.mark.asyncio
-async def test_study_step_repo_crud():
+async def test_study_step_repo_crud() -> None:
+    """Verifies CRUD operations for the StudyStepRepository."""
     db_session = AsyncMock()
     repo = StudyStepRepository(db_session)
 

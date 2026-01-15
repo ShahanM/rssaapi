@@ -68,8 +68,7 @@ class AlternateRS(RSSABase):
     def get_condition_prediction(
         self, ratings: list[MovieLensRating], user_id: str, condition: int, num_rec: int
     ) -> list[str]:
-        """
-        Routes the request to the appropriate prediction method based on condition code.
+        """Routes the request to the appropriate prediction method based on condition code.
 
         Args:
             ratings: List of rated item schemas from the new user.
@@ -86,8 +85,7 @@ class AlternateRS(RSSABase):
         return self.prediction_functions[condition](ratings, user_id, num_rec)
 
     def get_predictions(self, ratings: list[MovieLensRating], user_id: str) -> pd.DataFrame:
-        """
-        Generates the user's predicted scores for all items, excluding items
+        """Generates the user's predicted scores for all items, excluding items
         the user has already rated.
 
         Args:
@@ -98,15 +96,13 @@ class AlternateRS(RSSABase):
             pd.DataFrame: DataFrame containing predictions ['item', 'score']
                         for unrated items.
         """
-
         rated_items = {r.item_id for r in ratings}
         _preds = self.predict_discounted(user_id, ratings, self.discounting_factor)
 
         return _preds[~_preds['item'].isin(rated_items)]
 
     def predict_user_top_n(self, ratings: list[MovieLensRating], user_id, n=10) -> list[int]:
-        """
-        Recommends the Top N highest predicted items (standard baseline).
+        """Recommends the Top N highest predicted items (standard baseline).
 
         Args:
             ratings, user_id: User context.
@@ -120,8 +116,7 @@ class AlternateRS(RSSABase):
         return top_n_discounted['item'].astype(int).to_list()
 
     def predict_user_hate_items(self, ratings: list[MovieLensRating], user_id, n=10) -> list[int]:
-        """
-        Recommends items predicted high by the community average but low by the user
+        """Recommends items predicted high by the community average but low by the user
         (items the user will 'hate' relative to the general consensus).
 
         Args:
@@ -141,8 +136,7 @@ class AlternateRS(RSSABase):
         return preds['item'].astype(int).to_list()
 
     def predict_user_hip_items(self, ratings: list[MovieLensRating], user_id, n=10) -> list[int]:
-        """
-        Recommends 'hip' items (items with high predicted score but low popularity/count).
+        """Recommends 'hip' items (items with high predicted score but low popularity/count).
 
         Args:
             ratings, user_id: User context.
@@ -162,8 +156,7 @@ class AlternateRS(RSSABase):
         return hip_items['item'].astype(int).to_list()
 
     def predict_user_no_clue_items(self, ratings: list[MovieLensRating], user_id, n=10) -> list[int]:
-        """
-        Recommends 'no clue' items (items with the highest prediction variance across
+        """Recommends 'no clue' items (items with the highest prediction variance across
         resampled models, indicating high model uncertainty).
 
         Args:
@@ -173,7 +166,6 @@ class AlternateRS(RSSABase):
         Returns:
             Top N 'no clue' item IDs.
         """
-
         resampled_df = self._high_std(user_id, ratings)
         rated_items = {r.item_id for r in ratings}
         resampled_df = resampled_df[~resampled_df['item'].isin(rated_items)]
@@ -182,8 +174,7 @@ class AlternateRS(RSSABase):
         return resampled_df['item'].astype(int).to_list()
 
     def predict_user_controversial_items(self, ratings: list[MovieLensRating], user_id, numRec=10) -> list[str]:
-        """
-        Recommends 'controversial' items (items with high variance in predicted scores
+        """Recommends 'controversial' items (items with high variance in predicted scores
         among the K nearest neighbors, indicating high local disagreement).
 
         Args:
@@ -211,8 +202,7 @@ class AlternateRS(RSSABase):
         return list(map(str, controversial_items['item_id']))
 
     def _high_std(self, user_id: str, ratings: list[MovieLensRating]):
-        """
-        Calculates model uncertainty (standard deviation of predicted scores)
+        """Calculates model uncertainty (standard deviation of predicted scores)
         across 20 resampled Matrix Factorization models.
 
         Args:
@@ -247,8 +237,7 @@ class AlternateRS(RSSABase):
         return all_items_std_df
 
     def _controversial(self, neighborhood_annoy_ids: list[int], user_map_lookup: dict[int, int]):
-        """
-        Calculates the variance of predicted scores among the K nearest neighbors.
+        """Calculates the variance of predicted scores among the K nearest neighbors.
 
         Args:
             neighborhood_internal_codes: List of internal 0-based indices (Annoy IDs) of K neighbors.

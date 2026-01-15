@@ -1,5 +1,8 @@
+"""Main entrypoint for the RSSA API."""
+
 import logging
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import FastAPI, Request, status
@@ -9,28 +12,30 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from rssa_api.apps import admin_api, demo_api, study_api
-from rssa_api.config import ROOT_PATH
-from rssa_api.core.config import configure_logging
-from rssa_api.middlewares.bad_request_logging import BadRequestLoggingMiddleware
-from rssa_api.middlewares.infostats import RequestHandlingStatsMiddleware
-from rssa_api.middlewares.logging import LoggingMiddleware
+from rssa_api.core.config import CORS_ORIGINS, PROJECT_ROOT, ROOT_PATH
+from rssa_api.core.logging import configure_structlog
+from rssa_api.core.middleware import StructlogAccessMiddleware
 
-configure_logging()
 logger = logging.getLogger(__name__)
 
-"""
-FastAPI App
-"""
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup: Configure logging
+    configure_structlog()
+    logger.info('Starting up RSSA API...')
+    yield
+    # Shutdown
+    logger.info('Shutting down RSSA API...')
+
+
 app = FastAPI(
-    root_path=ROOT_PATH,
-    # openapi_tags=tags_metadata,
     title='Recommender Systems for Self Actualization',
-    # summary=App_Meta.summary,
-    # description=App_Meta.description,
     version='0.2.0',
     terms_of_service='https://rssa.recsys.dev/terms',
-    # docs_url=None,
-    # redoc_url=None,
+    root_path=ROOT_PATH,
+    lifespan=lifespan,
     state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
     security=[{'Study ID': []}],
     json_encoders={
@@ -39,11 +44,17 @@ app = FastAPI(
     },
 )
 
-app.mount('/static', StaticFiles(directory='src/rssa_api/static'), name='static')
+# Robust static file mounting
+static_dir = PROJECT_ROOT / 'src' / 'rssa_api' / 'static'
+if static_dir.exists():
+    app.mount('/static', StaticFiles(directory=static_dir), name='static')
+else:
+    logger.warning(f'Static directory not found at {static_dir}')
 
 
 @app.exception_handler(ValidationError)
 async def validation_exception_handler(request: Request, exc: ValidationError):
+    """Handle Pydantic validation errors."""
     logger.error(f'Validation Error for URL: {request.url}')
     try:
         body = await request.body()
@@ -57,41 +68,23 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
     )
 
 
-"""
-CORS Origins
-"""
-origins = [
-    'http://localhost:3330',
-    'http://localhost:3330/*',
-    'http://localhost:3339',
-    'http://localhost:3339/*',
-    'http://localhost:3331',
-    'http://localhost:3340',
-    'http://localhost:3350',
-    'http://localhost:3000',
-    'http://localhost:3370',
-]
-
 app.mount('/study', study_api)
 app.mount('/admin', admin_api, 'RSSA Admin API')
 app.mount('/demo', demo_api)
 
-"""
-Middlewares
-"""
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
 )
-# app.add_middleware(RequestHandlingStatsMiddleware)
-# app.add_middleware(BadRequestLoggingMiddleware)
-# app.add_middleware(LoggingMiddleware)
+
+# Add access logging middleware
+app.add_middleware(StructlogAccessMiddleware)
 
 
 @app.get('/')
 async def root():
-    """Hello World!"""
+    """Root endpoint."""
     return {'message': 'Hello World! Welcome to RSSA APIs!'}

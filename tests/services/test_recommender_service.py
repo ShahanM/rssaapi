@@ -1,15 +1,25 @@
+"""Tests for the RecommenderService."""
+
 import uuid
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from rssa_storage.moviedb.repositories import MovieRepository
+from rssa_storage.rssadb.models.participant_responses import ParticipantRating
+from rssa_storage.rssadb.models.study_participants import ParticipantRecommendationContext, StudyParticipant
 from rssa_storage.rssadb.repositories.participant_responses import (
     ParticipantRatingRepository,
     ParticipantStudyInteractionResponseRepository,
 )
 from rssa_storage.rssadb.repositories.study_participants import StudyParticipantRepository
 
-from rssa_api.data.schemas.recommendations import EnrichedRecResponse, StandardRecResponse
+from rssa_api.data.schemas.movie_schemas import MovieDetailSchema
+from rssa_api.data.schemas.recommendations import (
+    EnrichedRecResponse,
+    EnrichedResponseWrapper,
+    ResponseWrapper,
+)
 from rssa_api.services.recommendation.strategies import LambdaStrategy
 
 # Mocking modules that might rely on AWS or DB connections if imported directly
@@ -18,7 +28,8 @@ from rssa_api.services.recommender_service import RecommenderService
 
 
 @pytest.fixture
-def mock_repos():
+def mock_repos() -> dict[str, AsyncMock]:
+    """Provides a dictionary of mocked repositories."""
     return {
         'study_participant': AsyncMock(spec=StudyParticipantRepository),
         'participant_rating': AsyncMock(spec=ParticipantRatingRepository),
@@ -29,56 +40,89 @@ def mock_repos():
 
 
 @pytest.fixture
-def recommender_service(mock_repos):
+def recommender_service(mock_repos: dict[str, AsyncMock]) -> RecommenderService:
+    """Initializes the RecommenderService with mocked repositories."""
     return RecommenderService(
         study_participant_repository=mock_repos['study_participant'],
         participant_rating_repository=mock_repos['participant_rating'],
         movie_repository=mock_repos['movie'],
         participant_interaction_repository=mock_repos['interaction'],
         recommendation_context_repository=mock_repos['context'],
+        ttl_seconds=300,
     )
 
 
 @pytest.fixture
-def mock_registry(monkeypatch):
+def mock_registry(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """Mocks the strategy registry to avoid external dependencies."""
     registry = {}
     monkeypatch.setattr('rssa_api.services.recommender_service.REGISTRY', registry)
     return registry
 
 
 @pytest.mark.asyncio
-async def test_get_recommendations_success(recommender_service, mock_repos, mock_registry):
+async def test_get_recommendations_success(
+    recommender_service: RecommenderService, mock_repos: dict[str, AsyncMock], mock_registry: dict[str, Any]
+) -> None:
+    """Verifies successful recommendation generation and enrichment."""
     # Setup
-    user_id = uuid.uuid4()
+    study_id = uuid.uuid4()
+    participant_id = uuid.uuid4()
+    step_id = uuid.uuid4()
+    context_tag = 'test_tag'
     algorithm_key = 'test_strategy'
 
     # Mock Participant
-    mock_participant = MagicMock()
-    mock_participant.study_condition.recommender_key = algorithm_key
+    mock_participant = MagicMock(spec=StudyParticipant)
     mock_repos['study_participant'].find_one.return_value = mock_participant
+    mock_participant.study_condition.recommender_key = algorithm_key
+    mock_participant.study_condition.recommendation_count = 10
 
     # Mock Strategy in Registry
     mock_strategy = AsyncMock(spec=LambdaStrategy)
-    expected_standard_response = StandardRecResponse(items=[101, 102], total_count=2)
-    mock_strategy.recommend.return_value = expected_standard_response
+    # expected_standard_response = StandardRecResponse(items=[101, 102], total_count=2, rec_type='standard')
+    expected_standard_response = ResponseWrapper(
+        items=[101, 102],
+        response_type='standard',
+    )
+    expected_enriched_response = EnrichedResponseWrapper(
+        rec_type='standard',
+        items={101: MagicMock(spec=MovieDetailSchema), 102: MagicMock(spec=MovieDetailSchema)},
+    )
+    mock_strategy.recommend.return_value = expected_enriched_response
     mock_registry[algorithm_key] = mock_strategy
 
     # Mock Ratings (History)
-    mock_rating = MagicMock()
+    mock_rating = MagicMock(spec=ParticipantRating)
     mock_rating.item_id = 999
     mock_rating.rating = 5.0
     mock_repos['participant_rating'].find_many.return_value = [mock_rating]
 
+    mock_repos['context'].find_one.return_value = None
+    context_data = {'step_id': str(step_id), 'context_tag': context_tag}
+
     # Mock Movie Enricher
-    mock_movie1 = MagicMock()
+    mock_movie1 = MagicMock(spec=MovieDetailSchema)
+    mock_movie1.id = uuid.uuid4()
     mock_movie1.movielens_id = '101'
     # Attributes for validation if we weren't mocking schema, but we will mock schema validation
 
-    mock_movie2 = MagicMock()
+    mock_movie2 = MagicMock(spec=MovieDetailSchema)
+    mock_movie2.id = uuid.uuid4()
     mock_movie2.movielens_id = '102'
 
     # Return list of movie objects
     mock_repos['movie'].find_many.return_value = [mock_movie1, mock_movie2]
+    mock_strategy.recommend.return_value = expected_standard_response
+
+    rec_ctx = ParticipantRecommendationContext(
+        study_id=study_id,
+        study_step_id=step_id,
+        study_participant_id=participant_id,
+        context_tag=context_tag,
+        recommendations_json=expected_standard_response.model_dump(),
+    )
+    mock_repos['context'].create.return_value = rec_ctx
 
     # Mock Schema Validation to return a simple object or dict
     # We need to patch MovieSchema in the service module
@@ -92,9 +136,8 @@ async def test_get_recommendations_success(recommender_service, mock_repos, mock
         MockMovieSchema.model_validate.side_effect = side_effect
 
         # Execution
-        context_data = {'step_id': str(uuid.uuid4()), 'context_tag': 'test_tag'}
         result = await recommender_service.get_recommendations_for_study_participant(
-            uuid.uuid4(), user_id, context_data
+            study_id, participant_id, context_data
         )
 
     # Assertions
@@ -113,23 +156,31 @@ async def test_get_recommendations_success(recommender_service, mock_repos, mock
 
 
 @pytest.mark.asyncio
-async def test_get_recommendations_missing_strategy(recommender_service, mock_repos, mock_registry):
-    user_id = uuid.uuid4()
+async def test_get_recommendations_missing_strategy(
+    recommender_service: RecommenderService, mock_repos: dict[str, AsyncMock], mock_registry: dict[str, Any]
+) -> None:
+    """Verifies that an error is raised when the strategy is missing."""
+    study_id = uuid.uuid4()
+    participant_id = uuid.uuid4()
 
     # Mock Participant with unknown strategy
-    mock_participant = MagicMock()
-    mock_participant.study_condition.recommender_key = 'unknown_algo'
+    mock_participant = MagicMock(spec=StudyParticipant)
     mock_repos['study_participant'].find_one.return_value = mock_participant
-
-    # Registry is empty
+    mock_participant.study_condition.recommender_key = 'unknown_algo'
+    mock_participant.study_condition.recommendation_count = 10
+    mock_repos['context'].find_one.return_value = None
 
     context_data = {'step_id': str(uuid.uuid4()), 'context_tag': 'test_tag'}
-    with pytest.raises(ValueError, match='No strategy found'):
-        await recommender_service.get_recommendations_for_study_participant(uuid.uuid4(), user_id, context_data)
+
+    with pytest.raises(ValueError, match='No strategy found for key: unknown_algo'):
+        await recommender_service.get_recommendations_for_study_participant(study_id, participant_id, context_data)
 
 
 @pytest.mark.asyncio
-async def test_get_recommendations_verifies_eager_load(recommender_service, mock_repos, mock_registry):
+async def test_get_recommendations_verifies_eager_load(
+    recommender_service: RecommenderService, mock_repos: dict[str, AsyncMock], mock_registry: dict[str, Any]
+) -> None:
+    """Verifies that movie details are eager loaded during enrichment."""
     # Setup
     user_id = uuid.uuid4()
     algorithm_key = 'test_strategy_eager'
@@ -141,7 +192,11 @@ async def test_get_recommendations_verifies_eager_load(recommender_service, mock
 
     # Mock Strategy
     mock_strategy = AsyncMock(spec=LambdaStrategy)
-    expected_response = StandardRecResponse(items=[101], total_count=1)
+    # expected_response = StandardRecResponse(items=[101], total_count=1)
+    expected_response = ResponseWrapper(
+        items=[101],
+        response_type='standard',
+    )
     mock_strategy.recommend.return_value = expected_response
     mock_registry[algorithm_key] = mock_strategy
 
@@ -172,7 +227,10 @@ async def test_get_recommendations_verifies_eager_load(recommender_service, mock
 
 
 @pytest.mark.asyncio
-async def test_get_recommendations_records_interaction(recommender_service, mock_repos, mock_registry):
+async def test_get_recommendations_records_interaction(
+    recommender_service: RecommenderService, mock_repos: dict[str, AsyncMock], mock_registry: dict[str, Any]
+) -> None:
+    """Verifies that participant interactions are recorded during recommendation."""
     # Setup
     user_id = uuid.uuid4()
     algorithm_key = 'test_strategy_interact'
@@ -187,7 +245,11 @@ async def test_get_recommendations_records_interaction(recommender_service, mock
 
     # Mock Strategy
     mock_strategy = AsyncMock(spec=LambdaStrategy)
-    expected_response = StandardRecResponse(items=[], total_count=0)
+    # expected_response = StandardRecResponse(items=[], total_count=0)
+    expected_response = ResponseWrapper(
+        items=[],
+        response_type='standard',
+    )
     mock_strategy.recommend.return_value = expected_response
     mock_registry[algorithm_key] = mock_strategy
 
@@ -225,7 +287,10 @@ async def test_get_recommendations_records_interaction(recommender_service, mock
 
 
 @pytest.mark.asyncio
-async def test_get_recommendations_updates_interaction(recommender_service, mock_repos, mock_registry):
+async def test_get_recommendations_updates_interaction(
+    recommender_service: RecommenderService, mock_repos: dict[str, AsyncMock], mock_registry: dict[str, Any]
+) -> None:
+    """Verifies that existing participant interactions are updated."""
     # Setup
     user_id = uuid.uuid4()
     algorithm_key = 'test_strategy_interact_update'
@@ -240,7 +305,11 @@ async def test_get_recommendations_updates_interaction(recommender_service, mock
 
     # Mock Strategy
     mock_strategy = AsyncMock(spec=LambdaStrategy)
-    mock_strategy.recommend.return_value = StandardRecResponse(items=[], total_count=0)
+    # mock_strategy.recommend.return_value = StandardRecResponse(items=[], total_count=0)
+    mock_strategy.recommend.return_value = ResponseWrapper(
+        items=[],
+        response_type='standard',
+    )
     mock_registry[algorithm_key] = mock_strategy
 
     # Mock Ratings (empty)
@@ -250,6 +319,8 @@ async def test_get_recommendations_updates_interaction(recommender_service, mock
     # Case 2: Existing Interaction (interaction found)
     existing_mock = MagicMock()
     existing_mock.id = uuid.uuid4()
+    # Mock recommendations_json as a dict so validation passes
+    existing_mock.recommendations_json = {'items': [], 'response_type': 'standard'}
     existing_mock.payload_json = {'history': [{'timestamp': 'old', 'emotion_input': []}]}
     mock_repos['interaction'].find_one.return_value = existing_mock
 

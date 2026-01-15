@@ -3,7 +3,7 @@
 import uuid
 from typing import ClassVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from rssa_api.data.schemas.base_schemas import (
     AuditMixin,
@@ -11,7 +11,17 @@ from rssa_api.data.schemas.base_schemas import (
     DBMixin,
     DisplayInfoMixin,
     DisplayNameMixin,
+    PreviewSchema,
 )
+
+
+class PaginatedConstructResponse(BaseModel):
+    """Schema for a paginated list of survey constructs."""
+
+    rows: list[PreviewSchema]
+    page_count: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ==============================================================================

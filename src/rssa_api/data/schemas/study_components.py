@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import ClassVar, Generic, TypeVar
 
-from pydantic import AliasPath, BaseModel, Field, computed_field
+from pydantic import AliasPath, BaseModel, ConfigDict, Field, computed_field
 
 from .base_schemas import (
     AuditMixin,
@@ -12,8 +12,18 @@ from .base_schemas import (
     DBMixin,
     DisplayInfoMixin,
     DisplayNameMixin,
+    PreviewSchema,
 )
 from .survey_components import SurveyItemRead, SurveyScaleLevelRead
+
+
+class PaginatedStudyResponse(BaseModel):
+    """Schema for a paginated list of studies."""
+
+    rows: list[PreviewSchema]  # type: ignore
+    page_count: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ConditionCountSchema(BaseModel):

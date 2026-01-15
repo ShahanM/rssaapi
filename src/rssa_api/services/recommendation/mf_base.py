@@ -14,7 +14,7 @@ License: MIT License (See LICENSE.md)
 # SPDX-License-Identifier: MIT License
 """
 
-from typing import Optional, Union, cast
+from typing import Union, cast
 
 import binpickle
 import numpy as np
@@ -51,7 +51,7 @@ class RSSABase:
         self.ave_item_score = pd.read_csv(self.path / 'averaged_item_score.csv')
 
         mf_model: MFPredictor = self._load_model_asset()
-        model_instance: Optional[MFModelType] = self._get_typed_model_instance(mf_model)
+        model_instance: MFModelType | None = self._get_typed_model_instance(mf_model)
         if model_instance is None:
             raise RuntimeError('Model was not loaded properly.')
         self.model: MFModelType = model_instance
@@ -61,7 +61,7 @@ class RSSABase:
         """Loads the trained MF model from a binary pickle file."""
         return binpickle.load(f'{self.path}/model.bpk')
 
-    def _get_typed_model_instance(self, model: MFPredictor) -> Optional[Union[als.BiasedMF, als.ImplicitMF]]:
+    def _get_typed_model_instance(self, model: MFPredictor) -> als.BiasedMF | als.ImplicitMF | None:
         if isinstance(model, als.BiasedMF):
             model = cast(als.BiasedMF, model)
         elif isinstance(model, als.ImplicitMF):
@@ -180,7 +180,7 @@ class RSSABase:
 
         return Q_target_slice, valid_item_ids
 
-    def predict(self, user_id: str, ratings: Optional[list[MovieLensRating]] = None) -> pd.DataFrame:
+    def predict(self, user_id: str, ratings: list[MovieLensRating] | None = None) -> pd.DataFrame:
         """Generates predictions for a new (out-of-sample) user using the trained LensKit Pipeline.
 
         Args:
@@ -233,7 +233,7 @@ class RSSABase:
 
         return als_preds
 
-    def get_user_feature_vector(self, ratings: list[MovieLensRating]) -> Optional[np.ndarray]:
+    def get_user_feature_vector(self, ratings: list[MovieLensRating]) -> np.ndarray | None:
         """Projects the new user's ratings into the latent feature space to obtain the user feature vector.
 
         Args:
@@ -261,9 +261,7 @@ class RSSABase:
 
         return None
 
-    def scale_value(
-        self, value: Union[float, int], new_min: float, new_max: float, cur_min: float, cur_max: float
-    ) -> float:
+    def scale_value(self, value: float | int, new_min: float, new_max: float, cur_min: float, cur_max: float) -> float:
         """Scales a value from the current range to a new range.
 
         Args:
