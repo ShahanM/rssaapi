@@ -12,6 +12,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 # Mock Model
 class MockModel(DBBaseModel):
+    """Mock model for testing repository CRUD operations."""
+
     __tablename__ = 'mock_model'
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column()

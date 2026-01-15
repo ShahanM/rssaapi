@@ -12,6 +12,7 @@ from rssa_api.services.recommendation.registry import REGISTRY
 @pytest.mark.asyncio
 async def test_get_recommender_keys(client: AsyncClient) -> None:
     """Verifies that the API correctly returns available recommender keys from the registry."""
+
     # Mock Auth0 user with required permissions
     async def override_get_auth0_authenticated_user():
         return Auth0UserSchema(sub='auth0|testadmin', email='admin@test.com', permissions=['admin:all'])
@@ -22,7 +23,6 @@ async def test_get_recommender_keys(client: AsyncClient) -> None:
     admin_api.dependency_overrides[get_auth0_authenticated_user] = override_get_auth0_authenticated_user
 
     # Clear root_path for testing to avoid routing issues with AsyncClient
-    original_root_path = app.root_path
     app.root_path = ''
 
     try:
