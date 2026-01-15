@@ -1,3 +1,5 @@
+"""Router for survey responses."""
+
 import uuid
 from typing import Annotated
 
@@ -32,6 +34,16 @@ async def create_survey_item_response(
     service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
+    """Create a survey item response.
+
+    Args:
+        item_response: Protocol schema.
+        service: Service for response operations.
+        id_token: Validated participant token.
+
+    Returns:
+        Created response.
+    """
     new_response = await service.create_response(item_response, id_token['sid'], id_token['pid'])
 
     return new_response
@@ -51,6 +63,17 @@ async def update_survey_item_response(
     service: ParticipantResponseServiceDep,
     _: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
+    """Update a survey item response.
+
+    Args:
+        response_item_id: UUID of the response to update.
+        item_response: Update data.
+        service: Service for response operations.
+        _: Validated participant token (unused).
+
+    Returns:
+        Status message.
+    """
     client_version = item_response.version
     update_successful = await service.update_response(
         ResponseType.SURVEY_ITEM, response_item_id, item_response.model_dump(exclude={'version'}), client_version
@@ -76,6 +99,16 @@ async def get_survey_item_response(
     service: ParticipantResponseServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
+    """Get survey responses for a page.
+
+    Args:
+        survey_page_id: UUID of the page.
+        service: Service for response operations.
+        id_token: Validated participant token.
+
+    Returns:
+        List of responses.
+    """
     item_responses = await service.get_response_for_page(
         ResponseType.SURVEY_ITEM, id_token['sid'], id_token['pid'], survey_page_id
     )

@@ -1,3 +1,5 @@
+"""Router for aggregation of participant response endpoints."""
+
 from fastapi import APIRouter, Depends
 
 from rssa_api.auth.authorization import get_current_participant, validate_api_key
@@ -9,7 +11,6 @@ from .survey_responses import survey_router
 
 router = APIRouter(
     prefix='/responses',
-    # tags=['Participant responses - text'],
     dependencies=[Depends(validate_api_key), Depends(get_current_participant)],
 )
 

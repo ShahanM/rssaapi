@@ -1,3 +1,5 @@
+"""Router for recommendation endpoints."""
+
 import logging
 from typing import Annotated, Any
 

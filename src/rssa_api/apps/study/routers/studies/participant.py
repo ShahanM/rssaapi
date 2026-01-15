@@ -1,3 +1,5 @@
+"""Router for participant endpoints."""
+
 import uuid
 from typing import Annotated
 
@@ -25,6 +27,15 @@ async def get_current_participant(
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     participant_service: StudyParticipantServiceDep,
 ):
+    """Get current participant details.
+
+    Args:
+        id_token: Validated participant token.
+        participant_service: Service for participant operations.
+
+    Returns:
+        Participant details with condition.
+    """
     participant = await participant_service.get_participant_with_condition(id_token['pid'])
 
     if not participant:
@@ -39,9 +50,19 @@ async def get_current_participant(
 async def create_participant_demographic_info(
     demographic_data: DemographicsCreate,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
-    participant_service: StudyParticipantServiceDep,
+    service: StudyParticipantServiceDep,
 ):
-    dem_data = await participant_service.create_demographic_info(id_token['pid'], demographic_data)
+    """Create participant demographic info.
+
+    Args:
+        demographic_data: Demographic information.
+        id_token: Validated participant token.
+        service: Service for participant operations.
+
+    Returns:
+        Created demographic info.
+    """
+    dem_data = await service.create_demographic_info(id_token['pid'], demographic_data)
 
     if not dem_data:
         raise HTTPException(

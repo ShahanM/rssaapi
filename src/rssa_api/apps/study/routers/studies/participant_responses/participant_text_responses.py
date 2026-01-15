@@ -1,3 +1,5 @@
+"""Router for participant text responses."""
+
 import uuid
 from typing import Annotated
 
@@ -79,9 +81,9 @@ async def get_participant_text_response(
     """Retrieve all freeform text responses for a specific study step and participant.
 
     Args:
-        text_response_id: The ID of the text response to retrieve.
+        page_id: UUID of the page.
         service: The participant response service.
-        _: The validated study and participant IDs (not used).
+        id_token: The validated study and participant IDs.
 
     Returns:
         The text response data for the specified study step and participant.

@@ -1,3 +1,5 @@
+"""Router for study page endpoints."""
+
 import uuid
 from typing import Annotated
 
@@ -23,6 +25,16 @@ async def get_step_page_details(
     page_service: StudyStepPageServiceDep,
     study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
 ):
+    """Get details for a specific page.
+
+    Args:
+        page_id: UUID of the page.
+        page_service: Service for page operations.
+        study_id: Authorized study UUID.
+
+    Returns:
+        Page details with navigation info.
+    """
     page_result = await page_service.get_with_navigation(page_id)
     if page_result is None:
         raise HTTPException(
