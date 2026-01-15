@@ -1,10 +1,10 @@
 import logging
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import validate_study_participant
-from rssa_api.data.schemas.recommendations import RecommendationResponse
+from rssa_api.data.schemas.recommendations import EnrichedResponseWrapper
 from rssa_api.docs.metadata import RSTagsEnum as Tags
 from rssa_api.services.dependencies import RecommenderServiceDep
 
@@ -16,11 +16,11 @@ router = APIRouter(
 )
 
 
-@router.post('/', response_model=RecommendationResponse)
+@router.post('/', response_model=EnrichedResponseWrapper)
 async def get_recommendations(
     recommender_service: RecommenderServiceDep,
     id_token: Annotated[dict, Depends(validate_study_participant)],
-    context_data: Optional[dict[str, Any]] = Body(default=None),
+    context_data: dict[str, Any] | None = Body(default=None),
 ):
     """Get recommendations for the current participant.
 
@@ -31,8 +31,13 @@ async def get_recommendations(
     """
     study_participant_id = id_token['pid']
 
-    response: RecommendationResponse = await recommender_service.get_recommendations_for_study_participant(
+    if context_data is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Missing context data.')
+
+    response: EnrichedResponseWrapper = await recommender_service.get_recommendations_for_study_participant(
         study_id=id_token['sid'], study_participant_id=study_participant_id, context_data=context_data
     )
+
+    print('response', response)
 
     return response

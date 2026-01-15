@@ -1,24 +1,43 @@
 from typing import Annotated
 
 from fastapi import Depends
-
-from rssa_api.data.repositories.content_dependencies import MovieRepositoryDep
-from rssa_api.data.repositories.dependencies import (
-    ParticipantRatingRepositoryDep,
-    ParticipantRecommendationContextRepositoryDep,
-    ParticipantStudyInteractionResponseRepositoryDep,
-    StudyParticipantRepositoryDep,
+from rssa_storage.moviedb.repositories import MovieRepository
+from rssa_storage.rssadb.repositories.participant_responses import (
+    ParticipantRatingRepository,
+    ParticipantStudyInteractionResponseRepository,
 )
+from rssa_storage.rssadb.repositories.study_participants import (
+    ParticipantRecommendationContextRepository,
+    StudyParticipantRepository,
+)
+
+from rssa_api.data.sources.moviedb import get_repository as movie_repo_factory
+from rssa_api.data.sources.rssadb import get_repository as rssa_repo_factory
 
 from .recommender_service import RecommenderService
 
 
 def get_recommender_service(
-    participant_repo: StudyParticipantRepositoryDep,
-    rating_repo: ParticipantRatingRepositoryDep,
-    movie_repo: MovieRepositoryDep,
-    interaction_repo: ParticipantStudyInteractionResponseRepositoryDep,
-    rec_ctx_repo: ParticipantRecommendationContextRepositoryDep,
+    participant_repo: Annotated[
+        StudyParticipantRepository,
+        Depends(rssa_repo_factory(StudyParticipantRepository)),
+    ],
+    rating_repo: Annotated[
+        ParticipantRatingRepository,
+        Depends(rssa_repo_factory(ParticipantRatingRepository)),
+    ],
+    interaction_repo: Annotated[
+        ParticipantStudyInteractionResponseRepository,
+        Depends(rssa_repo_factory(ParticipantStudyInteractionResponseRepository)),
+    ],
+    rec_ctx_repo: Annotated[
+        ParticipantRecommendationContextRepository,
+        Depends(rssa_repo_factory(ParticipantRecommendationContextRepository)),
+    ],
+    movie_repo: Annotated[
+        MovieRepository,
+        Depends(movie_repo_factory(MovieRepository)),
+    ],
 ) -> RecommenderService:
     """Get RecommenderService dependency."""
     return RecommenderService(

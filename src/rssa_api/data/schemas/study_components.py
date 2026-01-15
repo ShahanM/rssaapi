@@ -1,6 +1,8 @@
+"""Schemas for study components."""
+
 import uuid
 from datetime import datetime
-from typing import ClassVar, Generic, Optional, TypeVar
+from typing import ClassVar, Generic, TypeVar
 
 from pydantic import AliasPath, BaseModel, Field, computed_field
 
@@ -15,34 +17,45 @@ from .survey_components import SurveyItemRead, SurveyScaleLevelRead
 
 
 class ConditionCountSchema(BaseModel):
+    """Schema for condition counts."""
+
     condition_id: uuid.UUID
     condition_name: str
     participant_count: int
+
 
 T = TypeVar('T', bound=BaseModel)
 
 
 class NavigationWrapper(BaseModel, Generic[T]):
+    """Wrap any schema T with navigation fields."""
+
     """Wrap any schema T with a navigation fields."""
 
     data: T
 
-    next_id: Optional[uuid.UUID] = None
-    next_path: Optional[str] = None
+    next_id: uuid.UUID | None = None
+    next_path: str | None = None
 
 
 class StudyComponentBase(BaseModel):
+    """Base schema for study component."""
+
     name: str
     description: str
 
 
 class StudyParentMixin(BaseModel):
+    """Mixin for study parent."""
+
     study_id: uuid.UUID
 
 
 class StudyMetaOverrideMixin(BaseModel):
-    title: Optional[str] = None
-    instructions: Optional[str] = None
+    """Mixin for study metadata overrides."""
+
+    title: str | None = None
+    instructions: str | None = None
 
 
 # ==============================================================================
@@ -51,21 +64,31 @@ class StudyMetaOverrideMixin(BaseModel):
 # model: StudyCondition
 # ==============================================================================
 class StudyConditionBase(StudyComponentBase):
+    """Base schema for study condition."""
+
     recommendation_count: int
-    recommender_key: Optional[str] = None
-    created_by_id: Optional[uuid.UUID] = None
+    recommender_key: str | None = None
+    created_by_id: uuid.UUID | None = None
     pass
 
 
 class StudyConditionCreate(StudyConditionBase):
+    """Schema for creating a study condition."""
+
     pass
 
 
 class StudyConditionRead(StudyConditionBase, DBMixin, StudyParentMixin):
+    """Schema for reading a study condition."""
+
+    enabled: bool
+    short_code: str
     pass
 
 
 class StudyConditionAdminSchema(StudyConditionRead, AuditMixin):
+    """Schema for admin study condition."""
+
     pass
 
 
@@ -75,23 +98,30 @@ class StudyConditionAdminSchema(StudyConditionRead, AuditMixin):
 # model: PageContent
 # ==============================================================================
 class StudyStepPageContentBase(BaseModel):
+    """Base schema for study step page content."""
+
     survey_construct_id: uuid.UUID
     survey_scale_id: uuid.UUID
-    preamble: Optional[str] = None
+    preamble: str | None = None
 
 
 class StudyStepPageContentCreate(StudyStepPageContentBase):
+    """Schema for creating study step page content."""
+
     pass
 
 
 class StudyStepPageContentUpdate(BaseModel):
-    preamble: Optional[str] = None
-    survey_construct_id: Optional[uuid.UUID] = None
-    survey_scale_id: Optional[uuid.UUID] = None
+    """Schema for updating study step page content."""
 
+    preamble: str | None = None
+    survey_construct_id: uuid.UUID | None = None
+    survey_scale_id: uuid.UUID | None = None
 
 
 class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMixin, DisplayNameMixin, DisplayInfoMixin):
+    """Schema for reading study step page content."""
+
     study_step_page_id: uuid.UUID
 
     _display_name_source_field: ClassVar[str] = 'name'
@@ -108,6 +138,8 @@ class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMix
 
 
 class StudyStepPageContentAudit(StudyStepPageContentRead, AuditMixin):
+    """Schema for auditing study step page content."""
+
     pass
 
 
@@ -117,10 +149,14 @@ class StudyStepPageContentAudit(StudyStepPageContentRead, AuditMixin):
 # model: StudyStepPages
 # ==============================================================================
 class StudyStepPageBase(StudyComponentBase):
-    page_type: Optional[str] = None
+    """Base schema for study step page."""
+
+    page_type: str | None = None
 
 
 class StudyStepPageCreate(StudyStepPageBase):
+    """Schema for creating study step page."""
+
     pass
 
 
@@ -133,17 +169,21 @@ class StudyStepPageRead(
     DisplayNameMixin,
     DisplayInfoMixin,
 ):
+    """Schema for reading study step page."""
+
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
     study_step_id: uuid.UUID
 
-    study_step_page_contents: Optional[list[StudyStepPageContentRead]] = Field(
+    study_step_page_contents: list[StudyStepPageContentRead] | None = Field(
         validation_alias=AliasPath('study_step_page_contents'),
         default=[],
     )
 
 
 class StudyStepPageAudit(StudyStepPageRead, AuditMixin):
+    """Schema for auditing study step page."""
+
     pass
 
 
@@ -153,12 +193,16 @@ class StudyStepPageAudit(StudyStepPageRead, AuditMixin):
 # model: StudyStep
 # ==============================================================================
 class StudyStepBase(StudyComponentBase):
-    step_type: Optional[str] = None
+    """Base schema for study step."""
+
+    step_type: str | None = None
 
     path: str
 
 
 class StudyStepCreate(StudyStepBase):
+    """Schema for creating study step."""
+
     pass
 
 
@@ -171,14 +215,18 @@ class StudyStepRead(
     DisplayNameMixin,
     DisplayInfoMixin,
 ):
+    """Schema for reading study step."""
+
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
 
-    survey_api_root: Optional[str] = None  # Deprecated, use root_page_info instead
-    root_page_info: Optional[NavigationWrapper[StudyStepPageRead]] = None
+    survey_api_root: str | None = None  # Deprecated, use root_page_info instead
+    root_page_info: NavigationWrapper[StudyStepPageRead] | None = None
 
 
 class StudyStepAudit(StudyStepBase, AuditMixin):
+    """Schema for auditing study step."""
+
     pass
 
 
@@ -188,27 +236,35 @@ class StudyStepAudit(StudyStepBase, AuditMixin):
 # model: Study
 # ==============================================================================
 class StudyBase(StudyComponentBase):
+    """Base schema for study."""
+
     pass
 
 
 class StudyCreate(StudyBase):
+    """Schema for creating study."""
+
     pass
 
 
 class StudyRead(StudyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
+    """Schema for reading study."""
+
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
 
 
 class StudyAudit(StudyRead, AuditMixin):
-    owner_id: Optional[uuid.UUID] = Field(
+    """Schema for auditing study."""
+
+    owner_id: uuid.UUID | None = Field(
         None,  # Default value for an optional field
         description="""The owner's transformed identifier, used for querying
 		the OAuth provider's API.""",
     )
 
-    total_participants: Optional[int] = None
-    participants_by_condition: Optional[list[ConditionCountSchema]] = None
+    total_participants: int | None = None
+    participants_by_condition: list[ConditionCountSchema] | None = None
 
 
 # ==============================================================================
@@ -217,14 +273,20 @@ class StudyAudit(StudyRead, AuditMixin):
 # model: ApiKey
 # ==============================================================================
 class ApiKeyBase(BaseModel):
+    """Base schema for API key."""
+
     description: str
 
 
 class ApiKeyCreate(ApiKeyBase):
+    """Schema for creating API key."""
+
     pass
 
 
 class ApiKeyRead(ApiKeyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
+    """Schema for reading API key."""
+
     _display_name_source_field: ClassVar[str] = 'plain_text_key'
     _display_info_source_field: ClassVar[str] = 'description'
 
@@ -235,12 +297,9 @@ class ApiKeyRead(ApiKeyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
     is_active: bool
 
     created_at: datetime
-    last_used_at: Optional[datetime] = None
+    last_used_at: datetime | None = None
 
     @computed_field
     @property
-    def updated_at(self) -> Optional[datetime]:
+    def updated_at(self) -> datetime | None:
         return self.last_used_at
-
-
-

@@ -1,7 +1,7 @@
 """Base service providing common CRUD operations."""
 
 import uuid
-from typing import Any, Generic, Optional, TypeVar, overload
+from typing import Any, Generic, TypeVar, overload
 
 from pydantic import BaseModel
 from rssa_storage.shared import BaseRepository, RepoQueryOptions
@@ -34,15 +34,15 @@ class BaseService(Generic[ModelType, RepoType]):
         return await self.repo.create(model_instance)
 
     @overload
-    async def get(self, id: uuid.UUID, schema: type[SchemaType]) -> Optional[SchemaType]: ...
+    async def get(self, id: uuid.UUID, schema: type[SchemaType]) -> SchemaType | None: ...
 
     @overload
-    async def get(self, id: uuid.UUID, schema: None = None) -> Optional[ModelType]: ...
+    async def get(self, id: uuid.UUID, schema: None = None) -> ModelType | None: ...
 
     async def get(
         self,
         id: uuid.UUID,
-        schema: Optional[type[SchemaType]] = None,
+        schema: type[SchemaType] | None = None,
     ) -> Any:
         """Basic get by ID.
 
@@ -63,12 +63,12 @@ class BaseService(Generic[ModelType, RepoType]):
         return data_obj
 
     @overload
-    async def get_detailed(self, id: uuid.UUID, schema: type[SchemaType]) -> Optional[SchemaType]: ...
+    async def get_detailed(self, id: uuid.UUID, schema: type[SchemaType]) -> SchemaType | None: ...
 
     @overload
-    async def get_detailed(self, id: uuid.UUID, schema: None = None) -> Optional[ModelType]: ...
+    async def get_detailed(self, id: uuid.UUID, schema: None = None) -> ModelType | None: ...
 
-    async def get_detailed(self, id: uuid.UUID, schema: Optional[type[SchemaType]] = None) -> Any:
+    async def get_detailed(self, id: uuid.UUID, schema: type[SchemaType] | None = None) -> Any:
         """Get by ID, using the Repository's LOAD_FULL_DETAILS configuration if it exists.
 
         Args:
@@ -119,9 +119,9 @@ class BaseService(Generic[ModelType, RepoType]):
         limit: int,
         offset: int,
         schema: type[SchemaType],
-        sort_by: Optional[str] = None,
-        sort_dir: Optional[str] = None,
-        search: Optional[str] = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
+        search: str | None = None,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -130,19 +130,19 @@ class BaseService(Generic[ModelType, RepoType]):
         limit: int,
         offset: int,
         schema: None = None,
-        sort_by: Optional[str] = None,
-        sort_dir: Optional[str] = None,
-        search: Optional[str] = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
+        search: str | None = None,
     ) -> list[ModelType]: ...
 
     async def get_paged_list(
         self,
         limit: int,
         offset: int,
-        schema: Optional[type[SchemaType]] = None,
-        sort_by: Optional[str] = None,
-        sort_dir: Optional[str] = None,
-        search: Optional[str] = None,
+        schema: type[SchemaType] | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
+        search: str | None = None,
     ) -> list[Any]:
         """Generic paged list fetcher.
 
@@ -175,7 +175,7 @@ class BaseService(Generic[ModelType, RepoType]):
             return [schema.model_validate(obj) for obj in data_objs]
         return list(data_objs)
 
-    async def count(self, search: Optional[str] = None) -> int:
+    async def count(self, search: str | None = None) -> int:
         """Generic count, using SEARCHABLE_COLUMNS from repo.
 
         Args:

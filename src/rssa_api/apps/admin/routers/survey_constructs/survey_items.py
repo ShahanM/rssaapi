@@ -3,12 +3,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.survey_components import SurveyItemRead
-from rssa_api.data.services import SurveyItemServiceDep
+from rssa_api.data.services.dependencies import SurveyItemServiceDep
 
 from ...docs import ADMIN_CONSTRUCT_ITEMS_TAG
 
@@ -57,6 +57,17 @@ async def update_item(
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
 ):
+    """Update a survey item.
+
+    Args:
+        item_id: The UUID of the item to update.
+        payload: Fields to update.
+        service: The survey item service.
+        _: Auth check.
+
+    Returns:
+        Empty dictionary on success.
+    """
     await service.update(item_id, payload)
     return {}
 
@@ -75,5 +86,15 @@ async def delete_construct_item(
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:items', 'admin:all'))],
 ):
+    """Delete a survey item.
+
+    Args:
+        item_id: The UUID of the item to delete.
+        service: The survey item service.
+        _: Auth check.
+
+    Returns:
+        Empty dictionary on success.
+    """
     await service.delete(item_id)
     return {}

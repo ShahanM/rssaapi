@@ -4,16 +4,14 @@ from datetime import datetime
 from fastapi import FastAPI
 from starlette.types import ASGIApp
 
-from rssa_api.middlewares.access_logger import DashboardAccessLogMiddleware
-
 from .docs import admin_tags_metadata
 from .routers import movies as movie_admin
 from .routers import users as admin_users
-from .routers.study_componenets import studies as study_admin
-from .routers.study_componenets import study_conditions as condition_admin
-from .routers.study_componenets import study_step_page_contents as survey_admin
-from .routers.study_componenets import study_step_pages as page_admin
-from .routers.study_componenets import study_steps as step_admin
+from .routers.study_components import studies as study_admin
+from .routers.study_components import study_conditions as condition_admin
+from .routers.study_components import study_step_page_contents as survey_admin
+from .routers.study_components import study_step_pages as page_admin
+from .routers.study_components import study_steps as step_admin
 from .routers.survey_constructs import (
     survey_constructs_router,
     survey_items_router,

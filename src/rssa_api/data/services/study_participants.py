@@ -14,6 +14,7 @@ from rssa_storage.rssadb.repositories.study_participants import (
     ParticipantStudySessionRepository,
     StudyParticipantMovieSessionRepository,
     StudyParticipantRepository,
+    StudyParticipantTypeRepository,
 )
 from rssa_storage.shared import RepoQueryOptions
 from sqlalchemy import func
@@ -35,15 +36,19 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
     def __init__(
         self,
         participant_repo: StudyParticipantRepository,
+        participant_type_repo: StudyParticipantTypeRepository,
         study_condition_repo: StudyConditionRepository,
     ):
         super().__init__(participant_repo)
+        self.participant_type_repo = participant_type_repo
         self.study_condition_repo = study_condition_repo
 
     async def enroll_participant(
         self, study_id: uuid.UUID, new_participant: StudyParticipantCreate
     ) -> StudyParticipant:
-        study_conditions = await self.study_condition_repo.find_many(RepoQueryOptions(filters={'study_id': study_id}))
+        study_conditions = await self.study_condition_repo.find_many(
+            RepoQueryOptions(filters={'study_id': study_id, 'enabled': True})
+        )
 
         if not study_conditions:
             raise ValueError(f'No study conditions found for study ID: {study_id}')
@@ -53,8 +58,14 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
         # where n_i, and m_j are the number of participants in the i'th and j'th conditions respectively and i != j
         participant_condition = random.choice(study_conditions)
 
+        participant_type = await self.participant_type_repo.find_one(
+            RepoQueryOptions(filters={'type': new_participant.participant_type_key})
+        )
+        if not participant_type:
+            participant_type = await self.participant_type_repo.find_one(RepoQueryOptions(filters={'type': 'unknown'}))
+
         study_participant = StudyParticipant(
-            study_participant_type_id=new_participant.study_participant_type_id,
+            study_participant_type_id=participant_type.id,
             study_id=study_id,
             study_condition_id=participant_condition.id,
             external_id=new_participant.external_id,
@@ -128,13 +139,13 @@ class FeedbackService(BaseService[Feedback, FeedbackRepository]):
         """
         feedback_obj = Feedback(
             study_id=study_id,
-            step_id=feedback_data.study_step_id,
-            participant_id=participant_id,
+            study_step_id=feedback_data.study_step_id,
+            study_step_page_id=feedback_data.study_step_page_id,
+            study_participant_id=participant_id,
             context_tag=feedback_data.context_tag,
             feedback_text=feedback_data.feedback_text,
             feedback_type=feedback_data.feedback_type,
             feedback_category=feedback_data.feedback_category,
-            updated_at=datetime.now(UTC),
             version=1,
         )
         feedback_item = await self.repo.create(feedback_obj)

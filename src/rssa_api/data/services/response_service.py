@@ -12,12 +12,14 @@ from rssa_storage.rssadb.models.participant_responses import (
     ParticipantStudyInteractionResponse,
     ParticipantSurveyResponse,
 )
+from rssa_storage.rssadb.models.study_participants import StudyParticipant
 from rssa_storage.rssadb.repositories.participant_responses import (
     ParticipantFreeformResponseRepository,
     ParticipantRatingRepository,
     ParticipantStudyInteractionResponseRepository,
     ParticipantSurveyResponseRepository,
 )
+from rssa_storage.rssadb.repositories.study_participants import StudyParticipantRepository
 from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.data.schemas.participant_response_schemas import (
@@ -30,6 +32,7 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantSurveyResponseCreate,
     ParticipantSurveyResponseRead,
 )
+from rssa_api.data.services.base_service import BaseService
 from rssa_api.data.utility import convert_datetime_to_str, convert_uuids_to_str
 
 ResponseCreateUnionType = (
@@ -56,7 +59,7 @@ class ResponseType(str, Enum):
     CONTENT_RATING = 'content_rating'
 
 
-class ParticipantResponseService:
+class ParticipantResponseService(BaseService[StudyParticipant, StudyParticipantRepository]):
     """Orchestration service for managing participant responses in studies.
 
     This service provides methods to create, update, and retrieve various types of participant responses,
@@ -71,6 +74,7 @@ class ParticipantResponseService:
 
     def __init__(
         self,
+        particpant_repo: StudyParticipantRepository,
         item_response_repo: ParticipantSurveyResponseRepository,
         text_response_repo: ParticipantFreeformResponseRepository,
         content_rating_repo: ParticipantRatingRepository,
@@ -84,6 +88,7 @@ class ParticipantResponseService:
             content_rating_repo: Repository for participant ratings.
             interact_response_repo: Repository for study interaction responses.
         """
+        super().__init__(particpant_repo)
         self.item_repo = item_response_repo
         self.text_repo = text_response_repo
         self.rating_repo = content_rating_repo

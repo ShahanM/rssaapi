@@ -4,15 +4,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from rssa_api.auth.authorization import get_current_participant, validate_study_participant
-from rssa_api.data.models.study_participants import StudyParticipant
 from rssa_api.data.schemas.movie_schemas import (
     MovieSchema,
     MovieSearchRequest,
     MovieSearchResponse,
     PaginatedMovieList,
 )
+from rssa_api.data.schemas.participant_schemas import StudyParticipantRead
 from rssa_api.data.services import MovieServiceDep, StudyParticipantMovieSessionServiceDep
-from rssa_api.data.services.content_dependencies import get_movie_service
 
 router = APIRouter(
     prefix='/movies',
@@ -24,7 +23,7 @@ router = APIRouter(
 async def get_movies_with_emotions(
     movie_service: MovieServiceDep,
     session_service: StudyParticipantMovieSessionServiceDep,
-    current_participant: Annotated[StudyParticipant, Depends(get_current_participant)],
+    current_participant: Annotated[StudyParticipantRead, Depends(get_current_participant)],
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):

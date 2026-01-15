@@ -3,18 +3,17 @@
 import math
 import uuid
 from functools import reduce
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict
 
 from rssa_api.auth.security import (
     get_auth0_authenticated_user,
     get_current_user,
     require_permissions,
 )
-from rssa_api.data.models.study_components import User
 from rssa_api.data.schemas import Auth0UserSchema
+from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import (
     OrderedListItem,
     PreviewSchema,
@@ -24,8 +23,8 @@ from rssa_api.data.schemas.base_schemas import (
 from rssa_api.data.schemas.study_components import (
     ApiKeyCreate,
     ApiKeyRead,
+    PaginatedStudyResponse,
     StudyAudit,
-    StudyBase,
     StudyConditionCreate,
     StudyConditionRead,
     StudyCreate,
@@ -33,7 +32,7 @@ from rssa_api.data.schemas.study_components import (
     StudyStepCreate,
     StudyStepRead,
 )
-from rssa_api.data.services import (
+from rssa_api.data.services.dependencies import (
     ApiKeyServiceDep,
     StudyConditionServiceDep,
     StudyParticipantServiceDep,
@@ -61,25 +60,6 @@ router = APIRouter(
 )
 
 
-class PaginatedStudyResponse(BaseModel):
-    rows: list[PreviewSchema]  # type: ignore
-    page_count: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class StudyStepConfigObj(BaseModel):
-    step_id: uuid.UUID
-    path: str
-    component_type: str
-
-
-class StudyConfigSchema(BaseModel):
-    study_id: uuid.UUID
-    conditions: dict[str, uuid.UUID]
-    steps: list[StudyStepConfigObj]
-
-
 @router.get(
     '/',
     response_model=PaginatedStudyResponse,
@@ -97,12 +77,12 @@ async def get_studies(
         Auth0UserSchema,
         Depends(require_permissions('read:studies', 'admin:all', 'read:own_studies')),
     ],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
     page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
     page_size: int = Query(10, ge=1, le=100, description='The number of items per page'),
-    sort_by: Optional[str] = Query(None, description='The field to sort by.'),
-    sort_dir: Optional[SortDir] = Query(None, description='The direction to sort (asc or desc)'),
-    search: Optional[str] = Query(None, description='A search term to filter results by name or description'),
+    sort_by: str | None = Query(None, description='The field to sort by.'),
+    sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
+    search: str | None = Query(None, description='A search term to filter results by name or description'),
 ):
     """Get a paginated and sortable list of studies accessible to the current user.
 
@@ -129,7 +109,7 @@ async def get_studies(
         )
     else:
         studies_from_db = await study_service.get_paged_for_owner(
-            owner_id=current_user.id,
+            owner_id=uuid.UUID(current_user.id),
             limit=page_size,
             offset=offset,
             schema=PreviewSchema,
@@ -169,7 +149,7 @@ async def get_study_detail(
         Auth0UserSchema,
         Depends(require_permissions('read:studies', 'admin:all', 'read:own_studies')),
     ],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Get a single instance of a study.
 
@@ -211,7 +191,7 @@ async def get_study_detail(
 async def create_study(
     new_study: StudyCreate,
     study_service: StudyServiceDep,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
     _: Annotated[None, Depends(require_permissions('create:studies', 'admin:all'))],
 ):
     """Create a new study instance.
@@ -227,7 +207,7 @@ async def create_study(
     Returns:
         The created study instance.
     """
-    created_study = await study_service.create_for_owner(current_user.id, new_study)
+    created_study = await study_service.create_for_owner(uuid.UUID(current_user.id), new_study)
 
     return StudyRead.model_validate(created_study)
 
@@ -238,6 +218,18 @@ async def get_study_steps(
     step_service: StudyStepServiceDep,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
+    """Get a list of steps for a study.
+
+    Returns all steps associated with the given study ID, ordered by their position.
+
+    Args:
+        study_id: The UUID of the study.
+        step_service: The service to handle study step operations.
+        user: The currently authenticated user.
+
+    Returns:
+        A list of ordered study steps.
+    """
     study_steps = await step_service.get_items_for_owner_as_ordered_list(study_id, OrderedListItem)
     return study_steps
 
@@ -246,10 +238,14 @@ async def get_study_steps(
     '/{study_id}/steps',
     status_code=status.HTTP_201_CREATED,
     response_model=StudyStepRead,
-    summary='Get a list of steps for a study.',
+    summary='Create a new study step.',
     description="""
-	""",
-    response_description='A list of study steps: StudyStep[] or an empty list: [].',
+    Create a new step within a study.
+    
+    ## Permissions
+    Requires one of: `create:steps`, `admin:all`
+    """,
+    response_description='The created study step instance.',
 )
 async def create_study_step(
     study_id: uuid.UUID,
@@ -257,6 +253,17 @@ async def create_study_step(
     step_service: StudyStepServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('create:steps', 'admin:all'))],
 ):
+    """Create a new study step.
+
+    Args:
+        study_id: The UUID of the study to add the step to.
+        new_step: The step data to create.
+        step_service: The service to handle study step operations.
+        user: The currently authenticated user.
+
+    Returns:
+        The created study step.
+    """
     step_in_db = await step_service.create_for_owner(study_id, new_step)
 
     return StudyStepRead.model_validate(step_in_db)
@@ -267,9 +274,12 @@ async def create_study_step(
     response_model=list[StudyConditionRead],
     summary='Get a list of conditions assigned to a study.',
     description="""
-	""",
-    response_description="""A list of study conditions: StudyCondition[],
-	or an empty list: [].""",
+    Get a paginated list of conditions associated with a study.
+    
+    ## Permissions
+    Requires one of: `admin:all`, `read:conditions`
+    """,
+    response_description="""A list of study conditions.""",
 )
 async def get_study_conditions(
     study_id: uuid.UUID,
@@ -278,6 +288,18 @@ async def get_study_conditions(
     page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
     page_size: int = Query(10, ge=1, le=100, description='The number of items per page'),
 ):
+    """Get a list of conditions assigned to a study.
+
+    Args:
+        study_id: The UUID of the study.
+        condition_service: The service to handle condition operations.
+        user: The currently authenticated user.
+        page_index: The page number to retrieve (0-indexed).
+        page_size: The number of items per page.
+
+    Returns:
+        A list of study conditions.
+    """
     study_conditions = await condition_service.get_paged_for_owner(
         study_id, page_size, page_index * page_size, StudyConditionRead
     )
@@ -289,16 +311,32 @@ async def get_study_conditions(
     status_code=status.HTTP_201_CREATED,
     summary='Create a study condition for a study.',
     description="""
-	""",
-    response_description='HTTP 201 Created on success',
+    Create a new condition for the specified study.
+    
+    ## Permissions
+    Requires one of: `admin:all`, `create:conditions`
+    """,
+    response_description='The created study condition.',
 )
 async def create_study_condition(
     study_id: uuid.UUID,
     new_condition: StudyConditionCreate,
     condition_service: StudyConditionServiceDep,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
     user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'create:conditions'))],
 ):
+    """Create a study condition for a study.
+
+    Args:
+        study_id: The UUID of the study.
+        new_condition: The condition data to create.
+        condition_service: The service to handle condition operations.
+        current_user: The currently authenticated user.
+        user: The user with permissions.
+
+    Returns:
+        The created study condition.
+    """
     condition = await condition_service.create_for_owner(study_id, new_condition)
 
     return condition
@@ -318,6 +356,17 @@ async def update_study(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:studies', 'admin:all'))],
 ):
+    """Update a study.
+
+    Args:
+        study_id: The UUID of the study to update.
+        payload: A dictionary of fields to update.
+        study_service: The service to handle study operations.
+        user: The currently authenticated user.
+
+    Returns:
+        An empty dictionary on success.
+    """
     await study_service.update(study_id, payload)
 
     return {}
@@ -336,6 +385,16 @@ async def delete_study(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:studies', 'admin:all'))],
 ):
+    """Delete a study.
+
+    Args:
+        study_id: The UUID of the study to delete.
+        study_service: The service to handle study operations.
+        user: The currently authenticated user.
+
+    Returns:
+        An empty dictionary on success.
+    """
     await study_service.delete(study_id)
 
     return {}
@@ -348,6 +407,19 @@ async def reorder_study_steps(
     step_service: StudyStepServiceDep,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ):
+    """Reorder study steps.
+
+    Updates the order position of multiple steps within a study.
+
+    Args:
+        study_id: The UUID of the study.
+        payload: A list of objects containing step ID and new order position.
+        step_service: The service to handle study step operations.
+        user: The currently authenticated user.
+
+    Returns:
+        A success message.
+    """
     steps_map = {item.id: item.order_position for item in payload}
     await step_service.reorder_items(study_id, steps_map)
 
@@ -359,16 +431,30 @@ async def reorder_study_steps(
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Check if a step path is unique within a study',
     description="""
-	""",
-    response_description="""HTTP 204 No Content on success, or HTTP 409 CONFLICT on
-	failure.""",
+    Verifies that a proposed path for a study step is unique within the study.
+    """,
+    response_description="""HTTP 204 No Content on success.""",
 )
 async def validate_step_path_uniqueness(
     study_id: uuid.UUID,
     path: str,
     step_service: StudyStepServiceDep,
-    exclude_step_id: Optional[uuid.UUID] = None,
+    exclude_step_id: uuid.UUID | None = None,
 ):
+    """Check if a step path is unique within a study.
+
+    Args:
+        study_id: The UUID of the study.
+        path: The path string to validate.
+        step_service: The service to handle study step operations.
+        exclude_step_id: Optional UUID of a step to exclude from the check (useful for updates).
+
+    Raises:
+        HTTPException: If the path is already in use (409 Conflict).
+
+    Returns:
+        An empty dictionary if valid.
+    """
     validated = await step_service.validate_step_path_uniqueness(study_id, path, exclude_step_id)
 
     if not validated:
@@ -385,9 +471,20 @@ async def generate_study_api_key(
     study_id: uuid.UUID,
     new_api_key: ApiKeyCreate,
     key_service: ApiKeyServiceDep,
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[UserSchema, Depends(get_current_user)],
 ):
-    api_key = await key_service.create_api_key_for_study(study_id, new_api_key.description, user.id)
+    """Generate a new API key for a study.
+
+    Args:
+        study_id: The UUID of the study.
+        new_api_key: The API key data (description).
+        key_service: The service to handle API key operations.
+        user: The currently authenticated user.
+
+    Returns:
+        The newly created API key details.
+    """
+    api_key = await key_service.create_api_key_for_study(study_id, new_api_key.description, uuid.UUID(user.id))
 
     return api_key
 
@@ -396,34 +493,18 @@ async def generate_study_api_key(
 async def get_api_keys(
     study_id: uuid.UUID,
     service: ApiKeyServiceDep,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
+    """Get all API keys for a study.
+
+    Args:
+        study_id: The UUID of the study.
+        service: The service to handle API key operations.
+        current_user: The currently authenticated user.
+
+    Returns:
+        A list of API keys associated with the study.
+    """
     keys = await service.get_api_keys_for_study(study_id, current_user.id)
 
     return keys
-
-
-# @router.get('/{study_id}/export_study_config', response_model=StudyConfigSchema)
-# async def export_study_config(
-#     study_id: uuid.UUID,
-#     step_service: StudyStepServiceDep,
-#     condition_service: StudyConditionServiceDep,
-#     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
-# ):
-#     steps = await step_service.get_study_steps(study_id)
-#     conditions = await condition_service.get(study_id)
-
-#     config = {
-#         'study_id': study_id,
-#         'conditions': {con.name: con.id for con in conditions},
-#         'steps': [
-#             {
-#                 'step_id': step.id,
-#                 'path': step.path,
-#                 'component_type': STEP_TYPE_TO_COMPONENT[step.step_type if step.step_type else 'extras'],
-#             }
-#             for step in steps
-#         ],
-#     }
-
-#     return config

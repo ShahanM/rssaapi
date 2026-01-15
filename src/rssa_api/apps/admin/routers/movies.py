@@ -8,7 +8,7 @@ from rssa_api.data.schemas.movie_schemas import (
     MovieSchema,
     PaginatedMovieList,
 )
-from rssa_api.data.services import MovieServiceDep
+from rssa_api.data.services.dependencies import MovieServiceDep
 
 router = APIRouter(
     prefix='/movies',
@@ -61,16 +61,19 @@ async def get_movies_with_details(
     return response_obj
 
 
-@router.post('/reviews', status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/reviews',
+    status_code=status.HTTP_201_CREATED,
+    summary='Add reviews to a movie',
+    description='Adds a list of IMDB reviews to a specific movie identified by its IMDB ID.',
+)
 async def create_movie_reviews(
     payload: ImdbReviewsPayloadSchema,
     movie_service: MovieServiceDep,
 ):
-    print(payload.imdb_id, len(payload.reviews))
     movie = await movie_service.get_movie_by_imdb_id(payload.imdb_id)
-    if movie:
-        print(MovieSchema.model_validate(movie))
-    else:
-        print('Could not find movie')
+    if not movie:
+        pass
+        # logger.warning(f'Could not find movie with imdb_id: {payload.imdb_id}')
 
     return {'message': 'Reviews added to the movie.'}

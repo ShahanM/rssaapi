@@ -1,19 +1,19 @@
 import math
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedTextListItem, PreviewSchema, ReorderPayloadSchema, SortDir
 from rssa_api.data.schemas.survey_components import (
+    PaginatedConstructResponse,
     SurveyConstructCreate,
     SurveyConstructRead,
     SurveyItemCreate,
 )
-from rssa_api.data.services import SurveyConstructServiceDep, SurveyItemServiceDep
+from rssa_api.data.services.dependencies import SurveyConstructServiceDep, SurveyItemServiceDep
 
 from ...docs import ADMIN_SURVEY_CONSTRUCTS_TAG
 
@@ -22,13 +22,6 @@ router = APIRouter(
     tags=[ADMIN_SURVEY_CONSTRUCTS_TAG],
     dependencies=[Depends(get_auth0_authenticated_user)],
 )
-
-
-class PaginatedConstructResponse(BaseModel):
-    rows: list[PreviewSchema]
-    page_count: int
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 @router.get(
@@ -49,10 +42,24 @@ async def get_survey_constructs(
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
     page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
     page_size: int = Query(10, ge=1, le=100, description='The number of items per page'),
-    sort_by: Optional[str] = Query(None, description='The field to sort by.'),
-    sort_dir: Optional[SortDir] = Query(None, description='The direction to sort (asc or desc)'),
-    search: Optional[str] = Query(None, description='A search term to filter results by name or dscription'),
+    sort_by: str | None = Query(None, description='The field to sort by.'),
+    sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
+    search: str | None = Query(None, description='A search term to filter results by name or dscription'),
 ):
+    """Get a paginated list of survey constructs.
+
+    Args:
+        service: The survey construct service.
+        _: Auth check.
+        page_index: The page number (0-indexed).
+        page_size: Items per page.
+        sort_by: Field to sort by.
+        sort_dir: Sort direction.
+        search: Search term.
+
+    Returns:
+        Paginated list of constructs.
+    """
     offset = page_index * page_size
     total_items = await service.count(search=search)
     constructs_from_db = await service.get_paged_list(
@@ -64,7 +71,6 @@ async def get_survey_constructs(
         search=search,
     )
     page_count = math.ceil(total_items / float(page_size)) if total_items > 0 else 1
-    print(page_count, total_items)
 
     return PaginatedConstructResponse(rows=constructs_from_db, page_count=page_count)
 
@@ -86,6 +92,19 @@ async def get_construct_detail(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
 ):
+    """Get details of a survey construct.
+
+    Args:
+        construct_id: The UUID of the construct.
+        service: The survey construct service.
+        _: Auth check.
+
+    Raises:
+        HTTPException: If construct is not found.
+
+    Returns:
+        The construct details.
+    """
     construct = await service.get_detailed(construct_id)
 
     if not construct:
@@ -111,6 +130,19 @@ async def get_construct_summary(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
 ):
+    """Get a summary of a survey construct.
+
+    Args:
+        construct_id: The UUID of the construct.
+        service: The survey construct service.
+        _: Auth check.
+
+    Raises:
+        HTTPException: If construct is not found.
+
+    Returns:
+        The construct summary.
+    """
     construct_summary = await service.get_detailed(construct_id)
 
     if not construct_summary:
@@ -134,6 +166,16 @@ async def create_survey_construct(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('create:constructs', 'admin:all'))],
 ):
+    """Create a new survey construct.
+
+    Args:
+        new_construct: Data for the new construct.
+        service: The survey construct service.
+        _: Auth check.
+
+    Returns:
+        A success message.
+    """
     await service.create(new_construct)
 
     return {'message': 'Survey construct created.'}
@@ -154,6 +196,17 @@ async def update_survey_construct(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:constructs', 'admin:all'))],
 ):
+    """Update a survey construct.
+
+    Args:
+        construct_id: The UUID of the construct.
+        payload: Fields to update.
+        service: The survey construct service.
+        _: Auth check.
+
+    Returns:
+        Empty dictionary on success.
+    """
     await service.update(construct_id, payload)
     return {}
 
@@ -172,6 +225,16 @@ async def delete_construct(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:constructs', 'admin:all'))],
 ):
+    """Delete a survey construct.
+
+    Args:
+        construct_id: The UUID of the construct.
+        service: The survey construct service.
+        _: Auth check.
+
+    Returns:
+        Empty dictionary on success.
+    """
     await service.delete(construct_id)
     return {}
 
@@ -182,6 +245,16 @@ async def get_construct_items(
     item_service: SurveyItemServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('create:items', 'admin:all'))],
 ):
+    """Get items for a survey construct.
+
+    Args:
+        construct_id: The UUID of the construct.
+        item_service: The survey item service.
+        user: Auth check.
+
+    Returns:
+        A list of ordered items.
+    """
     items = await item_service.get_items_for_owner_as_ordered_list(construct_id)
 
     return items
@@ -194,6 +267,17 @@ async def create_construct_item(
     item_service: SurveyItemServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('create:items', 'admin:all'))],
 ):
+    """Create a new item for a survey construct.
+
+    Args:
+        construct_id: The UUID of the construct.
+        new_item: The data for the new item.
+        item_service: The survey item service.
+        user: Auth check.
+
+    Returns:
+        A success message.
+    """
     await item_service.create_for_owner(construct_id, new_item)
 
     return {'message': 'Construct item created.'}
@@ -205,5 +289,15 @@ async def update_scale_levels_order(
     service: SurveyItemServiceDep,
     payload: list[ReorderPayloadSchema],
 ):
+    """Update the order of items within a construct.
+
+    Args:
+        construct_id: The UUID of the construct.
+        service: The survey item service.
+        payload: List of item IDs and their new positions.
+
+    Returns:
+        Empty dictionary on success.
+    """
     levels_map = {item.id: item.order_position for item in payload}
     await service.reorder_items(construct_id, levels_map)
