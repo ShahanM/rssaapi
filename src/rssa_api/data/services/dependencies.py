@@ -34,9 +34,6 @@ from rssa_storage.rssadb.repositories.survey_components import (
     SurveyScaleRepository,
 )
 
-from rssa_api.data.sources.moviedb import get_repository as movie_repo
-from rssa_api.data.sources.moviedb import get_service as movie_service
-from rssa_api.data.sources.rssadb import get_service as rssa_service
 from rssa_api.data.services.movie_service import MovieService
 from rssa_api.data.services.response_service import ParticipantResponseService
 from rssa_api.data.services.study_admin import ApiKeyService, PreShuffledMovieService, UserService
@@ -46,6 +43,9 @@ from rssa_api.data.services.study_participants import (
     ParticipantStudySessionService,
     StudyParticipantMovieSessionService,
 )
+from rssa_api.data.sources.moviedb import get_repository as movie_repo
+from rssa_api.data.sources.moviedb import get_service as movie_service
+from rssa_api.data.sources.rssadb import get_service as rssa_service
 
 from .study_components import (
     StudyConditionService,
