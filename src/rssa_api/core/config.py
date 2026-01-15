@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -55,53 +54,8 @@ def get_env_var(var_name: str, default_value: str = '') -> str:
 ROOT_PATH = '/rssa/api'
 
 
-def configure_logging():
-    # Assuming LOGS_DIR is imported correctly from core.config
-    # Example: from core.config import LOGS_DIR
-
-    # --- 1. Define Paths and Constants ---
-
-    # Calculate the date-stamped file name string explicitly
-    log_file_name = time.strftime('%Y%m%d_%H%M%S.log')
-    LOG_FILE_PATH = LOGS_DIR / log_file_name
-
-    LOG_LEVEL = logging.INFO  # Set the minimum level to capture
-    LOG_FORMAT_FILE = '%(asctime)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s'
-    LOG_FORMAT_CONSOLE = '%(levelname)s: %(message)s'  # Simpler format for console
-
-    # Ensure log directory exists (if it wasn't done in config.py)
-    if not LOGS_DIR.exists():
-        LOGS_DIR.mkdir(parents=True, exist_ok=True)
-
-    # --- 2. Configure the Root Logger ---
-
-    # Basic config sets up the FILE handler and the root logger level.
-    # We pass the Path object converted to a string using .as_posix()
-    logging.basicConfig(filename=LOG_FILE_PATH.as_posix(), level=LOG_LEVEL, format=LOG_FORMAT_FILE)
-
-    # --- 3. Add Console Handler (StreamHandler) ---
-
-    # We get the root logger instance
-    root_logger = logging.getLogger()
-
-    # Console Handler: Always output to terminal (stderr by default)
-    console_handler = logging.StreamHandler()
-
-    # We want INFO or higher to the file, but let's set console to WARNING/ERROR
-    # to keep the terminal clean unless important things happen.
-    console_handler.setLevel(logging.INFO)
-
-    # Apply a different, cleaner format for the console
-    console_formatter = logging.Formatter(LOG_FORMAT_CONSOLE)
-    console_handler.setFormatter(console_formatter)
-
-    # Add the console handler to the root logger
-    root_logger.addHandler(console_handler)
-
-    # Optional: Suppress noisy logging from third-party libraries (like HTTPX/SQLAlchemy)
-    logging.getLogger('uvicorn').setLevel(logging.INFO)
-    logging.getLogger('uvicorn.access').setLevel(logging.INFO)
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+# Default Log Level
+LOG_LEVEL = get_env_var('LOG_LEVEL', 'INFO')
 
 
 AUTH0_DOMAIN = get_env_var('AUTH0_DOMAIN')
@@ -127,3 +81,16 @@ REQUIRED_AUTH0_VARS = [
 
 if any(not var for var in REQUIRED_AUTH0_VARS):
     logging.critical('One or more required Auth0 environment variables are not set.')
+
+
+CORS_ORIGINS = [
+    'http://localhost:3330',
+    'http://localhost:3330/*',
+    'http://localhost:3339',
+    'http://localhost:3339/*',
+    'http://localhost:3331',
+    'http://localhost:3340',
+    'http://localhost:3350',
+    'http://localhost:3000',
+    'http://localhost:3370',
+]
