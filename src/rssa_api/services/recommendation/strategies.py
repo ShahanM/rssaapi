@@ -1,3 +1,5 @@
+"""Strategies for recommendations."""
+
 import json
 import logging
 from typing import Any, Protocol, cast
@@ -15,6 +17,8 @@ log = logging.getLogger(__name__)
 
 
 class RecommendationStrategy(Protocol):
+    """Protocol for recommendation strategies."""
+
     async def recommend(
         self, user_id: str, ratings: list[Any], limit: int, run_config: dict | None = None
     ) -> EnrichedResponseWrapper: ...
