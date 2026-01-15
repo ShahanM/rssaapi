@@ -33,9 +33,6 @@ api = FastAPI(
 print(f'{ROOT_PATH}/study/openapi.json')
 
 
-
-
-
 """
 Resources API Routers
 """

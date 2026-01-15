@@ -1,15 +1,10 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Query
 
 from rssa_api.data.schemas.movie_schemas import (
     MovieDetailSchema,
-    MovieSchema,
-    MovieSearchRequest,
-    MovieSearchResponse,
     PaginatedMovieList,
 )
-from rssa_api.data.services import MovieServiceDep
+from rssa_api.data.services.dependencies import MovieServiceDep
 from rssa_api.data.utility import sa_obj_to_dict
 
 router = APIRouter(

@@ -1,12 +1,8 @@
-from typing import Annotated, Any, Optional
+from typing import Any
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body
 
 from rssa_api.data.schemas.participant_response_schemas import MovieLensRating
-from rssa_api.data.schemas.preferences_schemas import (
-    AdvisorProfileSchema,
-    Avatar,
-)
 from rssa_api.data.schemas.recommendations import EnrichedResponseWrapper
 from rssa_api.docs.metadata import RSTagsEnum as Tags
 from rssa_api.services.dependencies import RecommenderServiceDep
@@ -22,7 +18,7 @@ async def get_recommendations(
     recommender_service: RecommenderServiceDep,
     ratings: list[MovieLensRating],
     limit: int,
-    context_data: Optional[dict[str, Any]] = Body(default=None),
+    context_data: dict[str, Any] | None = Body(default=None),
 ):
     """Get recommendations for the current participant.
 

@@ -28,9 +28,9 @@ from rssa_api.data.schemas.recommendations import (
     CommunityScoreRecItem,
     EnrichedAdvisorRecItem,
     EnrichedCommunityScoreItem,
+    EnrichedRecUnionType,
     EnrichedResponseWrapper,
     ResponseWrapper,
-    EnrichedRecUnionType,
 )
 
 from .recommendation.registry import REGISTRY
@@ -209,7 +209,7 @@ class RecommenderService:
             response_items = await self._enrich_pref_viz_response(result)
         else:
             raise KeyError('Result response_type key did not match any known types.')
-        
+
         return EnrichedResponseWrapper(rec_type=result.response_type, items=response_items)
 
     async def _enrich_advisor_response(self, response: ResponseWrapper) -> EnrichedRecUnionType:
