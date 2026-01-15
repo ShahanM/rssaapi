@@ -1,8 +1,12 @@
+"""Metadata for API documentation."""
+
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 
 
 class ResourceTagsEnum(Enum):
+    """Tags for resource endpoints."""
+
     movie = 'Resource: Movie'
     study = 'Resource: Study'
     survey = 'Resource: Survey'
@@ -11,22 +15,13 @@ class ResourceTagsEnum(Enum):
     feedback = 'Resource: Feedback'
 
 
-class TagsEnum(Enum):
-    movie = 'Admin: Movie'
-    study = 'Admin: Study'
-    study_step = 'Admin: Study Step'
-    survey = 'Admin: Survey'
-    construct = 'Admin: Survey Construct'
-    response = 'Admin: Response'
-    participant = 'Admin: Participant'
-    feedback = 'Admin: Feedback'
-
-
 class RSTagsEnum(Enum):
+    """Tags for the Recommender System."""
+
     rssa = 'Recommender System for Self Actualization'
 
 
-tags_metadata: List[Dict[str, Any]] = [
+tags_metadata: list[dict[str, Any]] = [
     {
         'name': ResourceTagsEnum.movie.value,
         'description': 'This is the movie dataset adapated from the MovieLens dataset of IMDB movies.',
