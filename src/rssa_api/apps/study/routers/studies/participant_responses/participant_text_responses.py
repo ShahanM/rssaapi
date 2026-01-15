@@ -9,7 +9,8 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantFreeformResponseRead,
     ParticipantFreeformResponseUpdate,
 )
-from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
+from rssa_api.data.services import ResponseType
+from rssa_api.data.services.dependencies import ParticipantResponseServiceDep
 
 text_response_router = APIRouter(
     prefix='/texts',

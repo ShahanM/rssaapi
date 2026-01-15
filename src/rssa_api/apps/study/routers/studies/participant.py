@@ -11,7 +11,7 @@ from rssa_api.data.schemas.participant_schemas import (
     DemographicsCreate,
     StudyParticipantReadWithCondition,
 )
-from rssa_api.data.services import StudyParticipantServiceDep
+from rssa_api.data.services.dependencies import StudyParticipantServiceDep
 
 router = APIRouter(
     prefix='/participants',

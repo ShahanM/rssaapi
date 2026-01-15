@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict
 from rssa_api.auth.authorization import authorize_api_key_for_study, generate_jwt_token_for_payload
 from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
 from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepRead
-from rssa_api.data.services import (
+from rssa_api.data.services.dependencies import (
     EnrollmentServiceDep,
     ParticipantStudySessionServiceDep,
     StudyConditionServiceDep,
@@ -65,7 +65,7 @@ class ResumePayloadSchema(BaseModel):
 
 class ResumeResponseSchema(BaseModel):
     current_step_id: uuid.UUID
-    current_page_id: Optional[uuid.UUID] = None
+    current_page_id: uuid.UUID | None = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -207,10 +207,7 @@ async def resume_study_session(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Could not find a valid session for the code.'
         )
-    if (
-        participant_session.expires_at < datetime.datetime.now(datetime.timezone.utc)
-        or not participant_session.is_active
-    ):
+    if participant_session.expires_at < datetime.datetime.now(datetime.UTC) or not participant_session.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Expired or invalid resume code.')
 
     participant = await participant_service.get(participant_session.study_participant_id)

@@ -9,7 +9,8 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantSurveyResponseRead,
     ParticipantSurveyResponseUpdate,
 )
-from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
+from rssa_api.data.services import ResponseType
+from rssa_api.data.services.dependencies import ParticipantResponseServiceDep
 
 survey_router = APIRouter(
     prefix='/survey',

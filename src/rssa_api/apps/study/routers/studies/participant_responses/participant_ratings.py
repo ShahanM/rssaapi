@@ -4,7 +4,7 @@ Handles endpoints related to participant content ratings.
 """
 
 import uuid
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -14,7 +14,8 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantRatingRead,
     ParticipantRatingUpdate,
 )
-from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
+from rssa_api.data.services import ResponseType
+from rssa_api.data.services.dependencies import ParticipantResponseServiceDep
 
 ratings_router = APIRouter(
     prefix='/ratings',

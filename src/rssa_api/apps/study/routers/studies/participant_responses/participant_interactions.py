@@ -11,7 +11,8 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantStudyInteractionResponseRead,
     ParticipantStudyInteractionResponseUpdate,
 )
-from rssa_api.data.services import ParticipantResponseServiceDep, ResponseType
+from rssa_api.data.services import ResponseType
+from rssa_api.data.services.dependencies import ParticipantResponseServiceDep
 
 interactions_router = APIRouter(
     prefix='/interactions',

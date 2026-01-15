@@ -11,7 +11,7 @@ from rssa_api.data.schemas.movie_schemas import (
     PaginatedMovieList,
 )
 from rssa_api.data.schemas.participant_schemas import StudyParticipantRead
-from rssa_api.data.services import MovieServiceDep, StudyParticipantMovieSessionServiceDep
+from rssa_api.data.services.dependencies import MovieServiceDep, StudyParticipantMovieSessionServiceDep
 
 router = APIRouter(
     prefix='/movies',

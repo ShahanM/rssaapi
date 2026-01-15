@@ -38,6 +38,4 @@ async def get_recommendations(
         study_id=id_token['sid'], study_participant_id=study_participant_id, context_data=context_data
     )
 
-    print('response', response)
-
     return response

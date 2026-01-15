@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from rssa_api.auth.authorization import validate_api_key
 from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepPageRead, StudyStepRead
-from rssa_api.data.services import StudyStepPageServiceDep, StudyStepServiceDep
+from rssa_api.data.services.dependencies import StudyStepPageServiceDep, StudyStepServiceDep
 
 router = APIRouter(
     prefix='/steps',

@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html
 
-from rssa_api.config import ROOT_PATH
+from rssa_api.core.config import ROOT_PATH
 
 from .routers.recommendations import router as recommendations_router
 from .routers.studies import feedback, movies, pages, participant, steps, studies
