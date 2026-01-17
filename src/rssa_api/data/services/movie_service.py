@@ -189,13 +189,13 @@ class MovieService(BaseService[Movie, MovieRepository]):
         # Check if movie exists
         query_options = RepoQueryOptions(ids=[movie_id])
         existing_movie = await self.movie_repo.find_one(query_options)
-        
+
         if not existing_movie:
             return None
 
         # Filter out None values to only update provided fields
         update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
-        
+
         if not update_dict:
             return existing_movie
 

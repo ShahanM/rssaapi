@@ -47,6 +47,7 @@ dependencies = [
     "structlog>=25.5.0",
     "types-aiobotocore-lambda>=3.1.0",
     "uvicorn>=0.40.0",
+    "rssa-storage @ git+https://github.com/ShahanM/rssa-storage.git@main",
 ]
 
 [dependency-groups]

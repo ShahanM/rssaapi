@@ -68,9 +68,7 @@ async def get_movies_with_details(
     movies = await movie_service.get_movies_with_details(
         limit, offset, title=title, year_min=year_min, year_max=year_max, genre=genre, sort_by=sort_by
     )
-    count = await movie_service.get_movie_count(
-        title=title, year_min=year_min, year_max=year_max, genre=genre
-    )
+    count = await movie_service.get_movie_count(title=title, year_min=year_min, year_max=year_max, genre=genre)
 
     validated_movies = [MovieDetailSchema.model_validate(movie) for movie in movies]
     response_obj = PaginatedMovieList(data=validated_movies, count=count)
@@ -110,16 +108,19 @@ async def update_movie(
     movie_service: MovieServiceDep,
 ):
     import uuid
+
     try:
         movie_uuid = uuid.UUID(movie_id)
     except ValueError:
         from fastapi import HTTPException
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid UUID format")
+
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid UUID format')
 
     updated_movie = await movie_service.update_movie(movie_uuid, payload)
-    
+
     if not updated_movie:
         from fastapi import HTTPException
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")
+
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Movie not found')
 
     return MovieSchema.model_validate(updated_movie)

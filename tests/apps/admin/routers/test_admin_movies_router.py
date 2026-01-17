@@ -146,9 +146,7 @@ async def test_get_movies_with_details_success(client: TestClient, mock_movie_se
     mock_movie_service.get_movies_with_details.assert_called_once_with(
         10, 0, title=None, year_min=None, year_max=None, genre=None, sort_by=None
     )
-    mock_movie_service.get_movie_count.assert_called_once_with(
-        title=None, year_min=None, year_max=None, genre=None
-    )
+    mock_movie_service.get_movie_count.assert_called_once_with(title=None, year_min=None, year_max=None, genre=None)
 
 
 @pytest.mark.asyncio
@@ -174,7 +172,7 @@ async def test_update_movie_success(client: TestClient, mock_movie_service: Asyn
     """Test updating movie details."""
     movie_id = '123e4567-e89b-12d3-a456-426614174000'
     payload = {'title': 'Updated Title', 'year': 2023}
-    
+
     # Mock return value should look like a movie schema
     class MockMovie:
         id = movie_id
@@ -204,13 +202,14 @@ async def test_update_movie_success(client: TestClient, mock_movie_service: Asyn
     data = response.json()
     assert data['title'] == 'Updated Title'
     assert data['year'] == 2023
-    
+
     # Verify the service was called with correct UUID and schema
     mock_movie_service.update_movie.assert_called_once()
     args = mock_movie_service.update_movie.call_args
     assert str(args[0][0]) == movie_id
     assert args[0][1].title == 'Updated Title'
     assert args[0][1].year == 2023
+
 
 @pytest.mark.asyncio
 async def test_update_movie_ratings_success(client: TestClient, mock_movie_service: AsyncMock) -> None:
