@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from rssa_api.data.schemas.base_schemas import DBMixin
 
@@ -59,6 +59,37 @@ class MovieSchema(DBMixin):
     poster: str
     tmdb_poster: str | None = ''
     poster_identifier: str | None = ''
+
+
+class MovieUpdateSchema(BaseModel):
+    """Schema for updating a Movie (PATCH). All fields are optional."""
+
+    title: str | None = None
+    year: int | None = None
+    genre: str | None = None
+    director: str | None = None
+    cast: str | None = None
+    description: str | None = None
+    poster: str | None = None
+    imdb_avg_rating: float | None = None
+    imdb_rate_count: int | None = None
+    tmdb_avg_rating: float | None = None
+    tmdb_rate_count: int | None = None
+
+    @model_validator(mode='after')
+    def check_rating_count_pairs(self) -> 'MovieUpdateSchema':
+        """Ensure that if a rating is provided, its corresponding count is also provided, and vice versa."""
+        if (self.imdb_avg_rating is not None and self.imdb_rate_count is None) or (
+            self.imdb_avg_rating is None and self.imdb_rate_count is not None
+        ):
+            raise ValueError('Both imdb_avg_rating and imdb_rate_count must be provided together.')
+
+        if (self.tmdb_avg_rating is not None and self.tmdb_rate_count is None) or (
+            self.tmdb_avg_rating is None and self.tmdb_rate_count is not None
+        ):
+            raise ValueError('Both tmdb_avg_rating and tmdb_rate_count must be provided together.')
+
+        return self
 
 
 class ERSMovieSchema(MovieSchema):

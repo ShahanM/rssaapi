@@ -87,10 +87,39 @@ class MovieService(BaseService[Movie, MovieRepository]):
         return [MovieSchema.model_validate(movie) for movie in movies]
 
     @alru_cache(maxsize=128)
-    async def get_movies(self, limit: int, offset: int, ordering: str = 'none') -> list[MovieSchema]:
+    async def get_movies(
+        self,
+        limit: int,
+        offset: int,
+        title: str | None = None,
+        year_min: int | None = None,
+        year_max: int | None = None,
+        genre: str | None = None,
+        ordering: str | None = 'none',
+        sort_by: str | None = None,
+    ) -> list[MovieSchema]:
         repo_options = RepoQueryOptions(limit=limit, offset=offset)
-        if ordering and ordering != 'none':
+
+        # Handle sorting
+        if sort_by:
+            if sort_by.startswith('-'):
+                repo_options.sort_by = sort_by[1:]
+                repo_options.sort_desc = True
+            else:
+                repo_options.sort_by = sort_by
+        elif ordering and ordering != 'none':
             repo_options.sort_by = ordering
+
+        # Handle filters
+        if year_min is not None:
+            repo_options.filter_ranges.append(('year', '>=', year_min))
+        if year_max is not None:
+            repo_options.filter_ranges.append(('year', '<=', year_max))
+        if genre:
+            repo_options.filter_ilike['genre'] = genre
+        if title:
+            # Using specific column search instead of broad search
+            repo_options.filter_ilike['title'] = title
 
         movies = await self.movie_repo.find_many(repo_options)
         if not movies:
@@ -98,16 +127,77 @@ class MovieService(BaseService[Movie, MovieRepository]):
         return [MovieSchema.model_validate(movie) for movie in movies]
 
     @alru_cache(maxsize=128)
-    async def get_movies_with_details(self, limit: int, offset: int) -> list[MovieDetailSchema]:
+    async def get_movies_with_details(
+        self,
+        limit: int,
+        offset: int,
+        title: str | None = None,
+        year_min: int | None = None,
+        year_max: int | None = None,
+        genre: str | None = None,
+        sort_by: str | None = None,
+    ) -> list[MovieDetailSchema]:
         # movies = await self.movie_repo.get_paged(limit, offset, options=MovieRepository.LOAD_FULL_DETAILS)
 
-        movies = await self.movie_repo.find_many(
-            RepoQueryOptions(limit=limit, offset=offset, load_options=MovieRepository.LOAD_ALL)
-        )
+        repo_options = RepoQueryOptions(limit=limit, offset=offset, load_options=MovieRepository.LOAD_ALL)
+
+        if sort_by:
+            if sort_by.startswith('-'):
+                repo_options.sort_by = sort_by[1:]
+                repo_options.sort_desc = True
+            else:
+                repo_options.sort_by = sort_by
+
+        if year_min is not None:
+            repo_options.filter_ranges.append(('year', '>=', year_min))
+        if year_max is not None:
+            repo_options.filter_ranges.append(('year', '<=', year_max))
+        if genre:
+            repo_options.filter_ilike['genre'] = genre
+        if title:
+            repo_options.filter_ilike['title'] = title
+
+        movies = await self.movie_repo.find_many(repo_options)
         if not movies:
             return []
         return [MovieDetailSchema.model_validate(movie) for movie in movies]
 
     @alru_cache(maxsize=1)
-    async def get_movie_count(self) -> int:
-        return await self.movie_repo.count()
+    async def get_movie_count(
+        self,
+        title: str | None = None,
+        year_min: int | None = None,
+        year_max: int | None = None,
+        genre: str | None = None,
+    ) -> int:
+        filter_ranges = []
+        filter_ilike = {}
+
+        if year_min is not None:
+            filter_ranges.append(('year', '>=', year_min))
+        if year_max is not None:
+            filter_ranges.append(('year', '<=', year_max))
+        if genre:
+            filter_ilike['genre'] = genre
+        if title:
+            filter_ilike['title'] = title
+
+        return await self.movie_repo.count(filter_ranges=filter_ranges, filter_ilike=filter_ilike)
+
+    async def update_movie(self, movie_id: uuid.UUID, update_data: 'MovieUpdateSchema') -> Movie | None:
+        """Update a movie with the provided data."""
+        # Check if movie exists
+        query_options = RepoQueryOptions(ids=[movie_id])
+        existing_movie = await self.movie_repo.find_one(query_options)
+        
+        if not existing_movie:
+            return None
+
+        # Filter out None values to only update provided fields
+        update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+        
+        if not update_dict:
+            return existing_movie
+
+        updated_movie = await self.movie_repo.update(movie_id, update_dict)
+        return updated_movie
