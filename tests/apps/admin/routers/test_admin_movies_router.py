@@ -100,7 +100,9 @@ async def test_get_movies_summary_success(client: TestClient, mock_movie_service
     data = response.json()
     assert len(data) == 1
     assert data[0]['title'] == 'Test Movie'
-    mock_movie_service.get_movies.assert_called_once_with(10, 0)
+    mock_movie_service.get_movies.assert_called_once_with(
+        10, 0, title=None, year_min=None, year_max=None, genre=None, sort_by=None
+    )
 
 
 @pytest.mark.asyncio
@@ -141,8 +143,12 @@ async def test_get_movies_with_details_success(client: TestClient, mock_movie_se
     assert data['count'] == 1
     assert len(data['data']) == 1
     assert data['data'][0]['title'] == 'Test Movie'
-    mock_movie_service.get_movies_with_details.assert_called_once_with(10, 0)
-    mock_movie_service.get_movie_count.assert_called_once()
+    mock_movie_service.get_movies_with_details.assert_called_once_with(
+        10, 0, title=None, year_min=None, year_max=None, genre=None, sort_by=None
+    )
+    mock_movie_service.get_movie_count.assert_called_once_with(
+        title=None, year_min=None, year_max=None, genre=None
+    )
 
 
 @pytest.mark.asyncio
@@ -160,3 +166,91 @@ async def test_create_movie_reviews(client: TestClient, mock_movie_service: Asyn
     assert response.status_code == 201
     assert response.json()['message'] == 'Reviews added to the movie.'
     mock_movie_service.get_movie_by_imdb_id.assert_called_once_with('tt1234567')
+    mock_movie_service.get_movie_by_imdb_id.assert_called_once_with('tt1234567')
+
+
+@pytest.mark.asyncio
+async def test_update_movie_success(client: TestClient, mock_movie_service: AsyncMock) -> None:
+    """Test updating movie details."""
+    movie_id = '123e4567-e89b-12d3-a456-426614174000'
+    payload = {'title': 'Updated Title', 'year': 2023}
+    
+    # Mock return value should look like a movie schema
+    class MockMovie:
+        id = movie_id
+        title = 'Updated Title'
+        year = 2023
+        genre = 'Action'
+        description = 'Desc'
+        poster = 'poster.jpg'
+        ave_rating = 4.5
+        imdb_avg_rating = 7.8
+        imdb_rate_count = 1000
+        tmdb_avg_rating = 7.5
+        tmdb_rate_count = 500
+        director = 'Director'
+        cast = 'Cast'
+        imdb_id = 'tt123'
+        tmdb_id = '123'
+        movielens_id = '1'
+        poster_identifier = ''
+        tmdb_poster = ''
+
+    mock_movie_service.update_movie.return_value = MockMovie()
+
+    response = client.patch(f'/movies/{movie_id}', json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data['title'] == 'Updated Title'
+    assert data['year'] == 2023
+    
+    # Verify the service was called with correct UUID and schema
+    mock_movie_service.update_movie.assert_called_once()
+    args = mock_movie_service.update_movie.call_args
+    assert str(args[0][0]) == movie_id
+    assert args[0][1].title == 'Updated Title'
+    assert args[0][1].year == 2023
+
+@pytest.mark.asyncio
+async def test_update_movie_ratings_success(client: TestClient, mock_movie_service: AsyncMock) -> None:
+    """Test updating movie ratings successfully when both rating and count are provided."""
+    movie_id = '123e4567-e89b-12d3-a456-426614174000'
+    payload = {'imdb_avg_rating': 8.5, 'imdb_rate_count': 100}
+
+    class MockMovie:
+        id = movie_id
+        title = 'Movie Title'
+        year = 2023
+        genre = 'Action'
+        description = 'Desc'
+        poster = 'poster.jpg'
+        ave_rating = 8.5
+        imdb_avg_rating = 8.5
+        imdb_rate_count = 100
+        tmdb_avg_rating = 7.5
+        tmdb_rate_count = 500
+        director = 'Director'
+        cast = 'Cast'
+        imdb_id = 'tt123'
+        tmdb_id = '123'
+        movielens_id = '1'
+        poster_identifier = ''
+        tmdb_poster = ''
+
+    mock_movie_service.update_movie.return_value = MockMovie()
+
+    response = client.patch(f'/movies/{movie_id}', json=payload)
+    assert response.status_code == 200
+    mock_movie_service.update_movie.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_update_movie_ratings_fail_missing_count(client: TestClient, mock_movie_service: AsyncMock) -> None:
+    """Test that updating rating without count fails."""
+    movie_id = '123e4567-e89b-12d3-a456-426614174000'
+    payload = {'imdb_avg_rating': 8.5}
+
+    response = client.patch(f'/movies/{movie_id}', json=payload)
+    assert response.status_code == 422
+    assert 'must be provided together' in response.text
