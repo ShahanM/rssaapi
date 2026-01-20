@@ -78,6 +78,7 @@ class StudyConditionBase(StudyComponentBase):
 
     recommendation_count: int
     recommender_key: str | None = None
+    view_link_key: str | None = None
     created_by_id: uuid.UUID | None = None
     pass
 
