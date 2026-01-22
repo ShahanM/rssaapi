@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.base_schemas import OrderedListItem
+from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
 from rssa_api.data.schemas.study_components import (
     StudyStepPageContentCreate,
     StudyStepPageRead,
@@ -164,3 +164,27 @@ async def add_content_to_page(
     content = await content_service.create_for_owner(page_id, new_content)
     # return StudyStepPageContentCreate.model_validate(content)
     return {'status': 'success', 'content_id': str(content.id)}
+
+
+@router.patch('/{page_id}/contents/reorder', status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_page_contents(
+    page_id: uuid.UUID,
+    payload: list[ReorderPayloadSchema],
+    content_service: StudyStepPageContentServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('update:content', 'admin:all'))],
+):
+    """Reorder contents within a study step page.
+
+    Args:
+        page_id: The UUID of the page.
+        payload: List of content IDs and new positions.
+        content_service: The content service.
+        user: Auth check.
+
+    Returns:
+        Empty dictionary on success.
+    """
+    contents_map = {item.id: item.order_position for item in payload}
+    await content_service.reorder_items(page_id, contents_map)
+
+    return {}

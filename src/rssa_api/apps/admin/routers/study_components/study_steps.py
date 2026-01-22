@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.base_schemas import OrderedListItem
+from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
 from rssa_api.data.schemas.study_components import StudyStepPageCreate, StudyStepPageRead, StudyStepRead
 from rssa_api.data.services.dependencies import StudyStepPageServiceDep, StudyStepServiceDep
 
@@ -158,5 +158,29 @@ async def delete_study_step(
         Empty dictionary on success.
     """
     await step_service.delete(step_id)
+
+    return {}
+
+
+@router.patch('/{step_id}/pages/reorder', status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_step_pages(
+    step_id: uuid.UUID,
+    payload: list[ReorderPayloadSchema],
+    page_service: StudyStepPageServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('update:pages', 'admin:all'))],
+):
+    """Reorder pages within a study step.
+
+    Args:
+        step_id: The UUID of the step.
+        payload: List of page IDs and new positions.
+        page_service: The page service.
+        user: Auth check.
+
+    Returns:
+        Empty dictionary on success.
+    """
+    pages_map = {item.id: item.order_position for item in payload}
+    await page_service.reorder_items(step_id, pages_map)
 
     return {}
