@@ -484,7 +484,7 @@ async def generate_study_api_key(
     Returns:
         The newly created API key details.
     """
-    api_key = await key_service.create_api_key_for_study(study_id, new_api_key.description, uuid.UUID(user.id))
+    api_key = await key_service.create_api_key_for_study(study_id, new_api_key.description, user.id)
 
     return api_key
 

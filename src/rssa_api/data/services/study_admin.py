@@ -112,8 +112,6 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
         Returns:
             A list of ApiKeyRead objects, each including the plain-text key.
         """
-        # api_keys = await self.repo.get_all_by_fields([('study_id', study_id), ('user_id', user_id)])
-
         repo_options = RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id})
         api_keys = await self.repo.find_many(repo_options)
 
@@ -155,7 +153,6 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
             The valid API Key if it is found, otherwise None.
 
         """
-        # key_record = await self.repo.get(api_key_id)
         key_record = await self.repo.find_one(RepoQueryOptions(filters={'id': api_key_id}))
         if not key_record:
             return None

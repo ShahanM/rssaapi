@@ -35,7 +35,7 @@ name = "rssa-api"
 version = "0.6"
 description = ""
 authors = [
-    {name = "Shahan M Iqbal",email = "mehtabi@clemson.edu"}
+    {name = "Mehtab 'Shahan' Iqbal", email = "mehtabi@clemson.edu"}
 ]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -48,6 +48,9 @@ dependencies = [
     "types-aiobotocore-lambda>=3.1.0",
     "uvicorn>=0.40.0",
     "rssa-storage @ git+https://github.com/ShahanM/rssa-storage.git@main",
+    "httpx>=0.28.1",
+    "async-lru>=2.1.0",
+    "aiobotocore>=3.1.1",
 ]
 
 [dependency-groups]
@@ -63,4 +66,6 @@ packages = ["rssa_api"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-pythonpath = ["src"]
+
+[tool.uv.sources]
+rssa-storage = { path = "../rssa-storage", editable = true }
