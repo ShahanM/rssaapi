@@ -75,7 +75,7 @@ async def get_studies(
     study_service: StudyServiceDep,
     user: Annotated[
         Auth0UserSchema,
-        Depends(require_permissions('read:studies', 'admin:all', 'read:own_studies')),
+        Depends(require_permissions('read:studies', 'admin:all', 'read:authorized_studies')),
     ],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
     page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
@@ -90,7 +90,7 @@ async def get_studies(
     visibility privileges. Super Admins will see all studies in the system.
 
     ## Permissions
-    Requires one of: `read:studies`, `admin:all`, `read:own_studies`
+    Requires one of: `read:studies`, `admin:all`, `read:authorized_studies`
     """
     is_super_admin = 'admin:all' in user.permissions or 'read:studies' in user.permissions
 
@@ -108,8 +108,8 @@ async def get_studies(
             search=search,
         )
     else:
-        studies_from_db = await study_service.get_paged_for_owner(
-            owner_id=uuid.UUID(current_user.id),
+        studies_from_db = await study_service.get_paged_for_authorized_user(
+            user_id=current_user.id,
             limit=page_size,
             offset=offset,
             schema=PreviewSchema,
@@ -147,7 +147,7 @@ async def get_study_detail(
     study_condition_service: StudyConditionServiceDep,
     user: Annotated[
         Auth0UserSchema,
-        Depends(require_permissions('read:studies', 'admin:all', 'read:own_studies')),
+        Depends(require_permissions('read:studies', 'admin:all', 'read:authorized_studies')),
     ],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
@@ -166,6 +166,13 @@ async def get_study_detail(
 
     if study is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
+
+    # Check authorization if not super admin
+    is_super_admin = 'admin:all' in user.permissions or 'read:studies' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
 
     grouped_count = await study_condition_service.get_participant_count_by_condition(study_id)
     total = reduce(lambda acc, row: acc + row.participant_count, grouped_count, 0)
@@ -207,7 +214,7 @@ async def create_study(
     Returns:
         The created study instance.
     """
-    created_study = await study_service.create_for_owner(uuid.UUID(current_user.id), new_study)
+    created_study = await study_service.create_for_owner(current_user.id, new_study)
 
     return StudyRead.model_validate(created_study)
 
@@ -355,6 +362,7 @@ async def update_study(
     payload: dict[str, str],
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:studies', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Update a study.
 
@@ -367,6 +375,13 @@ async def update_study(
     Returns:
         An empty dictionary on success.
     """
+    # Check authorization if not super admin
+    is_super_admin = 'admin:all' in user.permissions or 'update:studies' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
+
     await study_service.update(study_id, payload)
 
     return {}
@@ -384,6 +399,7 @@ async def delete_study(
     study_id: uuid.UUID,
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:studies', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Delete a study.
 
@@ -395,6 +411,13 @@ async def delete_study(
     Returns:
         An empty dictionary on success.
     """
+    # Check authorization if not super admin
+    is_super_admin = 'admin:all' in user.permissions or 'delete:studies' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
+
     await study_service.delete(study_id)
 
     return {}

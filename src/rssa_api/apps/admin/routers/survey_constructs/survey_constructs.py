@@ -243,7 +243,7 @@ async def delete_construct(
 async def get_construct_items(
     construct_id: uuid.UUID,
     item_service: SurveyItemServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('create:items', 'admin:all'))],
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
 ):
     """Get items for a survey construct.
 
@@ -288,6 +288,7 @@ async def update_scale_levels_order(
     construct_id: uuid.UUID,
     service: SurveyItemServiceDep,
     payload: list[ReorderPayloadSchema],
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
 ):
     """Update the order of items within a construct.
 

@@ -43,6 +43,49 @@ class StudyService(BaseScopedService[Study, StudyRepository]):
 
     scope_field = 'owner_id'
 
+    async def check_study_access(self, study_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+        """Check if a user has access to a specific study.
+
+        Args:
+            study_id: The UUID of the study.
+            user_id: The UUID of the user.
+
+        Returns:
+            True if the user has access, False otherwise.
+        """
+        # FUTURE: Implement join table check here (e.g. study_permissions)
+        # For now, we check ownership which is the current source of truth.
+        study = await self.repo.find_one(RepoQueryOptions(filters={'id': study_id}))
+        if not study:
+            return False
+
+        return study.owner_id == user_id
+
+    async def get_paged_for_authorized_user(
+        self,
+        user_id: uuid.UUID,
+        limit: int,
+        offset: int,
+        schema: Any | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
+        search: str | None = None,
+    ) -> list[Any]:
+        """Get a paged list of studies the user is authorized to view.
+
+        This wraps get_paged_for_owner for now but allows for future expansion
+        to include shared studies.
+        """
+        return await self.get_paged_for_owner(
+            owner_id=user_id,
+            limit=limit,
+            offset=offset,
+            schema=schema,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+            search=search,
+        )
+
 
 class StudyConditionService(BaseScopedService[StudyCondition, StudyConditionRepository]):
     """Service for managing study conditions."""

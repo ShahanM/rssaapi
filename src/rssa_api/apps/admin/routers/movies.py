@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends, Query, status
 
+from typing import Annotated
+
+from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.apps.admin.docs import ADMIN_MOVIES_TAG
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas.movie_schemas import (
@@ -106,6 +109,7 @@ async def update_movie(
     movie_id: str,
     payload: MovieUpdateSchema,
     movie_service: MovieServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('update:movies', 'admin:all'))],
 ):
     import uuid
 

@@ -10,7 +10,9 @@ from rssa_api.auth.security import get_auth0_authenticated_user, require_permiss
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
 from rssa_api.data.schemas.study_components import StudyStepPageCreate, StudyStepPageRead, StudyStepRead
-from rssa_api.data.services.dependencies import StudyStepPageServiceDep, StudyStepServiceDep
+from rssa_api.data.services.dependencies import StudyStepPageServiceDep, StudyStepServiceDep, StudyServiceDep
+from rssa_api.data.schemas.auth_schemas import UserSchema
+from rssa_api.auth.security import get_current_user
 
 from ...docs import ADMIN_STUDY_STEPS_TAG
 
@@ -28,7 +30,9 @@ router = APIRouter(
 async def get_study_step(
     step_id: uuid.UUID,
     step_service: StudyStepServiceDep,
-    _: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+    study_service: StudyServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Get details of a specific study step.
 
@@ -43,9 +47,14 @@ async def get_study_step(
     Returns:
         The study step details.
     """
-    study_step = await step_service.get(step_id)
-    if not study_step:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+    return study_step
+
+    # Check authorization
+    is_super_admin = 'admin:all' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(study_step.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 
     return study_step
 
@@ -54,7 +63,10 @@ async def get_study_step(
 async def get_pages_for_study_step(
     step_id: uuid.UUID,
     page_service: StudyStepPageServiceDep,
-    _: Annotated[Auth0UserSchema, Depends(require_permissions('read:pages', 'admin:all'))],
+    step_service: StudyStepServiceDep,
+    study_service: StudyServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('read:pages', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Get pages associated with a study step.
 
@@ -67,6 +79,19 @@ async def get_pages_for_study_step(
     Returns:
         A list of ordered pages for the step.
     """
+    return [OrderedListItem.model_validate(p) for p in pages_from_db]
+
+    # Validate access to parent step/study
+    step = await step_service.get(step_id)
+    if not step:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
+    is_super_admin = 'admin:all' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(step.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
     pages_from_db = await page_service.get_items_for_owner_as_ordered_list(step_id)
 
     return [OrderedListItem.model_validate(p) for p in pages_from_db]
@@ -78,7 +103,9 @@ async def create_page_for_step(
     new_page: StudyStepPageCreate,
     step_service: StudyStepServiceDep,
     page_service: StudyStepPageServiceDep,
-    _: Annotated[Auth0UserSchema, Depends(require_permissions('create:pages', 'admin:all'))],
+    study_service: StudyServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('create:pages', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Create a new page for a study step.
 
@@ -95,9 +122,16 @@ async def create_page_for_step(
     Returns:
         The created page details.
     """
-    step = await step_service.get(step_id)
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
+    # Check authorization
+    is_super_admin = 'admin:all' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(step.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
     created_page = await page_service.create_for_owner(step_id, new_page, study_id=step.study_id)
     page_dict = {
         'id': created_page.id,
@@ -122,8 +156,9 @@ async def create_page_for_step(
 async def update_study_step(
     step_id: uuid.UUID,
     payload: dict[str, str],
-    step_service: StudyStepServiceDep,
-    _: Annotated[Auth0UserSchema, Depends(require_permissions('update:steps', 'admin:all'))],
+    study_service: StudyServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('update:steps', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Update a study step.
 
@@ -136,6 +171,17 @@ async def update_study_step(
     Returns:
         Status message.
     """
+    step = await step_service.get(step_id)
+    if not step:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
+    # Check authorization
+    is_super_admin = 'admin:all' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(step.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
     await step_service.update(step_id, payload)
 
     return {'Status': 'Success'}
@@ -144,8 +190,9 @@ async def update_study_step(
 @router.delete('/{step_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_study_step(
     step_id: uuid.UUID,
-    step_service: StudyStepServiceDep,
-    _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:steps', 'admin:all'))],
+    study_service: StudyServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:steps', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Delete a study step.
 
@@ -157,6 +204,17 @@ async def delete_study_step(
     Returns:
         Empty dictionary on success.
     """
+    step = await step_service.get(step_id)
+    if not step:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
+    # Check authorization
+    is_super_admin = 'admin:all' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(step.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
     await step_service.delete(step_id)
 
     return {}
@@ -167,7 +225,10 @@ async def reorder_step_pages(
     step_id: uuid.UUID,
     payload: list[ReorderPayloadSchema],
     page_service: StudyStepPageServiceDep,
+    study_service: StudyServiceDep,
+    step_service: StudyStepServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:pages', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
 ):
     """Reorder pages within a study step.
 
@@ -180,6 +241,17 @@ async def reorder_step_pages(
     Returns:
         Empty dictionary on success.
     """
+    step = await step_service.get(step_id)
+    if not step:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
+    # Check authorization
+    is_super_admin = 'admin:all' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(step.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
+
     pages_map = {item.id: item.order_position for item in payload}
     await page_service.reorder_items(step_id, pages_map)
 
