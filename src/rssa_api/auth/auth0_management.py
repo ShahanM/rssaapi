@@ -1,3 +1,5 @@
+"""Auth0 management API utilities."""
+
 from typing import Any
 
 import httpx
@@ -227,6 +229,7 @@ async def get_user_profile_by_id(user_id: str) -> dict[str, str | None] | None:
                 'name': user_data.get('name'),
                 'picture': user_data.get('picture'),
                 'nickname': user_data.get('nickname'),
+                'email': user_data.get('email'),
             }
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:

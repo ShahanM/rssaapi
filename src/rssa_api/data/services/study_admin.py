@@ -42,7 +42,6 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
         fernet = Fernet(ENCRYPTION_KEY.encode())
         encrypted_bytes = fernet.encrypt(plain_text_key.encode())
         encrypted_str = encrypted_bytes.decode('utf-8')
-        # key_hash = hashlib.sha256(plain_text_key.encode()).hexdigest()
 
         return plain_text_key, encrypted_str
 
@@ -65,9 +64,6 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
             An ApiKeyRead object including the new plain-text key.
         """
         _plain_key, key_hash = self.generate_key_and_hash()
-        # current_active_keys = await self.repo.get_all_by_fields(
-        #     [('study_id', study_id), ('user_id', user_id), ('is_active', True)]
-        # )
 
         repo_options = RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id, 'is_active': True})
         current_active_keys = await self.repo.find_many(repo_options)
@@ -169,7 +165,10 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
 
 
 class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovieRepository]):
+    """Service for managing pre-shuffled movie lists."""
+
     def __init__(self, shuffled_movie_repo: PreShuffledMovieRepository):
+        """Initialize the pre-shuffled movie service."""
         self.shuffled_movie_repo = shuffled_movie_repo
 
     async def create_pre_shuffled_movie_list(
@@ -178,6 +177,7 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
         subset: str,
         seed: int = 144,
     ) -> None:
+        """Create a pre-shuffled movie list."""
         random.seed(seed)
         random.shuffle(movie_ids)
 
@@ -187,16 +187,54 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
 
 
 class UserService(BaseService[User, UserRepository]):
+    """Service for managing users."""
+
     def __init__(self, user_repo: UserRepository):
+        """Initialize the user service."""
         self.repo = user_repo
 
     async def get_user_by_auth0_sub(self, token_user: str) -> User | None:
-        # return await self.repo.get_by_field('auth0_sub', token_user)
+        """Retrieve a user by their Auth0 sub."""
         return await self.repo.find_one(RepoQueryOptions(filters={'auth0_sub': token_user}))
 
+    async def get_user_by_id(self, user_id: uuid.UUID) -> User | None:
+        """Retrieve a user by their UUID."""
+        return await self.repo.find_one(RepoQueryOptions(ids=[user_id]))
+
     async def create_user_from_auth0(self, token_user: Auth0UserSchema) -> User:
-        new_user = User(auth0_sub=token_user.sub)
+        """Create a new user from an Auth0 token."""
+        new_user = User(
+            auth0_sub=token_user.sub,
+            email=token_user.email,
+            desc=token_user.name,
+            picture=token_user.picture,
+        )
 
         await self.repo.create(new_user)
 
         return new_user
+
+    async def update_user_from_auth0(self, db_user: User, token_user: Auth0UserSchema) -> User:
+        """Update local user details if they differ from Auth0 token."""
+        updates = {}
+        if token_user.email is not None and db_user.email != token_user.email:
+            updates['email'] = token_user.email
+        if token_user.name is not None and db_user.desc != token_user.name:
+            updates['desc'] = token_user.name
+        if token_user.picture is not None and db_user.picture != token_user.picture:
+            updates['picture'] = token_user.picture
+
+        if updates:
+            await self.repo.update(db_user.id, updates)
+            for key, value in updates.items():
+                setattr(db_user, key, value)
+
+        return db_user
+
+    async def search_users(self, query: str) -> list[User]:
+        """Search users by email or description."""
+        options = RepoQueryOptions(
+            search_text=query,
+            search_columns=['email', 'desc'],
+        )
+        return await self.repo.find_many(options)

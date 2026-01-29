@@ -1,3 +1,5 @@
+"""Security utilities for authentication and authorization."""
+
 from collections.abc import Callable
 from typing import Annotated, Any
 
@@ -113,6 +115,8 @@ async def get_current_user(
     db_user = await user_service.get_user_by_auth0_sub(token_user.sub)
     if db_user is None:
         db_user = await user_service.create_user_from_auth0(token_user)
+    else:
+        db_user = await user_service.update_user_from_auth0(db_user, token_user)
     return UserSchema.model_validate(db_user)
 
 

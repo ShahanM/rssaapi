@@ -3,7 +3,7 @@
 # in a file like 'core/schemas.py'
 import uuid
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Auth0UserSchema(BaseModel):
@@ -23,6 +23,9 @@ class UserSchema(BaseModel):
 
     id: uuid.UUID
     auth0_sub: str
+    email: str | None = None
+    name: str | None = Field(default=None, validation_alias='desc')
+    picture: str | None = None
     # studies_owned: list[Any] = []
     # studies_created: list[Any] = []
 

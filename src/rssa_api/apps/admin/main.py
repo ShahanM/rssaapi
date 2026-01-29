@@ -1,3 +1,5 @@
+"""Admin API entry point."""
+
 import uuid
 from datetime import datetime
 
@@ -7,6 +9,7 @@ from starlette.types import ASGIApp
 from .docs import admin_tags_metadata
 from .routers import movies as movie_admin
 from .routers import users as admin_users
+from .routers.study_components import authorizations as auth_admin
 from .routers.study_components import studies as study_admin
 from .routers.study_components import study_conditions as condition_admin
 from .routers.study_components import study_step_page_contents as survey_admin
@@ -45,7 +48,9 @@ api.include_router(study_admin.router)
 api.include_router(step_admin.router)
 api.include_router(page_admin.router)
 api.include_router(condition_admin.router)
+api.include_router(condition_admin.router)
 api.include_router(survey_admin.router)
+api.include_router(auth_admin.router)
 api.include_router(admin_users.router)
 api.include_router(movie_admin.router)
 
@@ -54,5 +59,3 @@ api.include_router(survey_constructs_router)
 api.include_router(survey_items_router)
 api.include_router(survey_scales_router)
 api.include_router(survey_scale_levels_router)
-
-# api.add_middleware(DashboardAccessLogMiddleware)

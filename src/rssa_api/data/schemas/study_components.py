@@ -313,4 +313,29 @@ class ApiKeyRead(ApiKeyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
     @computed_field
     @property
     def updated_at(self) -> datetime | None:
+        """Return the last used at timestamp."""
         return self.last_used_at
+
+
+# ==============================================================================
+# Study Authorizations
+# table: study_authorizations
+# model: StudyAuthorization
+# ==============================================================================
+class StudyAuthorizationBase(BaseModel):
+    """Base schema for study authorization."""
+
+    user_id: uuid.UUID
+    role: str = 'viewer'
+
+
+class StudyAuthorizationCreate(StudyAuthorizationBase):
+    """Schema for creating study authorization."""
+
+    pass
+
+
+class StudyAuthorizationRead(StudyAuthorizationBase, DBMixin, AuditMixin):
+    """Schema for reading study authorization."""
+
+    study_id: uuid.UUID

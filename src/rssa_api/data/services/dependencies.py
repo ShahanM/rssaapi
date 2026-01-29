@@ -13,6 +13,7 @@ from rssa_storage.rssadb.repositories.participant_responses import (
 from rssa_storage.rssadb.repositories.study_admin import ApiKeyRepository, PreShuffledMovieRepository, UserRepository
 from rssa_storage.rssadb.repositories.study_components import (
     FeedbackRepository,
+    StudyAuthorizationRepository,
     StudyConditionRepository,
     StudyRepository,
     StudyStepPageContentRepository,
@@ -48,6 +49,7 @@ from rssa_api.data.sources.moviedb import get_service as movie_service
 from rssa_api.data.sources.rssadb import get_service as rssa_service
 
 from .study_components import (
+    StudyAuthorizationService,
     StudyConditionService,
     StudyParticipantService,
     StudyService,
@@ -61,7 +63,13 @@ from .survey_components import SurveyConstructService, SurveyItemService, Survey
 MovieServiceDep = Annotated[MovieService, Depends(movie_service(MovieService, movie_repo(MovieRepository)))]
 
 # Study component services
-StudyServiceDep = Annotated[StudyService, Depends(rssa_service(StudyService, StudyRepository))]
+StudyAuthorizationServiceDep = Annotated[
+    StudyAuthorizationService,
+    Depends(rssa_service(StudyAuthorizationService, StudyAuthorizationRepository)),
+]
+StudyServiceDep = Annotated[
+    StudyService, Depends(rssa_service(StudyService, StudyRepository, StudyAuthorizationRepository))
+]
 StudyStepServiceDep = Annotated[StudyStepService, Depends(rssa_service(StudyStepService, StudyStepRepository))]
 StudyStepPageServiceDep = Annotated[
     StudyStepPageService, Depends(rssa_service(StudyStepPageService, StudyStepPageRepository))
