@@ -16,7 +16,7 @@ from rssa_api.data.services.dependencies import StudyParticipantServiceDep
 from rssa_api.data.services.study_components import StudyParticipantService
 
 
-def get_dependency_key(annotated_dep: Any) -> Any:
+def get_dependency_key(annotated_dep: Any) -> Any:  # noqa: ANN401
     """Extracts the dependency function from an Annotated dependency."""
     for item in get_args(annotated_dep):
         if isinstance(item, FastAPI_Depends):
@@ -77,7 +77,7 @@ async def test_get_current_participant_success(client: TestClient, mock_particip
 
     # Use simple objects instead of MagicMock for nested models to avoid auto-mocking
     class MockObj:
-        def __init__(self, **kwargs):
+        def __init__(self, **kwargs: Any) -> None:  # noqa: ANN401
             for k, v in kwargs.items():
                 setattr(self, k, v)
 

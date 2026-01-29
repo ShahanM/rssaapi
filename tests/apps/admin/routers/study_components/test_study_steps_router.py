@@ -17,7 +17,7 @@ from rssa_api.data.services.dependencies import (
 )
 
 
-def override_dep(app, dep, mock):
+def override_dep(app, dep, mock) -> None:
     """Overrides a dependency in the application."""
     from typing import get_args
 
@@ -59,6 +59,20 @@ def client(mock_step_service: AsyncMock, mock_page_service: AsyncMock) -> Genera
         return Auth0UserSchema(sub='auth0|user123', email='user@test.com', permissions=['admin:all'])
 
     app.dependency_overrides[get_auth0_authenticated_user] = mock_auth
+
+    from rssa_api.auth.security import get_current_user
+    from rssa_api.data.schemas.auth_schemas import UserSchema
+
+    async def mock_current_user() -> UserSchema:
+        return UserSchema(
+            id=uuid.uuid4(),
+            email='user@test.com',
+            auth0_sub='auth0|user123',
+            is_active=True,
+            created_at='2021-01-01T00:00:00',
+        )
+
+    app.dependency_overrides[get_current_user] = mock_current_user
 
     with TestClient(app) as client:
         yield client

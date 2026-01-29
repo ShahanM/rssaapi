@@ -153,7 +153,7 @@ async def update_survey_scale(
     payload: dict[str, str],
     service: SurveyScaleServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:scales', 'admin:all'))],
-) -> dict[str, str]:
+) -> None:
     """Update a survey scale.
 
     Args:
@@ -167,15 +167,13 @@ async def update_survey_scale(
     """
     await service.update(scale_id, payload)
 
-    return {}
-
 
 @router.delete('/{scale_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_construct_scale(
     service: SurveyScaleServiceDep,
     scale_id: uuid.UUID,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:scales', 'admin:all'))],
-) -> dict[str, str]:
+) -> None:
     """Delete a survey scale.
 
     Args:
@@ -187,8 +185,6 @@ async def delete_construct_scale(
         Empty dictionary on success.
     """
     await service.repo.delete(scale_id)
-
-    return {}
 
 
 @router.get('/{scale_id}/levels', response_model=list[SurveyScaleLevelRead])
@@ -246,7 +242,7 @@ async def update_scale_levels_order(
     scale_id: uuid.UUID,
     service: SurveyScaleLevelServiceDep,
     payload: list[ReorderPayloadSchema],
-) -> dict[str, str]:
+) -> None:
     """Reorder levels within a survey scale.
 
     Args:
@@ -259,5 +255,3 @@ async def update_scale_levels_order(
     """
     levels_map = {level.id: level.order_position for level in payload}
     await service.reorder_items(scale_id, levels_map)
-
-    return {}

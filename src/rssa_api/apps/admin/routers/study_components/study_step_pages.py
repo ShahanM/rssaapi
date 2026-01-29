@@ -90,7 +90,7 @@ async def update_step_page(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:pages', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Update a study step page.
 
     Args:
@@ -118,7 +118,6 @@ async def update_step_page(
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     await page_service.update(page_id, updated_page)
-    return {'status': 'success'}
 
 
 @router.delete(
@@ -137,7 +136,7 @@ async def delete_step_page(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:pages', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Delete a study step page.
 
     Args:
@@ -164,8 +163,6 @@ async def delete_step_page(
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     await page_service.delete(page_id)
-
-    return {'status': 'success'}
 
 
 @router.get(
@@ -274,7 +271,7 @@ async def reorder_page_contents(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:content', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Reorder contents within a study step page.
 
     Args:
@@ -304,5 +301,3 @@ async def reorder_page_contents(
 
     contents_map = {item.id: item.order_position for item in payload}
     await content_service.reorder_items(page_id, contents_map)
-
-    return {'status': 'success'}

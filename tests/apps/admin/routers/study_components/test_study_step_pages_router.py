@@ -9,15 +9,16 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from rssa_api.apps.admin.routers.study_components.study_step_pages import router
-from rssa_api.auth.security import get_auth0_authenticated_user
+from rssa_api.auth.security import get_auth0_authenticated_user, get_current_user
 from rssa_api.data.schemas import Auth0UserSchema
+from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.services.dependencies import (
     StudyStepPageContentServiceDep,
     StudyStepPageServiceDep,
 )
 
 
-def override_dep(app, dep, mock):
+def override_dep(app, dep, mock) -> None:
     """Overrides a dependency in the application."""
     from typing import get_args
 
@@ -58,6 +59,17 @@ def client(mock_page_service: AsyncMock, mock_content_service: AsyncMock) -> Gen
         return Auth0UserSchema(sub='auth0|user123', email='user@test.com', permissions=['admin:all'])
 
     app.dependency_overrides[get_auth0_authenticated_user] = mock_auth
+
+    async def mock_current_user() -> UserSchema:
+        return UserSchema(
+            id=uuid.uuid4(),
+            email='user@test.com',
+            auth0_sub='auth0|user123',
+            is_active=True,
+            created_at='2021-01-01T00:00:00',
+        )
+
+    app.dependency_overrides[get_current_user] = mock_current_user
 
     with TestClient(app) as client:
         yield client

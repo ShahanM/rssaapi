@@ -1,15 +1,19 @@
 """Tests for the movies router."""
 
+import uuid
 from collections.abc import Generator
+from typing import get_args
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
+from fastapi.params import Depends as FastAPI_Depends
 from fastapi.testclient import TestClient
 
 from rssa_api.apps.admin.routers.movies import router
-from rssa_api.auth.security import get_auth0_authenticated_user
+from rssa_api.auth.security import get_auth0_authenticated_user, get_current_user
 from rssa_api.data.schemas import Auth0UserSchema
+from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.services.dependencies import MovieServiceDep
 from rssa_api.data.services.movie_service import MovieService
 
@@ -25,11 +29,6 @@ def client(mock_movie_service: AsyncMock) -> Generator[TestClient, None, None]:
     """Fixture for a TestClient with dependency overrides."""
     app = FastAPI()
     app.include_router(router)
-
-    # Extract the actual dependency callable from Annotated
-    from typing import get_args
-
-    from fastapi.params import Depends as FastAPI_Depends
 
     dep_callable = None
     for item in get_args(MovieServiceDep):
@@ -49,6 +48,17 @@ def client(mock_movie_service: AsyncMock) -> Generator[TestClient, None, None]:
 
     app.dependency_overrides[get_auth0_authenticated_user] = mock_auth
 
+    async def mock_current_user() -> UserSchema:
+        return UserSchema(
+            id=uuid.uuid4(),
+            email='user@test.com',
+            auth0_sub='auth0|user123',
+            is_active=True,
+            created_at='2021-01-01T00:00:00',
+        )
+
+    app.dependency_overrides[get_current_user] = mock_current_user
+
     with TestClient(app) as test_client:
         yield test_client
 
@@ -58,17 +68,6 @@ def client(mock_movie_service: AsyncMock) -> Generator[TestClient, None, None]:
 @pytest.mark.asyncio
 async def test_get_movies_summary_success(client: TestClient, mock_movie_service: AsyncMock) -> None:
     """Test retrieving movie summaries."""
-    # Using simple dicts for mocks as they are easy to model_validate
-    mock_movies = [
-        {
-            'id': '123e4567-e89b-12d3-a456-426614174000',
-            'title': 'Test Movie',
-            'year': 2000,
-            'genre': 'Action',
-            'description': 'Desc',
-            'poster': 'poster.jpg',
-        }
-    ]
 
     # The service returns SQLModel objects usually, but Pydantic model_validate handles dicts too.
     # To be safer let's make them look like objects.
@@ -101,7 +100,15 @@ async def test_get_movies_summary_success(client: TestClient, mock_movie_service
     assert len(data) == 1
     assert data[0]['title'] == 'Test Movie'
     mock_movie_service.get_movies.assert_called_once_with(
-        10, 0, title=None, year_min=None, year_max=None, genre=None, sort_by=None
+        10,
+        0,
+        title=None,
+        year_min=None,
+        year_max=None,
+        genre=None,
+        sort_by=None,
+        exclude_no_emotions=False,
+        exclude_no_recommendations=False,
     )
 
 
@@ -144,9 +151,24 @@ async def test_get_movies_with_details_success(client: TestClient, mock_movie_se
     assert len(data['data']) == 1
     assert data['data'][0]['title'] == 'Test Movie'
     mock_movie_service.get_movies_with_details.assert_called_once_with(
-        10, 0, title=None, year_min=None, year_max=None, genre=None, sort_by=None
+        10,
+        0,
+        title=None,
+        year_min=None,
+        year_max=None,
+        genre=None,
+        sort_by=None,
+        exclude_no_emotions=False,
+        exclude_no_recommendations=False,
     )
-    mock_movie_service.get_movie_count.assert_called_once_with(title=None, year_min=None, year_max=None, genre=None)
+    mock_movie_service.get_movie_count.assert_called_once_with(
+        title=None,
+        year_min=None,
+        year_max=None,
+        genre=None,
+        exclude_no_emotions=False,
+        exclude_no_recommendations=False,
+    )
 
 
 @pytest.mark.asyncio

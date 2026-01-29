@@ -15,7 +15,8 @@ from rssa_api.data.services.dependencies import SurveyItemServiceDep
 
 
 # Helper to override dependency
-def override_dep(app, dep, mock):
+def override_dep(app, dep, mock) -> None:
+    """Helper to override dependency."""
     from typing import get_args
 
     from fastapi.params import Depends as FastAPI_Depends
@@ -34,6 +35,7 @@ def override_dep(app, dep, mock):
 
 @pytest.fixture
 def mock_item_service() -> AsyncMock:
+    """Mock item service."""
     return AsyncMock()
 
 
@@ -63,7 +65,7 @@ def client(
     app.dependency_overrides.clear()
 
 
-def test_get_item(client: TestClient, mock_item_service: AsyncMock):
+def test_get_item(client: TestClient, mock_item_service: AsyncMock) -> None:
     """Test retrieving a survey item by ID."""
     item_id = uuid.uuid4()
 
@@ -84,7 +86,7 @@ def test_get_item(client: TestClient, mock_item_service: AsyncMock):
     mock_item_service.get.assert_called_once_with(item_id)
 
 
-def test_update_item(client: TestClient, mock_item_service: AsyncMock):
+def test_update_item(client: TestClient, mock_item_service: AsyncMock) -> None:
     """Test updating a survey item."""
     item_id = uuid.uuid4()
     payload = {'text': 'Updated Item Text'}
@@ -95,7 +97,7 @@ def test_update_item(client: TestClient, mock_item_service: AsyncMock):
     mock_item_service.update.assert_called_once_with(item_id, payload)
 
 
-def test_delete_item(client: TestClient, mock_item_service: AsyncMock):
+def test_delete_item(client: TestClient, mock_item_service: AsyncMock) -> None:
     """Test deleting a survey item."""
     item_id = uuid.uuid4()
 

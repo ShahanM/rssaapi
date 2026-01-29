@@ -10,14 +10,14 @@ from rssa_api.services.recommendation.strategies import LambdaStrategy
 
 
 @pytest.fixture
-def mock_session():
+def mock_session() -> AsyncMock:
     """Mocks the session for testing."""
     with patch('rssa_api.services.recommendation.strategies.get_session') as mock:
         yield mock
 
 
 @pytest.mark.asyncio
-async def test_resolve_function_name(mock_session):
+async def test_resolve_function_name(mock_session: AsyncMock) -> None:
     """Test resolving function name from logical name."""
     strategy = LambdaStrategy('ImplicitMF', {}, 'us-east-1')
 
@@ -42,7 +42,7 @@ async def test_resolve_function_name(mock_session):
 
 
 @pytest.mark.asyncio
-async def test_recommend_success(mock_session):
+async def test_recommend_success(mock_session: AsyncMock) -> None:
     """Test successful recommendation invocation."""
     strategy = LambdaStrategy('ImplicitMF', {}, 'us-east-1')
     strategy.resolved_function_name = 'ResolvedFunc'  # skip resolution
@@ -72,7 +72,7 @@ async def test_recommend_success(mock_session):
 
 
 @pytest.mark.asyncio
-async def test_recommend_lambda_error(mock_session):
+async def test_recommend_lambda_error(mock_session: AsyncMock) -> None:
     """Test handling of Lambda function error."""
     strategy = LambdaStrategy('ImplicitMF', {}, 'us-east-1')
     strategy.resolved_function_name = 'ResolvedFunc'

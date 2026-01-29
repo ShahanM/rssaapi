@@ -56,7 +56,7 @@ async def update_item(
     payload: dict[str, str],
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
-) -> dict[str, str]:
+) -> None:
     """Update a survey item.
 
     Args:
@@ -69,7 +69,6 @@ async def update_item(
         Empty dictionary on success.
     """
     await service.update(item_id, payload)
-    return {}
 
 
 @router.delete(
@@ -85,7 +84,7 @@ async def delete_construct_item(
     item_id: uuid.UUID,
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:items', 'admin:all'))],
-) -> dict[str, str]:
+) -> None:
     """Delete a survey item.
 
     Args:
@@ -97,4 +96,3 @@ async def delete_construct_item(
         Empty dictionary on success.
     """
     await service.delete(item_id)
-    return {}

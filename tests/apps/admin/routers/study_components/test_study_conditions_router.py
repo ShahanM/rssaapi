@@ -14,7 +14,7 @@ from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.services.dependencies import StudyConditionServiceDep
 
 
-def override_dep(app, dep, mock):
+def override_dep(app, dep, mock) -> None:
     """Overrides a dependency in the application."""
     from typing import get_args
 
@@ -49,6 +49,20 @@ def client(mock_condition_service: AsyncMock) -> Generator[TestClient, None, Non
 
     app.dependency_overrides[get_auth0_authenticated_user] = mock_auth
 
+    from rssa_api.auth.security import get_current_user
+    from rssa_api.data.schemas.auth_schemas import UserSchema
+
+    async def mock_current_user() -> UserSchema:
+        return UserSchema(
+            id=uuid.uuid4(),
+            email='user@test.com',
+            auth0_sub='auth0|user123',
+            is_active=True,
+            created_at='2021-01-01T00:00:00',
+        )
+
+    app.dependency_overrides[get_current_user] = mock_current_user
+
     with TestClient(app) as client:
         yield client
     app.dependency_overrides.clear()
@@ -77,6 +91,7 @@ async def test_get_condition_detail(client: TestClient, mock_condition_service: 
     mock_cond.recommender_key = 'rec_key'
     mock_cond.created_by_id = uuid.uuid4()
     mock_cond.short_code = 'SC'
+    mock_cond.view_link_key = 'view_key'
 
     mock_condition_service.get.return_value = mock_cond
 

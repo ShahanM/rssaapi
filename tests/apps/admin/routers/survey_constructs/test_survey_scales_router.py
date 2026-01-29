@@ -15,7 +15,8 @@ from rssa_api.data.services.dependencies import SurveyScaleLevelServiceDep, Surv
 
 
 # Helper to override dependency
-def override_dep(app, dep, mock):
+def override_dep(app, dep, mock) -> None:
+    """Helper to override dependency."""
     from typing import get_args
 
     from fastapi.params import Depends as FastAPI_Depends
@@ -34,11 +35,13 @@ def override_dep(app, dep, mock):
 
 @pytest.fixture
 def mock_scale_service() -> AsyncMock:
+    """Mock scale service."""
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_level_service() -> AsyncMock:
+    """Mock level service."""
     return AsyncMock()
 
 
@@ -77,7 +80,7 @@ def client(
     app.dependency_overrides.clear()
 
 
-def test_get_construct_scales(client: TestClient, mock_scale_service: AsyncMock):
+def test_get_construct_scales(client: TestClient, mock_scale_service: AsyncMock) -> None:
     """Test retrieving a list of survey scales."""
     mock_scale = MagicMock()
     mock_scale.name = 'Test Scale'
@@ -97,7 +100,7 @@ def test_get_construct_scales(client: TestClient, mock_scale_service: AsyncMock)
     assert data['rows'][0]['name'] == 'Test Scale'
 
 
-def test_create_construct_scale(client: TestClient, mock_scale_service: AsyncMock):
+def test_create_construct_scale(client: TestClient, mock_scale_service: AsyncMock) -> None:
     """Test creating a new survey scale."""
     payload = {'name': 'New Scale', 'description': 'Scale Description'}
 
@@ -108,7 +111,7 @@ def test_create_construct_scale(client: TestClient, mock_scale_service: AsyncMoc
     mock_scale_service.create.assert_called_once()
 
 
-def test_get_construct_scale_detail(client: TestClient, mock_scale_service: AsyncMock):
+def test_get_construct_scale_detail(client: TestClient, mock_scale_service: AsyncMock) -> None:
     """Test retrieving details of a specific survey scale."""
     scale_id = uuid.uuid4()
 
@@ -127,7 +130,7 @@ def test_get_construct_scale_detail(client: TestClient, mock_scale_service: Asyn
     assert response.json()['name'] == 'Detailed Scale'
 
 
-def test_update_survey_scale(client: TestClient, mock_scale_service: AsyncMock):
+def test_update_survey_scale(client: TestClient, mock_scale_service: AsyncMock) -> None:
     """Test updating a survey scale."""
     scale_id = uuid.uuid4()
     payload = {'name': 'Updated Scale Name'}
@@ -138,7 +141,7 @@ def test_update_survey_scale(client: TestClient, mock_scale_service: AsyncMock):
     mock_scale_service.update.assert_called_once_with(scale_id, payload)
 
 
-def test_get_scale_levels(client: TestClient, mock_level_service: AsyncMock):
+def test_get_scale_levels(client: TestClient, mock_level_service: AsyncMock) -> None:
     """Test retrieving levels for a survey scale."""
     scale_id = uuid.uuid4()
 
@@ -160,7 +163,7 @@ def test_get_scale_levels(client: TestClient, mock_level_service: AsyncMock):
     assert response.json()[0]['label'] == 'Level 1'
 
 
-def test_create_scale_level(client: TestClient, mock_level_service: AsyncMock):
+def test_create_scale_level(client: TestClient, mock_level_service: AsyncMock) -> None:
     """Test creating a level for a survey scale."""
     scale_id = uuid.uuid4()
     payload = {'survey_scale_id': str(scale_id), 'value': 2, 'label': 'Level 2'}

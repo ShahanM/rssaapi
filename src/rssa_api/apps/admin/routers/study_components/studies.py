@@ -396,7 +396,7 @@ async def update_study(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:studies', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Update a study.
 
     Args:
@@ -417,8 +417,6 @@ async def update_study(
 
     await study_service.update(study_id, payload)
 
-    return {}
-
 
 @router.delete(
     '/{study_id}',
@@ -433,7 +431,7 @@ async def delete_study(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:studies', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Delete a study.
 
     Args:
@@ -454,8 +452,6 @@ async def delete_study(
 
     await study_service.delete(study_id)
 
-    return {}
-
 
 @router.patch('/{study_id}/steps/reorder', status_code=204)
 async def reorder_study_steps(
@@ -465,7 +461,7 @@ async def reorder_study_steps(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Reorder study steps.
 
     Updates the order position of multiple steps within a study.
@@ -490,8 +486,6 @@ async def reorder_study_steps(
     steps_map = {item.id: item.order_position for item in payload}
     await step_service.reorder_items(study_id, steps_map)
 
-    return {'message': 'Steps reordered successfully'}
-
 
 @router.get(
     '/{study_id}/steps/validate',
@@ -507,7 +501,7 @@ async def validate_step_path_uniqueness(
     path: str,
     step_service: StudyStepServiceDep,
     exclude_step_id: uuid.UUID | None = None,
-) -> dict[str, str]:
+) -> None:
     """Check if a step path is unique within a study.
 
     Args:
@@ -529,8 +523,6 @@ async def validate_step_path_uniqueness(
             status_code=status.HTTP_409_CONFLICT,
             detail='This path is already in use for this study.',
         )
-
-    return {}
 
 
 @router.post('/{study_id}/apikeys', response_model=ApiKeyRead, status_code=status.HTTP_201_CREATED)
@@ -672,7 +664,7 @@ async def remove_study_authorization(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Remove an authorized user from a study.
 
     Args:
@@ -692,4 +684,3 @@ async def remove_study_authorization(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
 
     await study_service.remove_study_authorization(study_id, user_id)
-    return {}

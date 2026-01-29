@@ -22,7 +22,7 @@ class MockSchema(BaseModel):
 class MockModel:
     """Mock model for testing."""
 
-    def __init__(self, id, name):
+    def __init__(self, id, name) -> None:
         """Initialize the mock model."""
         self.id = id
         self.name = name

@@ -197,7 +197,7 @@ async def update_survey_construct(
     payload: dict[str, str],
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:constructs', 'admin:all'))],
-) -> dict[str, str]:
+) -> None:
     """Update a survey construct.
 
     Args:
@@ -210,7 +210,6 @@ async def update_survey_construct(
         Empty dictionary on success.
     """
     await service.update(construct_id, payload)
-    return {}
 
 
 @router.delete(
@@ -226,7 +225,7 @@ async def delete_construct(
     construct_id: uuid.UUID,
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:constructs', 'admin:all'))],
-) -> dict[str, str]:
+) -> None:
     """Delete a survey construct.
 
     Args:
@@ -238,7 +237,6 @@ async def delete_construct(
         Empty dictionary on success.
     """
     await service.delete(construct_id)
-    return {}
 
 
 @router.get('/{construct_id}/items', response_model=list[OrderedTextListItem])

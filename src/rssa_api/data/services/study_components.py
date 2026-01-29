@@ -72,6 +72,9 @@ class StudyService(BaseScopedService[Study, StudyRepository]):
         if not study:
             return False
 
+        if study.owner_id == user_id:
+            return True
+
         auth_record = await self.auth_repo.find_one(
             RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id})
         )

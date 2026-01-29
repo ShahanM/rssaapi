@@ -1,6 +1,7 @@
 """Tests for StudyParticipant related services."""
 
 import uuid
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -125,7 +126,7 @@ async def test_create_recommendation_context(
     context_data.recommendations_json.model_dump.return_value = {}
 
     # Mock create to set ID on instance (simulating DB commit)
-    def set_id(instance):
+    def set_id(instance) -> Any:
         instance.id = uuid.uuid4()
         return instance
 

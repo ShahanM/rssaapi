@@ -38,7 +38,7 @@ async def remove_survey_construct_from_page(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:content', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Remove a survey construct from a page.
 
     Args:
@@ -86,7 +86,7 @@ async def update_page_content(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:content', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Update page content (e.g., preamble).
 
     Args:
@@ -121,4 +121,3 @@ async def update_page_content(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Content not found.')
 
     await service.update(content_id, payload.model_dump(exclude_unset=True))
-    return {'status': 'success'}

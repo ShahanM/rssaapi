@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import pytest_asyncio
 
@@ -25,13 +26,13 @@ from rssa_api.main import app
 
 
 @compiles(ARRAY, 'sqlite')
-def compile_array(element, compiler, **kw):
+def compile_array(element, compiler, **kw: Any) -> str:  # noqa: ANN401
     """Compiles PostgreSQL ARRAY type to JSON for SQLite compatibility."""
     return 'JSON'
 
 
 @compiles(postgresql.JSONB, 'sqlite')
-def compile_jsonb(element, compiler, **kw):
+def compile_jsonb(element, compiler, **kw: Any) -> str:  # noqa: ANN401
     """Compiles PostgreSQL JSONB type to JSON for SQLite compatibility."""
     return 'JSON'
 
@@ -114,7 +115,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         AsyncClient: The HTTP client.
     """
 
-    async def override_get_db():
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
         yield db_session
 
     app.dependency_overrides[rssa_db] = override_get_db

@@ -1,59 +1,64 @@
 """Tests for permissions enforcement in admin routers."""
 
 import uuid
-from collections.abc import Generator
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from rssa_api.apps.admin.routers.study_components.studies import router as studies_router
 from rssa_api.apps.admin.routers.movies import router as movies_router
+from rssa_api.apps.admin.routers.study_components.studies import router as studies_router
 from rssa_api.apps.admin.routers.survey_constructs.survey_constructs import router as constructs_router
 from rssa_api.auth.security import get_auth0_authenticated_user, get_current_user
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
+from rssa_api.data.schemas.movie_schemas import MovieSchema
+from rssa_api.data.schemas.study_components import StudyAudit
 from rssa_api.data.services.dependencies import (
-    StudyServiceDep,
-    StudyParticipantServiceDep,
-    StudyConditionServiceDep,
     MovieServiceDep,
+    StudyConditionServiceDep,
+    StudyParticipantServiceDep,
+    StudyServiceDep,
     SurveyConstructServiceDep,
     SurveyItemServiceDep,
 )
-from rssa_api.data.schemas.study_components import StudyAudit, ConditionCountSchema
-from rssa_api.data.schemas.movie_schemas import MovieSchema
 
 
 @pytest.fixture
 def mock_study_service() -> AsyncMock:
+    """Mock study service."""
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_study_participant_service() -> AsyncMock:
+    """Mock study participant service."""
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_study_condition_service() -> AsyncMock:
+    """Mock study condition service."""
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_movie_service() -> AsyncMock:
+    """Mock movie service."""
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_construct_service() -> AsyncMock:
+    """Mock construct service."""
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_item_service() -> AsyncMock:
+    """Mock item service."""
     return AsyncMock()
 
 
@@ -66,15 +71,17 @@ def app(
     mock_construct_service,
     mock_item_service,
 ) -> FastAPI:
+    """Create a FastAPI app with mocked dependencies."""
     app = FastAPI()
     app.include_router(studies_router)
     app.include_router(movies_router)
     app.include_router(constructs_router)
 
     from typing import get_args
+
     from fastapi.params import Depends as FastAPI_Depends
 
-    def override_dep(dep_type, mock_instance):
+    def override_dep(dep_type, mock_instance) -> None:
         dep_callable = None
         for item in get_args(dep_type):
             if isinstance(item, FastAPI_Depends):
@@ -130,7 +137,7 @@ async def test_get_study_detail_success_owner(
         response = client.get(f'/studies/{study_id}')
 
     assert response.status_code == 200
-    mock_study_service.check_study_access.assert_called_with(study_id, user_id)
+    mock_study_service.check_study_access.assert_called_with(study_id, user_id, min_role='viewer')
 
 
 @pytest.mark.asyncio
@@ -164,7 +171,7 @@ async def test_get_study_detail_forbidden_non_owner(app: FastAPI, mock_study_ser
 
     assert response.status_code == 404
     assert response.json()['detail'] == 'Study not found.'
-    mock_study_service.check_study_access.assert_called_with(study_id, user_id)
+    mock_study_service.check_study_access.assert_called_with(study_id, user_id, min_role='viewer')
 
 
 @pytest.mark.asyncio
@@ -247,3 +254,28 @@ async def test_get_construct_items_success(app: FastAPI, mock_item_service: Asyn
         response = client.get(f'/constructs/{construct_id}/items')
 
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_get_studies_list_authorized(app: FastAPI, mock_study_service: AsyncMock) -> None:
+    """Test fetching study list uses authorized counting and fetching."""
+    user_id = uuid.uuid4()
+
+    # Non-admin user
+    app.dependency_overrides[get_auth0_authenticated_user] = lambda: Auth0UserSchema(
+        sub='auth0|123', email='test@test.com', permissions=['read:authorized_studies']
+    )
+    app.dependency_overrides[get_current_user] = lambda: UserSchema(
+        id=user_id, email='test@test.com', permissions=[], auth0_sub='auth0|123'
+    )
+
+    # Mock responses
+    mock_study_service.count_authorized_for_user.return_value = 5
+    mock_study_service.get_paged_for_authorized_user.return_value = []
+
+    with TestClient(app) as client:
+        response = client.get('/studies')
+
+    assert response.status_code == 200
+    mock_study_service.count_authorized_for_user.assert_called_with(user_id, None)
+    mock_study_service.get_paged_for_authorized_user.assert_called()

@@ -163,7 +163,7 @@ async def update_study_step(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:steps', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Update a study step.
 
     Args:
@@ -190,8 +190,6 @@ async def update_study_step(
 
     await step_service.update(step_id, payload)
 
-    return {'Status': 'Success'}
-
 
 @router.delete('/{step_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_study_step(
@@ -200,7 +198,7 @@ async def delete_study_step(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:steps', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Delete a study step.
 
     Args:
@@ -225,8 +223,6 @@ async def delete_study_step(
 
     await step_service.delete(step_id)
 
-    return {'status': 'success'}
-
 
 @router.patch('/{step_id}/pages/reorder', status_code=status.HTTP_204_NO_CONTENT)
 async def reorder_step_pages(
@@ -237,7 +233,7 @@ async def reorder_step_pages(
     step_service: StudyStepServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:pages', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> None:
     """Reorder pages within a study step.
 
     Args:
@@ -264,5 +260,3 @@ async def reorder_step_pages(
 
     pages_map = {item.id: item.order_position for item in payload}
     await page_service.reorder_items(step_id, pages_map)
-
-    return {'status': 'success'}

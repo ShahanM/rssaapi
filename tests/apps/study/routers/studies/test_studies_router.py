@@ -3,11 +3,12 @@
 import datetime
 import uuid
 from collections.abc import Generator
-from typing import Any
+from typing import Any, get_args
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
+from fastapi.params import Depends as FastAPI_Depends
 from fastapi.testclient import TestClient
 
 from rssa_api.apps.study.routers.studies.studies import router
@@ -69,12 +70,7 @@ def mock_participant_service() -> AsyncMock:
     return AsyncMock(spec=StudyParticipantService)
 
 
-from typing import get_args
-
-from fastapi.params import Depends as FastAPI_Depends
-
-
-def get_dependency_key(annotated_dep: Any) -> Any:
+def get_dependency_key(annotated_dep: Any) -> Any:  # noqa: ANN401
     """Extracts the dependency function from an Annotated dependency."""
     # get_args returns (type, *metadata)
     # The metadata should contain the Depends object
@@ -217,7 +213,7 @@ async def test_resume_study_session_success(
     """Test resuming a study session."""
     study_id = uuid.uuid4()
 
-    async def specific_auth():
+    async def specific_auth() -> uuid.UUID:
         return study_id
 
     client.app.dependency_overrides[authorize_api_key_for_study] = specific_auth

@@ -63,7 +63,7 @@ async def delete_study_authorization(
     authorization_id: uuid.UUID,
     service: StudyAuthorizationServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
-) -> dict[str, str]:
+) -> None:
     """Delete a study authorization."""
     existing = await service.get_one(authorization_id)
     if not existing:
@@ -72,4 +72,3 @@ async def delete_study_authorization(
             detail='Authorization not found',
         )
     await service.delete(authorization_id)
-    return {'status': 'success'}

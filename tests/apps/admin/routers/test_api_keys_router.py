@@ -9,8 +9,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from rssa_api.apps.admin.routers.api_keys import router
-from rssa_api.auth.security import get_auth0_authenticated_user
+from rssa_api.auth.security import get_auth0_authenticated_user, get_current_user
 from rssa_api.data.schemas import Auth0UserSchema
+from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.services.dependencies import ApiKeyServiceDep
 from rssa_api.data.services.study_admin import ApiKeyService
 
@@ -48,6 +49,17 @@ def client(mock_apikey_service: AsyncMock) -> Generator[TestClient, None, None]:
         return Auth0UserSchema(sub='auth0|user123', email='user@test.com', permissions=['admin:all'])
 
     app.dependency_overrides[get_auth0_authenticated_user] = mock_auth
+
+    async def mock_current_user() -> UserSchema:
+        return UserSchema(
+            id=uuid.uuid4(),
+            email='user@test.com',
+            auth0_sub='auth0|user123',
+            is_active=True,
+            created_at='2021-01-01T00:00:00',
+        )
+
+    app.dependency_overrides[get_current_user] = mock_current_user
 
     with TestClient(app) as test_client:
         yield test_client

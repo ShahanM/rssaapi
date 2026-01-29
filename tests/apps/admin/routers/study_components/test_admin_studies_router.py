@@ -21,7 +21,7 @@ from rssa_api.data.services.dependencies import (
 
 
 # Helper to override dependency
-def override_dep(app, dep, mock):
+def override_dep(app, dep, mock) -> None:
     """Helper to override dependency."""
     from typing import get_args
 

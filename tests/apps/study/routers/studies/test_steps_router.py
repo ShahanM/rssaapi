@@ -19,7 +19,7 @@ from rssa_api.data.services.study_components import (
 )
 
 
-def get_dependency_key(annotated_dep: Any) -> Any:
+def get_dependency_key(annotated_dep: Any) -> Any:  # noqa: ANN401
     """Extracts the dependency function from an Annotated dependency."""
     for item in get_args(annotated_dep):
         if isinstance(item, FastAPI_Depends):
@@ -85,7 +85,6 @@ async def test_get_study_step_success(
     mock_step.instructions = 'Instructions'
     mock_step.survey_api_root = None
     mock_step.root_page_info = None  # This is NavigationWrapper | None.
-    # If using None, ensure Schema allows None. Schema: root_page_info: NavigationWrapper[StudyStepPageRead] | None = None
 
     # Mocking get_with_navigation returns dict wrapper
     mock_step_service.get_with_navigation.return_value = {

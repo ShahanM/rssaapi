@@ -77,7 +77,7 @@ async def update_item(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
     payload: dict[str, Any],
-) -> dict[str, str]:
+) -> None:
     """Update a study condition.
 
     Args:
@@ -102,4 +102,3 @@ async def update_item(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study condition was not found.')
 
     await service.update(condition_id, payload)
-    return {'status': 'success'}

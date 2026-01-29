@@ -17,7 +17,7 @@ from rssa_api.data.services.dependencies import ParticipantResponseServiceDep
 from rssa_api.data.services.response_service import ParticipantResponseService
 
 
-def get_dependency_key(annotated_dep: Any) -> Any:
+def get_dependency_key(annotated_dep: Any) -> Any:  # noqa: ANN401
     """Extracts the dependency function from an Annotated dependency."""
     for item in get_args(annotated_dep):
         if isinstance(item, FastAPI_Depends):

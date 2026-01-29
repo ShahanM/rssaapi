@@ -15,7 +15,8 @@ from rssa_api.data.services.dependencies import SurveyScaleLevelServiceDep
 
 
 # Helper to override dependency
-def override_dep(app, dep, mock):
+def override_dep(app, dep, mock) -> None:
+    """Helper to override dependency."""
     from typing import get_args
 
     from fastapi.params import Depends as FastAPI_Depends
@@ -34,6 +35,7 @@ def override_dep(app, dep, mock):
 
 @pytest.fixture
 def mock_level_service() -> AsyncMock:
+    """Mock level service."""
     return AsyncMock()
 
 
@@ -59,7 +61,7 @@ def client(
     app.dependency_overrides.clear()
 
 
-def test_delete_scale_level(client: TestClient, mock_level_service: AsyncMock):
+def test_delete_scale_level(client: TestClient, mock_level_service: AsyncMock) -> None:
     """Test deleting a scale level."""
     level_id = uuid.uuid4()
 

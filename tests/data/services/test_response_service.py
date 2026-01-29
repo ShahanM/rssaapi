@@ -91,10 +91,6 @@ async def test_get_response_for_page(service: ParticipantResponseService, mock_r
 @pytest.mark.asyncio
 async def test_create_response(service: ParticipantResponseService, mock_repos: dict[str, AsyncMock]) -> None:
     """Test creating a new participant response."""
-    study_id = uuid.uuid4()
-    participant_id = uuid.uuid4()
-
-    mock_data = MagicMock()
     mock_repos['survey'].create.return_value = 'created'
 
     # TODO: Needs correct attributes for singledispatch logic.

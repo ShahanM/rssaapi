@@ -15,7 +15,8 @@ from rssa_api.data.services.dependencies import SurveyConstructServiceDep, Surve
 
 
 # Helper to override dependency
-def override_dep(app, dep, mock):
+def override_dep(app, dep, mock) -> None:
+    """Helper to override dependency."""
     from typing import get_args
 
     from fastapi.params import Depends as FastAPI_Depends
@@ -34,11 +35,13 @@ def override_dep(app, dep, mock):
 
 @pytest.fixture
 def mock_construct_service() -> AsyncMock:
+    """Mock construct service."""
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_item_service() -> AsyncMock:
+    """Mock item service."""
     return AsyncMock()
 
 
@@ -77,7 +80,7 @@ def client(
     app.dependency_overrides.clear()
 
 
-def test_get_survey_constructs(client: TestClient, mock_construct_service: AsyncMock):
+def test_get_survey_constructs(client: TestClient, mock_construct_service: AsyncMock) -> None:
     """Test retrieving a list of survey constructs."""
     mock_construct = MagicMock()
     mock_construct.name = 'Test Construct'
@@ -99,7 +102,7 @@ def test_get_survey_constructs(client: TestClient, mock_construct_service: Async
     assert data['rows'][0]['name'] == 'Test Construct'
 
 
-def test_get_construct_detail(client: TestClient, mock_construct_service: AsyncMock):
+def test_get_construct_detail(client: TestClient, mock_construct_service: AsyncMock) -> None:
     """Test retrieving details of a specific survey construct."""
     construct_id = uuid.uuid4()
 
@@ -118,7 +121,7 @@ def test_get_construct_detail(client: TestClient, mock_construct_service: AsyncM
     assert response.json()['name'] == 'Detailed Construct'
 
 
-def test_create_survey_construct(client: TestClient, mock_construct_service: AsyncMock):
+def test_create_survey_construct(client: TestClient, mock_construct_service: AsyncMock) -> None:
     """Test creating a new survey construct."""
     payload = {'name': 'New Construct', 'description': 'New Description'}
 
@@ -129,7 +132,7 @@ def test_create_survey_construct(client: TestClient, mock_construct_service: Asy
     mock_construct_service.create.assert_called_once()
 
 
-def test_update_survey_construct(client: TestClient, mock_construct_service: AsyncMock):
+def test_update_survey_construct(client: TestClient, mock_construct_service: AsyncMock) -> None:
     """Test updating a survey construct."""
     construct_id = uuid.uuid4()
     payload = {'name': 'Updated Name'}
@@ -140,7 +143,7 @@ def test_update_survey_construct(client: TestClient, mock_construct_service: Asy
     mock_construct_service.update.assert_called_once_with(construct_id, payload)
 
 
-def test_delete_construct(client: TestClient, mock_construct_service: AsyncMock):
+def test_delete_construct(client: TestClient, mock_construct_service: AsyncMock) -> None:
     """Test deleting a survey construct."""
     construct_id = uuid.uuid4()
 
@@ -150,7 +153,7 @@ def test_delete_construct(client: TestClient, mock_construct_service: AsyncMock)
     mock_construct_service.delete.assert_called_once_with(construct_id)
 
 
-def test_create_construct_item(client: TestClient, mock_item_service: AsyncMock):
+def test_create_construct_item(client: TestClient, mock_item_service: AsyncMock) -> None:
     """Test creating an item for a survey construct."""
     construct_id = uuid.uuid4()
     payload = {'text': 'New Item Text', 'survey_construct_id': str(construct_id)}
