@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, Query, status
+"""Router for managing movies."""
 
 from typing import Annotated
 
-from rssa_api.data.schemas import Auth0UserSchema
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
 from rssa_api.apps.admin.docs import ADMIN_MOVIES_TAG
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
+from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.movie_schemas import (
     ImdbReviewsPayloadSchema,
     MovieDetailSchema,
@@ -41,9 +43,36 @@ async def get_movies(
     year_max: int | None = Query(None, description='Filter by maximum release year'),
     genre: str | None = Query(None, description='Filter by genre (partial match)'),
     sort_by: str | None = Query(None, description='Sort by field (e.g. year, title). Prefix with - for desc'),
-):
+    exclude_no_emotions: bool = Query(False, description='Exclude movies without emotions'),
+    exclude_no_recommendations: bool = Query(False, description='Exclude movies without LLM recommendations'),
+) -> list[MovieSchema]:
+    """Get movie summaries.
+
+    Args:
+        movie_service: The movie service.
+        offset: Start index.
+        limit: Max items to return.
+        title: Title filter.
+        year_min: Min release year.
+        year_max: Max release year.
+        genre: Genre filter.
+        sort_by: Sort field.
+        exclude_no_emotions: Exclude missing emotions.
+        exclude_no_recommendations: Exclude missing recommendations.
+
+    Returns:
+        List of movie summaries.
+    """
     movies = await movie_service.get_movies(
-        limit, offset, title=title, year_min=year_min, year_max=year_max, genre=genre, sort_by=sort_by
+        limit,
+        offset,
+        title=title,
+        year_min=year_min,
+        year_max=year_max,
+        genre=genre,
+        sort_by=sort_by,
+        exclude_no_emotions=exclude_no_emotions,
+        exclude_no_recommendations=exclude_no_recommendations,
     )
 
     return [MovieSchema.model_validate(movie) for movie in movies]
@@ -67,11 +96,45 @@ async def get_movies_with_details(
     year_max: int | None = Query(None, description='Filter by maximum release year'),
     genre: str | None = Query(None, description='Filter by genre (partial match)'),
     sort_by: str | None = Query(None, description='Sort by field (e.g. year, title). Prefix with - for desc'),
-):
+    exclude_no_emotions: bool = Query(False, description='Exclude movies without emotions'),
+    exclude_no_recommendations: bool = Query(False, description='Exclude movies without LLM recommendations'),
+) -> PaginatedMovieList:
+    """Get movies with details.
+
+    Args:
+        movie_service: The movie service.
+        offset: Start index.
+        limit: Max items to return.
+        title: Title filter.
+        year_min: Min release year.
+        year_max: Max release year.
+        genre: Genre filter.
+        sort_by: Sort field.
+        exclude_no_emotions: Exclude missing emotions.
+        exclude_no_recommendations: Exclude missing recommendations.
+
+    Returns:
+        Paginated list of movies.
+    """
     movies = await movie_service.get_movies_with_details(
-        limit, offset, title=title, year_min=year_min, year_max=year_max, genre=genre, sort_by=sort_by
+        limit,
+        offset,
+        title=title,
+        year_min=year_min,
+        year_max=year_max,
+        genre=genre,
+        sort_by=sort_by,
+        exclude_no_emotions=exclude_no_emotions,
+        exclude_no_recommendations=exclude_no_recommendations,
     )
-    count = await movie_service.get_movie_count(title=title, year_min=year_min, year_max=year_max, genre=genre)
+    count = await movie_service.get_movie_count(
+        title=title,
+        year_min=year_min,
+        year_max=year_max,
+        genre=genre,
+        exclude_no_emotions=exclude_no_emotions,
+        exclude_no_recommendations=exclude_no_recommendations,
+    )
 
     validated_movies = [MovieDetailSchema.model_validate(movie) for movie in movies]
     response_obj = PaginatedMovieList(data=validated_movies, count=count)
@@ -88,11 +151,19 @@ async def get_movies_with_details(
 async def create_movie_reviews(
     payload: ImdbReviewsPayloadSchema,
     movie_service: MovieServiceDep,
-):
+) -> dict[str, str]:
+    """Add reviews to a movie.
+
+    Args:
+        payload: Review data.
+        movie_service: The movie service.
+
+    Returns:
+        A success message.
+    """
     movie = await movie_service.get_movie_by_imdb_id(payload.imdb_id)
     if not movie:
         pass
-        # logger.warning(f'Could not find movie with imdb_id: {payload.imdb_id}')
 
     return {'message': 'Reviews added to the movie.'}
 
@@ -110,21 +181,28 @@ async def update_movie(
     payload: MovieUpdateSchema,
     movie_service: MovieServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:movies', 'admin:all'))],
-):
+) -> dict[str, str]:
+    """Update a movie.
+
+    Args:
+        movie_id: The UUID of the movie to update.
+        payload: The movie data to update.
+        movie_service: The movie service.
+        user: The authenticated user.
+
+    Returns:
+        A success message.
+    """
     import uuid
 
     try:
         movie_uuid = uuid.UUID(movie_id)
-    except ValueError:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid UUID format')
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid UUID format') from e
 
     updated_movie = await movie_service.update_movie(movie_uuid, payload)
 
     if not updated_movie:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Movie not found')
 
     return MovieSchema.model_validate(updated_movie)

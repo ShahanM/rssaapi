@@ -1,3 +1,5 @@
+"""Router for managing survey constructs in the admin API."""
+
 import math
 import uuid
 from typing import Annotated
@@ -45,7 +47,7 @@ async def get_survey_constructs(
     sort_by: str | None = Query(None, description='The field to sort by.'),
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results by name or dscription'),
-):
+) -> PaginatedConstructResponse:
     """Get a paginated list of survey constructs.
 
     Args:
@@ -91,7 +93,7 @@ async def get_construct_detail(
     construct_id: uuid.UUID,
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
-):
+) -> SurveyConstructRead:
     """Get details of a survey construct.
 
     Args:
@@ -129,7 +131,7 @@ async def get_construct_summary(
     construct_id: uuid.UUID,
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
-):
+) -> SurveyConstructRead:
     """Get a summary of a survey construct.
 
     Args:
@@ -165,7 +167,7 @@ async def create_survey_construct(
     new_construct: SurveyConstructCreate,
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('create:constructs', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Create a new survey construct.
 
     Args:
@@ -195,7 +197,7 @@ async def update_survey_construct(
     payload: dict[str, str],
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:constructs', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Update a survey construct.
 
     Args:
@@ -224,7 +226,7 @@ async def delete_construct(
     construct_id: uuid.UUID,
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:constructs', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Delete a survey construct.
 
     Args:
@@ -244,7 +246,7 @@ async def get_construct_items(
     construct_id: uuid.UUID,
     item_service: SurveyItemServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
-):
+) -> list[OrderedTextListItem]:
     """Get items for a survey construct.
 
     Args:
@@ -266,7 +268,7 @@ async def create_construct_item(
     new_item: SurveyItemCreate,
     item_service: SurveyItemServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('create:items', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Create a new item for a survey construct.
 
     Args:
@@ -289,13 +291,14 @@ async def update_scale_levels_order(
     service: SurveyItemServiceDep,
     payload: list[ReorderPayloadSchema],
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
-):
+) -> None:
     """Update the order of items within a construct.
 
     Args:
         construct_id: The UUID of the construct.
         service: The survey item service.
         payload: List of item IDs and their new positions.
+        user: Auth check.
 
     Returns:
         Empty dictionary on success.

@@ -23,12 +23,11 @@ async def delete_scale_level(
     service: SurveyScaleLevelServiceDep,
     level_id: uuid.UUID,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
-):
+) -> None:
     """Delete a scale level.
 
     Args:
         service: The scale level service.
-        level_id: The UUID of the level to delete.
         level_id: The UUID of the level to delete.
         user: The authenticated user.
 

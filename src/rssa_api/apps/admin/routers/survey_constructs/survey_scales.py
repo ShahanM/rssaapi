@@ -48,7 +48,7 @@ async def get_construct_scales(
     sort_by: str | None = Query(None, description='The field to sort by.'),
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results by name or description'),
-):
+) -> PaginatedConstructResponse:
     """Get a paginated list of survey scales.
 
     Args:
@@ -83,7 +83,7 @@ async def create_construct_scale(
     create_scale: SurveyScaleCreate,
     service: SurveyScaleServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('create:scales', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Create a new survey scale.
 
     Args:
@@ -103,7 +103,7 @@ async def create_construct_scale(
 async def get_construct_scale_detail(
     service: SurveyScaleServiceDep,
     scale_id: uuid.UUID,
-):
+) -> SurveyScaleRead:
     """Get details of a survey scale.
 
     Args:
@@ -127,7 +127,7 @@ async def get_construct_scale_detail(
 async def get_construct_scale(
     service: SurveyScaleServiceDep,
     scale_id: uuid.UUID,
-):
+) -> SurveyScaleRead:
     """Get a summary of a survey scale.
 
     Args:
@@ -153,7 +153,7 @@ async def update_survey_scale(
     payload: dict[str, str],
     service: SurveyScaleServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:scales', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Update a survey scale.
 
     Args:
@@ -175,7 +175,7 @@ async def delete_construct_scale(
     service: SurveyScaleServiceDep,
     scale_id: uuid.UUID,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:scales', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Delete a survey scale.
 
     Args:
@@ -195,7 +195,7 @@ async def delete_construct_scale(
 async def get_scale_levels(
     scale_id: uuid.UUID,
     service: SurveyScaleLevelServiceDep,
-):
+) -> list[SurveyScaleLevelRead]:
     """Get levels associated with a survey scale.
 
     Args:
@@ -219,7 +219,7 @@ async def create_scale_level(
     new_level: SurveyScaleLevelCreate,
     service: SurveyScaleLevelServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'create:levels'))],
-):
+) -> SurveyScaleLevelRead:
     """Create a new level for a survey scale.
 
     Args:
@@ -246,7 +246,7 @@ async def update_scale_levels_order(
     scale_id: uuid.UUID,
     service: SurveyScaleLevelServiceDep,
     payload: list[ReorderPayloadSchema],
-):
+) -> dict[str, str]:
     """Reorder levels within a survey scale.
 
     Args:

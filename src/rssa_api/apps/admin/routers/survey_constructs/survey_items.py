@@ -27,7 +27,7 @@ async def get_item(
     item_id: uuid.UUID,
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:items', 'admin:all'))],
-):
+) -> SurveyItemRead:
     """Retrieve a survey construct item by its ID.
 
     Args:
@@ -56,7 +56,7 @@ async def update_item(
     payload: dict[str, str],
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Update a survey item.
 
     Args:
@@ -85,7 +85,7 @@ async def delete_construct_item(
     item_id: uuid.UUID,
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:items', 'admin:all'))],
-):
+) -> dict[str, str]:
     """Delete a survey item.
 
     Args:
