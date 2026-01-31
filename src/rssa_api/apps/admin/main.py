@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from starlette.types import ASGIApp
 
 from .docs import admin_tags_metadata
+from .routers import local_users as local_admin_users
 from .routers import movies as movie_admin
 from .routers import users as admin_users
 from .routers.study_components import authorizations as auth_admin
@@ -52,6 +53,7 @@ api.include_router(condition_admin.router)
 api.include_router(survey_admin.router)
 api.include_router(auth_admin.router)
 api.include_router(admin_users.router)
+api.include_router(local_admin_users.router)
 api.include_router(movie_admin.router)
 
 # Survey construct routers
