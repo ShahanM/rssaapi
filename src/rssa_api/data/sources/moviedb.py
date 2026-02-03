@@ -4,13 +4,17 @@ from rssa_api.data.db_base import BaseDatabaseContext, create_db_components
 from rssa_api.data.factory import DependencyFactory
 
 # Initialize components specifically for the Movie DB
-async_engine, AsyncSessionLocal = create_db_components('MOVIE_DB_NAME')
+async_engine, AsyncSessionLocal = create_db_components(
+    'MOVIE_DB_NAME',
+    use_neon_params=True,
+)
 
 
 class MovieDatabase(BaseDatabaseContext):
     """Asynchronous context manager for Movie Database sessions."""
 
     def __init__(self):
+        """Initialize."""
         super().__init__(AsyncSessionLocal)
 
 

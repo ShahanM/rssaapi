@@ -4,7 +4,11 @@ from rssa_api.data.db_base import BaseDatabaseContext, create_db_components
 from rssa_api.data.factory import DependencyFactory
 
 # Initialize components specifically for the RSSA DB
-async_engine, AsyncSessionLocal = create_db_components('RSSA_DB_NAME', echo=False)
+async_engine, AsyncSessionLocal = create_db_components(
+    'RSSA_DB_NAME',
+    use_neon_params=True,
+    echo=False,
+)
 
 
 class RSSADatabase(BaseDatabaseContext):

@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 import rssa_api.core.config as cfg
 
 
-def create_db_components(db_name_env_key: str, echo: bool = False):
+def create_db_components(
+    db_name_env_key: str,
+    use_env_port: bool = False,
+    use_neon_params: bool = False,
+    echo: bool = False,
+):
     """Creates the async engine and session factory based on environment variables."""
     dbuser = cfg.get_env_var('DB_USER')
     dbpass = cfg.get_env_var('DB_PASSWORD')
@@ -16,7 +21,18 @@ def create_db_components(db_name_env_key: str, echo: bool = False):
     dbport = cfg.get_env_var('DB_PORT')
     dbname = cfg.get_env_var(db_name_env_key)
 
-    db_url = f'postgresql+asyncpg://{dbuser}:{dbpass}@{dbhost}:{dbport}/{dbname}'
+    sslmode = cfg.get_env_var('DB_SSLMODE')
+    channel = cfg.get_env_var('DB_CHANNELBINDING')
+
+    db_url = f'postgresql+asyncpg://{dbuser}:{dbpass}@{dbhost}'
+
+    if use_env_port:
+        db_url = f'{db_url}:{dbport}'
+
+    db_url = f'{db_url}/{dbname}'
+
+    if use_neon_params:
+        db_url = f'{db_url}?sslmode={sslmode}&channel_binding={channel}'
 
     engine = create_async_engine(db_url, echo=echo)
     session_factory = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
