@@ -48,6 +48,8 @@ async def get_movies_with_emotions(
             movies_to_send = [MovieSchema.model_validate(m) for m in movies]
             return movies_to_send
 
+    return []
+
 
 @router.get('/', response_model=PaginatedMovieList)
 async def get_movies(

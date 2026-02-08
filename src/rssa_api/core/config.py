@@ -1,3 +1,5 @@
+"""Global configurations."""
+
 import logging
 import os
 import sys
@@ -93,4 +95,5 @@ CORS_ORIGINS = [
     'http://localhost:3350',
     'http://localhost:3000',
     'http://localhost:3370',
+    'http://localhost:3360',
 ]

@@ -117,7 +117,8 @@ class StudyService(BaseScopedService[Study, StudyRepository]):
 
     async def get_study_authorizations(self, study_id: uuid.UUID) -> list[StudyAuthorization]:
         """Get all authorizations for a study."""
-        return await self.auth_repo.find_many(RepoQueryOptions(filters={'study_id': study_id}))
+        authorizations = await self.auth_repo.find_many(RepoQueryOptions(filters={'study_id': study_id}))
+        return list(authorizations)
 
     async def add_study_authorization(self, study_id: uuid.UUID, user_id: uuid.UUID, role: str) -> StudyAuthorization:
         """Add authorization for a user to a study."""

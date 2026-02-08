@@ -24,7 +24,26 @@ class StructlogAccessMiddleware(BaseHTTPMiddleware):
 
         try:
             response = await call_next(request)
-        except Exception:
+        except Exception as e:
+            # Check for database connection errors
+            error_str = str(e)
+            if 'connection is closed' in error_str or 'InterfaceError' in error_str or 'OperationalError' in error_str:
+                # Determine process time even if failed
+                process_time = time.perf_counter_ns() - start_time
+                logger.error(
+                    'request_failed_db_connection',
+                    http_method=request.method,
+                    url=str(request.url),
+                    process_time_ms=process_time / 1_000_000,
+                    exc_info=True,
+                )
+                from starlette.responses import JSONResponse
+
+                return JSONResponse(
+                    status_code=503,
+                    content={'detail': 'Service Unavailable: Database connection failed. Please try again.'},
+                )
+
             # Determine process time even if failed
             process_time = time.perf_counter_ns() - start_time
             logger.error(

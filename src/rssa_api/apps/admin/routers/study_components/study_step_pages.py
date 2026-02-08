@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -12,6 +12,7 @@ from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
 from rssa_api.data.schemas.study_components import (
     StudyStepPageContentCreate,
+    StudyStepPageContentRead,
     StudyStepPageRead,
 )
 from rssa_api.data.services.dependencies import (
@@ -64,7 +65,7 @@ async def get_step_page_details(
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page_from_db.step_id)
+        step = await step_service.get(page_from_db.study_step_id)
         if step:
             has_access = await study_service.check_study_access(step.study_id, current_user.id, min_role='viewer')
             if not has_access:
@@ -111,7 +112,7 @@ async def update_step_page(
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.step_id)
+        step = await step_service.get(page.study_step_id)
         if step:
             has_access = await study_service.check_study_access(step.study_id, current_user.id)
             if not has_access:
@@ -156,7 +157,7 @@ async def delete_step_page(
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.step_id)
+        step = await step_service.get(page.study_step_id)
         if step:
             has_access = await study_service.check_study_access(step.study_id, current_user.id)
             if not has_access:
@@ -201,7 +202,7 @@ async def get_page_content(
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.step_id)
+        step = await step_service.get(page.study_step_id)
         if step:
             has_access = await study_service.check_study_access(step.study_id, current_user.id)
             if not has_access:
@@ -215,7 +216,7 @@ async def get_page_content(
 @router.post(
     '/{page_id}/contents',
     status_code=status.HTTP_201_CREATED,
-    response_model=Any,
+    response_model=StudyStepPageContentRead,
 )
 async def add_content_to_page(
     page_id: uuid.UUID,
@@ -229,7 +230,7 @@ async def add_content_to_page(
         Depends(require_permissions('create:content', 'admin:all')),
     ],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> StudyStepPageContentCreate:
+) -> StudyStepPageContentRead:
     """Add content to a study step page.
 
     Args:
@@ -251,14 +252,14 @@ async def add_content_to_page(
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.step_id)
+        step = await step_service.get(page.study_step_id)
         if step:
             has_access = await study_service.check_study_access(step.study_id, current_user.id)
             if not has_access:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     content = await content_service.create_for_owner(page_id, new_content)
-    return StudyStepPageContentCreate.model_validate(content)
+    return StudyStepPageContentRead.model_validate(content)
 
 
 @router.patch('/{page_id}/contents/reorder', status_code=status.HTTP_204_NO_CONTENT)
@@ -293,7 +294,7 @@ async def reorder_page_contents(
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.step_id)
+        step = await step_service.get(page.study_step_id)
         if step:
             has_access = await study_service.check_study_access(step.study_id, current_user.id)
             if not has_access:

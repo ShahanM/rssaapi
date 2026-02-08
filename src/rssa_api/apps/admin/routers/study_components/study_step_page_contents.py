@@ -63,7 +63,7 @@ async def remove_survey_construct_from_page(
         if not page:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Content not found.')
 
-        step = await step_service.get(page.step_id)
+        step = await step_service.get(page.study_step_id)
         if not step:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Content not found.')
 
@@ -72,8 +72,6 @@ async def remove_survey_construct_from_page(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Content not found.')
 
     await service.delete(content_id)
-
-    return {}
 
 
 @router.patch('/{content_id}', status_code=status.HTTP_204_NO_CONTENT)
@@ -112,7 +110,7 @@ async def update_page_content(
         if not page:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Content not found.')
 
-        step = await step_service.get(page.step_id)
+        step = await step_service.get(page.study_step_id)
         if not step:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Content not found.')
 
