@@ -1,3 +1,5 @@
+"""Services related to the study participants."""
+
 import random
 import string
 import uuid
@@ -7,7 +9,12 @@ from async_lru import alru_cache
 from pydantic import BaseModel
 from rssa_storage.rssadb.models.participant_movie_sequence import StudyParticipantMovieSession
 from rssa_storage.rssadb.models.participant_responses import Feedback
-from rssa_storage.rssadb.models.study_participants import ParticipantStudySession, StudyParticipant
+from rssa_storage.rssadb.models.study_components import StudyCondition
+from rssa_storage.rssadb.models.study_participants import (
+    ParticipantStudySession,
+    StudyParticipant,
+    StudyParticipantType,
+)
 from rssa_storage.rssadb.repositories.study_admin import PreShuffledMovieRepository
 from rssa_storage.rssadb.repositories.study_components import FeedbackRepository, StudyConditionRepository
 from rssa_storage.rssadb.repositories.study_participants import (
@@ -39,6 +46,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
         participant_type_repo: StudyParticipantTypeRepository,
         study_condition_repo: StudyConditionRepository,
     ):
+        """Initialize as a participant service with access to participant type, and study conditions."""
         super().__init__(participant_repo)
         self.participant_type_repo = participant_type_repo
         self.study_condition_repo = study_condition_repo
@@ -46,28 +54,31 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
     async def enroll_participant(
         self, study_id: uuid.UUID, new_participant: StudyParticipantCreate
     ) -> StudyParticipant:
-        study_conditions = await self.study_condition_repo.find_many(
-            RepoQueryOptions(filters={'study_id': study_id, 'enabled': True})
-        )
+        """Enroll a newly created study participant to a study condition.
 
-        if not study_conditions:
-            raise ValueError(f'No study conditions found for study ID: {study_id}')
-        # FIXME: make this dynamic weighted choice so that we always have n participants for each of the k conditions
-        # n%k = 0 => n_i = n_k = n/k for all i \in [1, ..., k], where n_i is the participant count in the i'th condition
-        # n%k != 0 => n_i = n_k = (n-(n%k))/k & m_j = m_(k-(n%k)) = 1,
-        # where n_i, and m_j are the number of participants in the i'th and j'th conditions respectively and i != j
-        participant_condition = random.choice(study_conditions)
+        Args:
+            study_id: The ID of the study.
+            new_participant: The new participant schema.
 
+        Returns:
+            The newly created participant.
+        """
         participant_type = await self.participant_type_repo.find_one(
             RepoQueryOptions(filters={'type': new_participant.participant_type_key})
         )
         if not participant_type:
             participant_type = await self.participant_type_repo.find_one(RepoQueryOptions(filters={'type': 'unknown'}))
 
+        if not participant_type:
+            raise ValueError('No default participant_type in the database. Please get in touch with an adult.')
+
+        external_id = new_participant.external_id
+        condition_id = self._pick_condition(study_id, participant_type, external_id)
+
         study_participant = StudyParticipant(
             study_participant_type_id=participant_type.id,
             study_id=study_id,
-            study_condition_id=participant_condition.id,
+            study_condition_id=condition_id,
             external_id=new_participant.external_id,
             current_step_id=new_participant.current_step_id,
             current_page_id=new_participant.current_page_id,
@@ -78,20 +89,57 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
 
         return study_participant
 
+    async def _pick_condition(
+        self, study_id: uuid.UUID, participant_type: StudyParticipantType, external_id: str
+    ) -> uuid.UUID:
+        condition_pool = await self.study_condition_repo.find_many(
+            RepoQueryOptions(filters={'study_id': study_id, 'enabled': True})
+        )
+
+        if not condition_pool:
+            raise ValueError(f'No study conditions found for study ID: {study_id}')
+
+        participant_condition: StudyCondition
+        if participant_type.type == 'test':
+            participant_condition = next(cond for cond in condition_pool if cond.authorized_test_code == external_id)
+        else:
+            # Ideally: Dynamic weighted choice so that we always have n participants for each of the k conditions
+            # n%k = 0 => n_i = n_k = n/k for all i \in [1, ..., k], where n_i is the i'th condition's participant count
+            # n%k != 0 => n_i = n_k = (n-(n%k))/k & m_j = m_(k-(n%k)) = 1,
+            # where n_i, and m_j are the number of participants in the i'th and j'th conditions respectively and i != j
+            # Shortcut: We remove the last assigned condition from the pool.
+            last_participant = await self.repo.find_one(
+                RepoQueryOptions(
+                    filters={'study_id': study_id, 'discarded': False},
+                    sort_by='created_at',
+                    sort_desc=True,
+                )
+            )
+            if last_participant:
+                condition_pool = [cond for cond in condition_pool if not cond.id == last_participant.study_condition_id]
+            participant_condition = random.choice(condition_pool)
+
+        return participant_condition.id
+
 
 class PagedMoviesSchema(BaseModel):
-    movies: list[uuid.UUID]
+    """A wrapper to help with navigating a list of movie ids."""
+
+    movies: list[uuid.UUID]  # It is more accurate to say movie_ids but we are keeping this for compatibility.
     total: int
 
 
 class StudyParticipantMovieSessionService(
     BaseService[StudyParticipantMovieSession, StudyParticipantMovieSessionRepository]
 ):
+    """This service is used to maintain a randomized list of movies, which is assigned to a participant."""
+
     def __init__(
         self,
         movie_session_repo: StudyParticipantMovieSessionRepository,
         shuffled_movie_repo: PreShuffledMovieRepository,
     ):
+        """Initialize with the PreShuffledMovieRepository as an auxiliary repo."""
         super().__init__(movie_session_repo)
         self.shuffled_movie_repo = shuffled_movie_repo
 
@@ -99,6 +147,16 @@ class StudyParticipantMovieSessionService(
     async def get_next_session_movie_ids_batch(
         self, participant_id: uuid.UUID, offset: int, limit: int
     ) -> PagedMoviesSchema | None:
+        """Navigation method to get the next set of movie ids for a participant.
+
+        This is important to ensure that there is a way to track the order in which the movies were presented
+        to a participant.
+
+        Args:
+            participant_id: The study_participant id.
+            offset: Offset to help paged navigation.
+            limit: The number of ids to retrieve after the offset.
+        """
         participant_assigned_list = await self.repo.get_movie_session_by_participant_id(participant_id)
         if not participant_assigned_list:
             return None
@@ -109,6 +167,12 @@ class StudyParticipantMovieSessionService(
         return PagedMoviesSchema.model_validate(paged_movie)
 
     async def assign_pre_shuffled_list_participant(self, participant_id: uuid.UUID, subset: str):
+        """Assigned a pre-shuffled list of movies to a study_participant.
+
+        Args:
+            participant_id: The study_participant id.
+            subset: A short string to identify the subset of ids to assign.
+        """
         shuffled_lists = await self.shuffled_movie_repo.get_all_shuffled_lists_by_subset(subset)
         if shuffled_lists:
             random_list = random.choice(shuffled_lists)
@@ -196,7 +260,6 @@ class ParticipantStudySessionService(BaseService[ParticipantStudySession, Partic
         Returns:
             The ParticipantStudySession if found and valid, else None.
         """
-        # session = await self.repo.get_by_field('resume_code', resume_code)
         session = await self.repo.find_one(RepoQueryOptions(filters={'resume_code': resume_code}))
         if not session:
             return None

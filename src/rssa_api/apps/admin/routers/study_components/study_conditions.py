@@ -66,7 +66,7 @@ async def get_item(
         if not has_access:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study condition was not found.')
 
-    return condition
+    return StudyConditionRead.model_validate(condition)
 
 
 @router.patch('/{condition_id}', status_code=status.HTTP_204_NO_CONTENT)

@@ -38,6 +38,8 @@ def create_db_components(
             'ssl': sslmode,  # e.g. "require" or "verify-full"
             'server_settings': {'channel_binding': channel or 'prefer'},
         }
+        # Fallback if the user wants to force it via URL, but connect_args is better for asyncpg
+        # However, for simplicity and compatibility with existing env vars strings:
         if sslmode:
             connect_args['ssl'] = sslmode
 

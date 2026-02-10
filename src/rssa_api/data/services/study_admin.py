@@ -231,7 +231,7 @@ class UserService(BaseService[User, UserRepository]):
 
         return db_user
 
-    async def search_users(self, query: str) -> list[User]:
+    async def search_users(self, query: str) -> Sequence[User]:
         """Search users by email or description."""
         options = RepoQueryOptions(
             search_text=query,

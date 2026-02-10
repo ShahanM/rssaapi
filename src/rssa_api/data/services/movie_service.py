@@ -1,6 +1,7 @@
 """Movie service for handling movie related operations."""
 
 import uuid
+from typing import Any
 
 from async_lru import alru_cache
 from rssa_storage.moviedb.models.movies import Movie
@@ -178,7 +179,7 @@ class MovieService(BaseService[Movie, MovieRepository]):
         sort_desc: bool = False,
         exclude_no_emotions: bool = False,
         exclude_no_recommendations: bool = False,
-        load_options: list[any] | None = None,
+        load_options: list[Any] | None = None,
     ) -> RepoQueryOptions:
         """Build repository query options from filters.
 
@@ -378,7 +379,7 @@ class MovieService(BaseService[Movie, MovieRepository]):
             sort_by=sort_by,
             exclude_no_emotions=exclude_no_emotions,
             exclude_no_recommendations=exclude_no_recommendations,
-            load_options=MovieRepository.LOAD_ALL,
+            load_options=[MovieRepository.LOAD_ALL],
         )
 
         movies = await self.movie_repo.find_many(repo_options)

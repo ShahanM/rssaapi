@@ -10,15 +10,12 @@ from dotenv import load_dotenv
 
 def find_project_root() -> Path:
     """Finds the project root directory by searching upward for pyproject.toml."""
-    # Start the search from the directory of the current file
     current_dir = Path(__file__).resolve().parent
 
-    # Walk up the directory tree
     for parent in current_dir.parents:
         if (parent / 'pyproject.toml').exists():
             return parent
 
-    # Fallback if the file is not found (or for debugging)
     raise RuntimeError('Could not find pyproject.toml in the current or parent directories.')
 
 
@@ -30,7 +27,6 @@ except RuntimeError as e:
     # Define a blank path so imports don't crash, but functions that use it will fail later
     PROJECT_ROOT = Path('/')
 
-# Define key absolute paths based on the root
 # Runtime Directories
 RUNTIME_DIR = PROJECT_ROOT / 'runtime'
 LOGS_DIR = RUNTIME_DIR / 'logs'

@@ -109,7 +109,7 @@ async def get_user_permissions(
     user_id: str,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     admin: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
-) -> dict[str, list[str]]:
+) -> dict[str, str | list[str] | None]:
     """API endpoint to fetch a user's permissions."""
     profile = await get_user_profile_by_id(user_id)
     if not profile:
@@ -129,7 +129,7 @@ async def search_users_endpoint(
     page: int = 0,
     per_page: int = 20,
     user: Auth0UserSchema = Depends(require_permissions('read:users')),
-) -> dict[str, Any]:
+) -> list[dict[str, Any]]:
     """Search for users in Auth0.
 
     Args:

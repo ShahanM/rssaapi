@@ -80,6 +80,7 @@ class StudyConditionBase(StudyComponentBase):
     recommender_key: str | None = None
     view_link_key: str | None = None
     created_by_id: uuid.UUID | None = None
+    authorized_test_code: str | None = None
     pass
 
 
