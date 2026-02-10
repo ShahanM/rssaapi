@@ -73,7 +73,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
             raise ValueError('No default participant_type in the database. Please get in touch with an adult.')
 
         external_id = new_participant.external_id
-        condition_id = self._pick_condition(study_id, participant_type, external_id)
+        condition_id = await self._pick_condition(study_id, participant_type, external_id)
 
         study_participant = StudyParticipant(
             study_participant_type_id=participant_type.id,
