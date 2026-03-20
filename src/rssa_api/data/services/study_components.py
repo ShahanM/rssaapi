@@ -220,6 +220,21 @@ class StudyStepPageContentService(BaseOrderedService[StudyStepPageContent, Study
 
     scope_field = 'study_step_page_id'
 
+    async def create_for_owner(self, owner_id: uuid.UUID, schema: Any, **kwargs) -> StudyStepPageContent:
+        """Create content for a page.
+
+        Overridden to ensure that the returned object has all relationships loaded.
+        """
+        created = await super().create_for_owner(owner_id, schema, **kwargs)
+
+        # Reload with full details
+        return await self.repo.find_one(
+            RepoQueryOptions(
+                filters={'study_step_page_id': owner_id, 'order_position': created.order_position},
+                load_options=self.repo.DETAILED_LOAD_OPTIONS,
+            )
+        )
+
 
 class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipantRepository]):
     """Service for managing study participants."""

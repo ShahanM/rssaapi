@@ -64,7 +64,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
             The newly created participant.
         """
         participant_type = await self.participant_type_repo.find_one(
-            RepoQueryOptions(filters={'type': new_participant.participant_type_key})
+            RepoQueryOptions(filter_ilike={'type': new_participant.participant_type_key})
         )
         if not participant_type:
             participant_type = await self.participant_type_repo.find_one(RepoQueryOptions(filters={'type': 'unknown'}))
@@ -99,10 +99,13 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
         if not condition_pool:
             raise ValueError(f'No study conditions found for study ID: {study_id}')
 
-        participant_condition: StudyCondition
+        participant_condition: StudyCondition | None = None
         if participant_type.type == 'test':
-            participant_condition = next(cond for cond in condition_pool if cond.authorized_test_code == external_id)
-        else:
+            for cond in condition_pool:
+                if cond.authorized_test_code and cond.authorized_test_code.endswith(external_id):
+                    participant_condition = cond
+                    break
+        if participant_condition is None:
             # Ideally: Dynamic weighted choice so that we always have n participants for each of the k conditions
             # n%k = 0 => n_i = n_k = n/k for all i \in [1, ..., k], where n_i is the i'th condition's participant count
             # n%k != 0 => n_i = n_k = (n-(n%k))/k & m_j = m_(k-(n%k)) = 1,
@@ -116,7 +119,10 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
                 )
             )
             if last_participant:
-                condition_pool = [cond for cond in condition_pool if not cond.id == last_participant.study_condition_id]
+                if len(condition_pool) > 1:
+                    condition_pool = [
+                        cond for cond in condition_pool if not cond.id == last_participant.study_condition_id
+                    ]
             participant_condition = random.choice(condition_pool)
 
         return participant_condition.id
