@@ -60,7 +60,6 @@ async def update_feedback(
     Returns:
         None
     """
-    # BaseService.update takes id and a dict
     await service.update(feedback_id, feedback.model_dump())
 
     return None

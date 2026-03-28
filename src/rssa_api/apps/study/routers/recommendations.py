@@ -31,13 +31,13 @@ async def get_recommendations(
         id_token: Validated participant token.
         context_data: Optional dictionary for dynamic algorithm parameters (e.g. emotion inputs).
     """
-    study_participant_id = id_token['pid']
+    study_participant_id = id_token['sub']
 
     if context_data is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Missing context data.')
 
     response: EnrichedResponseWrapper = await recommender_service.get_recommendations_for_study_participant(
-        study_id=id_token['sid'], study_participant_id=study_participant_id, context_data=context_data
+        study_id=id_token['sty'], study_participant_id=study_participant_id, context_data=context_data
     )
 
     return response

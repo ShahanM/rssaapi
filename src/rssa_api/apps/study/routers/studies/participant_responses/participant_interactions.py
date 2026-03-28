@@ -40,7 +40,7 @@ async def create_interaction_response(
     Returns:
         The created StudyInteractionResponseSchema object.
     """
-    int_response = await service.create_response(interaction_response, id_token['sid'], id_token['pid'])
+    int_response = await service.create_response(interaction_response, id_token['sty'], id_token['sub'])
 
     return int_response
 
@@ -66,7 +66,7 @@ async def get_interaction_responses(
         A list of StudyInteractionResponseSchema objects.
     """
     responses = await service.get_response_for_step(
-        ResponseType.STUDY_INTERACTION, id_token['sid'], id_token['pid'], step_id
+        ResponseType.STUDY_INTERACTION, id_token['sty'], id_token['sub'], step_id
     )
 
     return responses

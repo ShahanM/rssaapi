@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from rssa_api.auth.authorization import get_current_participant, validate_study_participant
 from rssa_api.data.schemas.movie_schemas import (
+    MovieGalleryPreview,
     MovieSchema,
     MovieSearchRequest,
     MovieSearchResponse,
@@ -71,10 +72,10 @@ async def get_movies(
     Returns:
         Paginated list of movies.
     """
-    movies_to_fetch = await session_service.get_next_session_movie_ids_batch(id_token['pid'], offset, limit)
+    movies_to_fetch = await session_service.get_next_session_movie_ids_batch(id_token['sub'], offset, limit)
     if movies_to_fetch is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Could not find a valid session.')
-    movies = await movie_service.get_movies_from_ids(movies_to_fetch.movies)
+    movies = await movie_service.get_movies_from_ids(MovieGalleryPreview, movies_to_fetch.movies)
     response_obj = PaginatedMovieList(data=movies, count=movies_to_fetch.total)
 
     return response_obj
@@ -96,7 +97,6 @@ async def search_movie(
     """
     query = request.query.strip().lower()
     exact_match = []
-    # near_matches: List[str] = []
     near_matches: list[MovieSchema] = []
     similarity_threshold = 0.6  # Adjust as needed
     limit = 5
@@ -119,5 +119,4 @@ async def search_movie(
     if prefix_matches:
         near_matches = prefix_matches + near_matches
 
-    # return MovieSearchResponse(exact_match=exact_match, near_matches=near_matches)
     return near_matches

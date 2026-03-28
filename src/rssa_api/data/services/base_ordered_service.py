@@ -1,12 +1,13 @@
 """Service for models that have an inherent order."""
 
 import uuid
-from typing import Any, TypeVar, overload
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
-from rssa_storage.shared import BaseOrderedRepository
+from rssa_storage.shared import BaseOrderedRepository, OrderedRepoQueryOptions, RepoQueryOptions
 
 from rssa_api.data.services.base_scoped_service import BaseScopedService
+from rssa_api.data.utility import extract_load_strategies
 
 OrderedModelType = TypeVar('OrderedModelType')
 OrderedRepoType = TypeVar('OrderedRepoType', bound='BaseOrderedRepository')
@@ -26,25 +27,50 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
 
         self.scope_field = self.repo.parent_id_column_name
 
-    async def create_for_owner(self, owner_id: uuid.UUID, schema: BaseModel, **kwargs) -> OrderedModelType:
-        """Overrides the generic scoped create to add Ordering Logic.
+    async def get_all(
+        self,
+        schema: type[SchemaType] | None = None,
+        *,
+        owner_id: uuid.UUID | None = None,
+        options: RepoQueryOptions | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
+        search: str | None = None,
+    ) -> list[Any]:
+        """Shadowed get_all: applies scope, orders items, and prevents lazy loads."""
+        if not isinstance(options, OrderedRepoQueryOptions):
+            options = OrderedRepoQueryOptions(**(options.__dict__ if options else {}))
 
-        Here, 'owner_id' acts as the 'parent_id'.
+        options.sort_by = options.sort_by or 'order_position'
 
-        Args:
-            owner_id: The ID of the owner/parent entity.
-            schema: The Pydantic schema used to create the new item.
-            **kwargs: Additional keyword arguments to pass to the creation method.
+        top_cols, _ = extract_load_strategies(schema) if schema else (None, None)
+        if top_cols is not None:
+            required = {'id', 'order_position', self.repo.parent_id_column_name}
+            current_cols = options.load_columns or []
+            options.load_columns = list(set(current_cols).union(top_cols).union(required))
 
-        Returns:
-            The created ordered model instance.
-        """
+        return await super().get_all(
+            schema,
+            owner_id=owner_id,
+            options=options,
+            limit=limit,
+            offset=offset,
+            sort_by=sort_by or 'order_position',  # Apply default ordering here
+            sort_dir=sort_dir,
+            search=search,
+        )
+
+    async def create(self, schema: BaseModel, *, owner_id: uuid.UUID | None = None, **kwargs) -> OrderedModelType:
+        """Shadowed create: injects owner scope AND calculates order position."""
+        if not owner_id:
+            raise ValueError('owner_id is required to create an ordered item.')
+
         last_item = await self.repo.get_last_ordered_instance(owner_id)
-        next_pos = last_item.order_position + 1 if last_item else 1
+        kwargs['order_position'] = last_item.order_position + 1 if last_item else 1
 
-        kwargs['order_position'] = next_pos
-
-        return await super().create_for_owner(owner_id, schema, **kwargs)
+        return await super().create(schema, owner_id=owner_id, **kwargs)
 
     async def reorder_items(self, parent_id: uuid.UUID, items_map: dict[uuid.UUID, int]) -> None:
         """Reorder items under a specific parent.
@@ -54,42 +80,3 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
                 items_map: A mapping of item IDs to their new order positions.
         """
         await self.repo.reorder_ordered_instances(parent_id, items_map)
-
-    @overload
-    async def get_items_for_owner_as_ordered_list(
-        self,
-        owner_id: uuid.UUID,
-        schema: type[SchemaType],
-        limit: int | None = None,
-    ) -> list[SchemaType]: ...
-
-    @overload
-    async def get_items_for_owner_as_ordered_list(
-        self,
-        owner_id: uuid.UUID,
-        schema: None = None,
-        limit: int | None = None,
-    ) -> list[OrderedModelType]: ...
-
-    async def get_items_for_owner_as_ordered_list(
-        self,
-        owner_id: uuid.UUID,
-        schema: type[SchemaType] | None = None,
-        limit: int | None = None,
-    ) -> list[Any]:
-        """Get all items for a specific owner as an ordered list.
-
-        Args:
-            owner_id: The ID of the owner/parent entity.
-            limit: Optional limit on the number of items to retrieve.
-            schema: Optional Pydantic schema to validate each item against.
-
-        Returns:
-            A list of ordered items, optionally validated against the schema.
-        """
-        ordered_items = await self.repo.get_all_ordered_instances(owner_id, limit=limit)
-
-        if schema:
-            return [schema.model_validate(item) for item in ordered_items]
-
-        return list(ordered_items)

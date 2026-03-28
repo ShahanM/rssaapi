@@ -8,6 +8,9 @@ fix = true
 ignore = [
 	"W191",  # indentation contains tabs
 	"B008", # function call in default argument
+    "D107",
+    "D101",
+    "D102"
 ]
 select = [
 	"E",  # Pyflakes errors

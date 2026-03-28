@@ -1,15 +1,19 @@
 """Movie service for handling movie related operations."""
 
 import uuid
-from typing import Any
+from typing import Any, TypeVar
 
 from async_lru import alru_cache
+from pydantic import BaseModel
 from rssa_storage.moviedb.models.movies import Movie
 from rssa_storage.moviedb.repositories import MovieRepository
 from rssa_storage.shared import RepoQueryOptions, merge_repo_query_options
 
 from rssa_api.data.schemas.movie_schemas import MovieDetailSchema, MovieSchema, MovieUpdateSchema
 from rssa_api.data.services.base_service import BaseService
+from rssa_api.data.utility import extract_load_strategies
+
+SchemaType = TypeVar('SchemaType', bound=BaseModel)
 
 
 class MovieService(BaseService[Movie, MovieRepository]):
@@ -19,25 +23,36 @@ class MovieService(BaseService[Movie, MovieRepository]):
         """Initialize the movie service."""
         self.movie_repo = movie_repo
 
+    async def get_all_movie_ids(self) -> list[uuid.UUID]:
+        """Fetch ONLY the UUIDs of all movies for high-speed operations."""
+        from rssa_storage.shared import RepoQueryOptions
+
+        options = RepoQueryOptions(load_columns=['id'])
+        movies = await self.movie_repo.find_many(options)
+
+        return [movie.id for movie in movies]
+
     async def get_movies_with_emotions(self) -> list[Movie]:
         """Get all movies with emotions."""
         # return await self.movie_repo.get_all(options=MovieRepository.LOAD_EMOTIONS)
         movies = await self.movie_repo.find_many(RepoQueryOptions(load_options=MovieRepository.LOAD_ALL))
         return list(movies)
 
-    async def get_movies_from_ids(self, movie_ids: list[uuid.UUID]) -> list[MovieDetailSchema]:
-        """Get movies from ids.
+    async def get_movies_from_ids(self, schema: type[SchemaType], movie_ids: list[uuid.UUID]) -> list[SchemaType]:
+        if not movie_ids:
+            return []
 
-        Args:
-            movie_ids: List of movie ids.
-
-        Returns:
-            List of movie details.
-        """
-        movies = await self.movie_repo.find_many(RepoQueryOptions(ids=movie_ids, load_options=MovieRepository.LOAD_ALL))
+        top_cols, rel_map = extract_load_strategies(schema)
+        movies = await self.movie_repo.find_many(
+            RepoQueryOptions(ids=movie_ids, load_columns=top_cols, load_relationships=rel_map)
+        )
         if not movies:
             return []
-        return [MovieDetailSchema.model_validate(movie) for movie in movies]
+
+        movie_dict = {movie.id: movie for movie in movies}
+        ordered_movies = [movie_dict[m_id] for m_id in movie_ids if m_id in movie_dict]
+
+        return [schema.model_validate(movie) for movie in ordered_movies]
 
     async def get_movies_with_emotions_from_ids(self, movie_ids: list[uuid.UUID]) -> list[Movie]:
         """Get movies with emotions from ids.
@@ -66,6 +81,31 @@ class MovieService(BaseService[Movie, MovieRepository]):
         """
         movies = await self.movie_repo.find_many(RepoQueryOptions(filters={'movielens_id': movielens_ids}))
         return list(movies)
+
+    async def get_filtered_movie_ids(
+        self,
+        year_min: int | None = None,
+        year_max: int | None = None,
+        genre: str | None = None,
+        exclude_no_emotions: bool = False,
+        exclude_no_recommendations: bool = False,
+    ) -> list[uuid.UUID]:
+        """Fetch ONLY the UUIDs of movies matching the specific criteria."""
+        repo_options = self._build_repo_query_options(
+            limit=None,  # We want ALL matching movies, not just a page
+            offset=None,
+            year_min=year_min,
+            year_max=year_max,
+            genre=genre,
+            exclude_no_emotions=exclude_no_emotions,
+            exclude_no_recommendations=exclude_no_recommendations,
+        )
+
+        repo_options.load_columns = ['id']
+
+        movies = await self.movie_repo.find_many(repo_options)
+
+        return [movie.id for movie in movies]
 
     async def get_movie_by_movielens_id(self, movielens_id: str) -> Movie | None:
         """Get movie by movielens id.
@@ -428,9 +468,10 @@ class MovieService(BaseService[Movie, MovieRepository]):
         if exclude_no_recommendations:
             filter_not_null.append('recommendations_text')
 
-        return await self.movie_repo.count(
+        options = RepoQueryOptions(
             filter_ranges=filter_ranges, filter_ilike=filter_ilike, filter_not_null=filter_not_null
         )
+        return await self.movie_repo.count(options)
 
     async def update_movie(self, movie_id: uuid.UUID, update_data: MovieUpdateSchema) -> Movie | None:
         """Update a movie with the provided data.

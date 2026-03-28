@@ -11,14 +11,15 @@ from collections.abc import Sequence
 
 from async_lru import alru_cache
 from cryptography.fernet import Fernet
-from rssa_storage.rssadb.models.participant_movie_sequence import PreShuffledMovieList
+from rssa_storage.rssadb.models.participant_movie_sequence import PreShuffledMovieList, ShuffledMovieListItem
 from rssa_storage.rssadb.models.study_components import ApiKey, User
 from rssa_storage.rssadb.repositories.study_admin import ApiKeyRepository, PreShuffledMovieRepository, UserRepository
 from rssa_storage.shared import RepoQueryOptions
+from sqlalchemy import insert
 
 from rssa_api.core.config import get_env_var
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.study_components import ApiKeyRead
+from rssa_api.data.schemas.study_components import ApiKeyCreate, ApiKeyRead
 from rssa_api.data.services.base_service import BaseService
 from rssa_api.data.utility import sa_obj_to_dict
 
@@ -32,7 +33,7 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
     Keys are encrypted using Fernet symmetric encryption.
     """
 
-    def generate_key_and_hash(self) -> tuple[str, str]:
+    def _generate_key_and_hash(self) -> tuple[str, str]:
         """Generate a secure random API key and its encrypted version.
 
         Returns:
@@ -45,36 +46,26 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
 
         return plain_text_key, encrypted_str
 
-    async def create_api_key_for_study(
-        self,
-        study_id: uuid.UUID,
-        description: str,
-        user_id: uuid.UUID,
-    ) -> ApiKeyRead:
+    async def generate_new_api_key(self, apikey_create: ApiKeyCreate) -> ApiKeyRead:
         """Creates and saves a new API key for a study.
 
         This will invalidate any existing active keys for the same study and user.
 
         Args:
-            study_id: The ID of the study to associate the key with.
-            description: A description for the API key.
-            user_id: The ID of the user creating the key.
+            apikey_create: model schema consisting of a description, user_id, and study_id.
 
         Returns:
             An ApiKeyRead object including the new plain-text key.
         """
-        _plain_key, key_hash = self.generate_key_and_hash()
+        _plain_key, key_hash = self._generate_key_and_hash()
 
-        repo_options = RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id, 'is_active': True})
+        repo_options = RepoQueryOptions(
+            filters={'study_id': apikey_create.study_id, 'user_id': apikey_create.user_id, 'is_active': True}
+        )
         current_active_keys = await self.repo.find_many(repo_options)
         await self._invalidate_keys(current_active_keys)
 
-        new_api_key = ApiKey(
-            key_hash=key_hash,
-            description=description,
-            study_id=study_id,
-            user_id=user_id,
-        )
+        new_api_key = ApiKey(key_hash=key_hash, **apikey_create.model_dump())
 
         await self.repo.create(new_api_key)
         api_key_dict = sa_obj_to_dict(new_api_key)
@@ -167,23 +158,28 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
 class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovieRepository]):
     """Service for managing pre-shuffled movie lists."""
 
-    def __init__(self, shuffled_movie_repo: PreShuffledMovieRepository):
-        """Initialize the pre-shuffled movie service."""
-        self.shuffled_movie_repo = shuffled_movie_repo
-
     async def create_pre_shuffled_movie_list(
         self,
         movie_ids: list[uuid.UUID],
         subset: str,
         seed: int = 144,
     ) -> None:
-        """Create a pre-shuffled movie list."""
+        """Create a pre-shuffled movie list via normalized junction table."""
         random.seed(seed)
-        random.shuffle(movie_ids)
+        shuffled_ids = movie_ids[:]  # Copy to avoid mutating original
+        random.shuffle(shuffled_ids)
 
-        preshuffled_list = PreShuffledMovieList(movie_ids=movie_ids, subset=subset, seed=seed)
+        preshuffled_list = PreShuffledMovieList(subset_desc=subset, seed=seed)
+        preshuffled_list = await self.repo.create(preshuffled_list)
 
-        await self.shuffled_movie_repo.create(preshuffled_list)
+        items_data = [
+            {'shuffle_list_id': preshuffled_list.id, 'movie_id': m_id, 'position': idx}
+            for idx, m_id in enumerate(shuffled_ids)
+        ]
+
+        stmt = insert(ShuffledMovieListItem)
+        await self.repo.db.execute(stmt, items_data)
+        await self.repo.db.flush()
 
 
 class UserService(BaseService[User, UserRepository]):

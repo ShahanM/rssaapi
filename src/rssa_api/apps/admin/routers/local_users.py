@@ -63,10 +63,10 @@ async def get_local_users(
     """
     offset = page_index * page_size
     total_items = await service.count(search=search)
-    users_from_db = await service.get_paged_list(
+    users_from_db = await service.get_all(
+        UserSchema,
         limit=page_size,
         offset=offset,
-        schema=UserSchema,
         sort_by=sort_by,
         sort_dir=sort_dir.value if sort_dir else None,
         search=search,
@@ -103,7 +103,7 @@ async def get_user_detail(
     Returns:
         The user details.
     """
-    user = await service.get_detailed(user_id, schema=UserSchema)
+    user = await service.get(user_id, UserSchema)
 
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User with ID {user_id} not found.')

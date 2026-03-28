@@ -12,6 +12,7 @@ from rssa_api.data.schemas.base_schemas import OrderedTextListItem, PreviewSchem
 from rssa_api.data.schemas.survey_components import (
     PaginatedConstructResponse,
     SurveyConstructCreate,
+    SurveyConstructPreview,
     SurveyConstructRead,
     SurveyItemCreate,
 )
@@ -64,10 +65,10 @@ async def get_survey_constructs(
     """
     offset = page_index * page_size
     total_items = await service.count(search=search)
-    constructs_from_db = await service.get_paged_list(
+    constructs_from_db = await service.get_all(
+        PreviewSchema,
         limit=page_size,
         offset=offset,
-        schema=PreviewSchema,
         sort_by=sort_by,
         sort_dir=sort_dir.value if sort_dir else None,
         search=search,
@@ -107,7 +108,7 @@ async def get_construct_detail(
     Returns:
         The construct details.
     """
-    construct = await service.get_detailed(construct_id)
+    construct = await service.get(construct_id, SurveyConstructRead)
 
     if not construct:
         raise HTTPException(
@@ -131,7 +132,7 @@ async def get_construct_summary(
     construct_id: uuid.UUID,
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
-) -> SurveyConstructRead:
+) -> SurveyConstructPreview:
     """Get a summary of a survey construct.
 
     Args:
@@ -145,7 +146,7 @@ async def get_construct_summary(
     Returns:
         The construct summary.
     """
-    construct_summary = await service.get_detailed(construct_id)
+    construct_summary = await service.get(construct_id, SurveyConstructPreview)
 
     if not construct_summary:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Survey construct not found.')
@@ -255,7 +256,7 @@ async def get_construct_items(
     Returns:
         A list of ordered items.
     """
-    items = await item_service.get_items_for_owner_as_ordered_list(construct_id)
+    items = await item_service.get_all(OrderedTextListItem, owner_id=construct_id)
 
     return items
 

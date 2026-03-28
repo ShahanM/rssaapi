@@ -9,6 +9,7 @@ from starlette.types import ASGIApp
 from .docs import admin_tags_metadata
 from .routers import local_users as local_admin_users
 from .routers import movies as movie_admin
+from .routers import shuffled_movie_lists as shuffled_lists
 from .routers import users as admin_users
 from .routers.study_components import authorizations as auth_admin
 from .routers.study_components import studies as study_admin
@@ -55,6 +56,7 @@ api.include_router(auth_admin.router)
 api.include_router(admin_users.router)
 api.include_router(local_admin_users.router)
 api.include_router(movie_admin.router)
+api.include_router(shuffled_lists.router)
 
 # Survey construct routers
 api.include_router(survey_constructs_router)

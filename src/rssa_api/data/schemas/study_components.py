@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import ClassVar, Generic, TypeVar
 
-from pydantic import AliasPath, BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from .base_schemas import (
     AuditMixin,
@@ -14,7 +14,13 @@ from .base_schemas import (
     DisplayNameMixin,
     PreviewSchema,
 )
-from .survey_components import SurveyItemRead, SurveyScaleLevelRead
+from .survey_components import (
+    SurveyConstructPreview,
+    SurveyConstructRead,
+    SurveyItemRead,
+    SurveyScaleLevelRead,
+    SurveyScaleRead,
+)
 
 
 class PaginatedStudyResponse(BaseModel):
@@ -79,14 +85,20 @@ class StudyConditionBase(StudyComponentBase):
     recommendation_count: int
     recommender_key: str | None = None
     view_link_key: str | None = None
-    created_by_id: uuid.UUID | None = None
-    authorized_test_code: str | None = None
-    pass
 
 
 class StudyConditionCreate(StudyConditionBase):
     """Schema for creating a study condition."""
 
+    study_id: uuid.UUID
+
+
+class StudyConditionPresent(StudyComponentBase, DBMixin):
+    short_code: str
+    view_link_key: str
+
+
+class StudyConditionPreview(StudyComponentBase, DBMixin):
     pass
 
 
@@ -117,18 +129,25 @@ class StudyStepPageContentBase(BaseModel):
     preamble: str | None = None
 
 
-class StudyStepPageContentCreate(StudyStepPageContentBase):
-    """Schema for creating study step page content."""
-
-    pass
-
-
 class StudyStepPageContentUpdate(BaseModel):
     """Schema for updating study step page content."""
 
     preamble: str | None = None
     survey_construct_id: uuid.UUID | None = None
     survey_scale_id: uuid.UUID | None = None
+
+
+class StudyStepPageContentPreview(BaseOrderedMixin, DBMixin):
+    """Schema for the study step page content which only shows the associated survey construct."""
+
+    survey_construct: SurveyConstructPreview | None = None
+
+    @computed_field
+    @property
+    def name(self) -> str:
+        if self.survey_construct:
+            return self.survey_construct.name
+        return ''
 
 
 class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMixin, DisplayNameMixin, DisplayInfoMixin):
@@ -139,14 +158,50 @@ class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMix
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
 
-    items: list[SurveyItemRead] = Field(validation_alias=AliasPath('survey_construct', 'survey_items'))
+    survey_construct: SurveyConstructRead | None = None
+    survey_scale: SurveyScaleRead | None = None
 
-    name: str = Field(validation_alias=AliasPath('survey_construct', 'name'))
-    description: str = Field(validation_alias=AliasPath('survey_construct', 'description'))
+    @computed_field
+    @property
+    def name(self) -> str:
+        if self.survey_construct:
+            return self.survey_construct.name
+        return ''
 
-    scale_id: uuid.UUID = Field(validation_alias=AliasPath('survey_scale', 'id'))
-    scale_name: str = Field(validation_alias=AliasPath('survey_scale', 'name'))
-    scale_levels: list[SurveyScaleLevelRead] = Field(validation_alias=AliasPath('survey_scale', 'survey_scale_levels'))
+    @computed_field
+    @property
+    def description(self) -> str:
+        if self.survey_construct:
+            return self.survey_construct.description
+        return ''
+
+    @computed_field
+    @property
+    def items(self) -> list[SurveyItemRead]:
+        if self.survey_construct:
+            return self.survey_construct.survey_items
+        return []
+
+    @computed_field
+    @property
+    def scale_id(self) -> uuid.UUID | None:
+        if self.survey_scale:
+            return self.survey_scale.id
+        return None
+
+    @computed_field
+    @property
+    def scale_name(self) -> str:
+        if self.survey_scale:
+            return self.survey_scale.name
+        return ''
+
+    @computed_field
+    @property
+    def scale_levels(self) -> list[SurveyScaleLevelRead]:
+        if self.survey_scale:
+            return self.survey_scale.survey_scale_levels
+        return []
 
 
 class StudyStepPageContentAudit(StudyStepPageContentRead, AuditMixin):
@@ -169,7 +224,8 @@ class StudyStepPageBase(StudyComponentBase):
 class StudyStepPageCreate(StudyStepPageBase):
     """Schema for creating study step page."""
 
-    pass
+    study_id: uuid.UUID
+    study_step_id: uuid.UUID
 
 
 class StudyStepPageRead(
@@ -187,10 +243,23 @@ class StudyStepPageRead(
     _display_info_source_field: ClassVar[str] = 'description'
     study_step_id: uuid.UUID
 
-    study_step_page_contents: list[StudyStepPageContentRead] | None = Field(
-        validation_alias=AliasPath('study_step_page_contents'),
-        default=[],
-    )
+    study_step_page_contents: list[StudyStepPageContentPreview] | None = None
+
+
+class StudyStepPagePresent(
+    StudyStepPageBase,
+    DBMixin,
+    StudyParentMixin,
+    BaseOrderedMixin,
+    StudyMetaOverrideMixin,
+    DisplayNameMixin,
+    DisplayInfoMixin,
+):
+    _display_name_source_field: ClassVar[str] = 'name'
+    _display_info_source_field: ClassVar[str] = 'description'
+    study_step_id: uuid.UUID
+
+    study_step_page_contents: list[StudyStepPageContentRead] | None = None
 
 
 class StudyStepPageAudit(StudyStepPageRead, AuditMixin):
@@ -208,14 +277,17 @@ class StudyStepBase(StudyComponentBase):
     """Base schema for study step."""
 
     step_type: str | None = None
-
     path: str
 
 
 class StudyStepCreate(StudyStepBase):
     """Schema for creating study step."""
 
-    pass
+    study_id: uuid.UUID
+
+
+class StudyStepPreview(StudyStepBase, DBMixin, BaseOrderedMixin, DisplayNameMixin, DisplayInfoMixin):
+    study_id: uuid.UUID
 
 
 class StudyStepRead(
@@ -234,6 +306,24 @@ class StudyStepRead(
 
     survey_api_root: str | None = None  # Deprecated, use root_page_info instead
     root_page_info: NavigationWrapper[StudyStepPageRead] | None = None
+
+
+class StudyStepPresent(
+    StudyStepBase,
+    DBMixin,
+    StudyParentMixin,
+    BaseOrderedMixin,
+    StudyMetaOverrideMixin,
+    DisplayNameMixin,
+    DisplayInfoMixin,
+):
+    """Schema for reading study step."""
+
+    _display_name_source_field: ClassVar[str] = 'name'
+    _display_info_source_field: ClassVar[str] = 'description'
+
+    survey_api_root: str | None = None  # Deprecated, use root_page_info instead
+    root_page_info: NavigationWrapper[StudyStepPagePresent] | None = None
 
 
 class StudyStepAudit(StudyStepBase, AuditMixin):
@@ -265,6 +355,9 @@ class StudyRead(StudyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
 
+    completion_code: str | None = None
+    redirect_url: str | None = None
+
 
 class StudyAudit(StudyRead, AuditMixin):
     """Schema for auditing study."""
@@ -293,7 +386,8 @@ class ApiKeyBase(BaseModel):
 class ApiKeyCreate(ApiKeyBase):
     """Schema for creating API key."""
 
-    pass
+    study_id: uuid.UUID
+    user_id: uuid.UUID
 
 
 class ApiKeyRead(ApiKeyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):

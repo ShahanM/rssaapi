@@ -44,7 +44,7 @@ async def create_survey_item_response(
     Returns:
         Created response.
     """
-    new_response = await service.create_response(item_response, id_token['sid'], id_token['pid'])
+    new_response = await service.create_response(item_response, id_token['sty'], id_token['sub'])
 
     return new_response
 
@@ -110,6 +110,6 @@ async def get_survey_item_response(
         List of responses.
     """
     item_responses = await service.get_response_for_page(
-        ResponseType.SURVEY_ITEM, id_token['sid'], id_token['pid'], survey_page_id
+        ResponseType.SURVEY_ITEM, id_token['sty'], id_token['sub'], survey_page_id
     )
     return item_responses

@@ -7,9 +7,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 
-from rssa_api.auth.authorization import authorize_api_key_for_study, generate_jwt_token_for_payload
+from rssa_api.auth.authorization import (
+    authorize_api_key_for_study,
+    generate_jwt_token_for_payload,
+    validate_study_participant,
+)
 from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
-from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepRead
+from rssa_api.data.schemas.study_components import (
+    NavigationWrapper,
+    StudyConditionPresent,
+    StudyStepPreview,
+    StudyStepRead,
+)
 from rssa_api.data.services.dependencies import (
     EnrollmentServiceDep,
     ParticipantStudySessionServiceDep,
@@ -113,7 +122,7 @@ async def get_first_step(
     Returns:
         The first study step with navigation details.
     """
-    study_step = await step_service.get_first_with_navigation(study_id)
+    study_step = await step_service.get_first_with_navigation(study_id, StudyStepPreview)
 
     if not study_step:
         raise HTTPException(
@@ -153,8 +162,8 @@ async def export_study_config(
     Returns:
         The study configuration object.
     """
-    steps = await step_service.get_items_for_owner_as_ordered_list(study_id)
-    conditions = await condition_service.get_all_for_owner(study_id)
+    steps = await step_service.get_all(StudyStepPreview, owner_id=study_id)
+    conditions = await condition_service.get_all(StudyConditionPresent, owner_id=study_id)
     config = {
         'study_id': study_id,
         'conditions': {con.name: con.id for con in conditions},
@@ -202,7 +211,8 @@ async def create_new_participant_with_session(
     Returns:
         Dictionary containing resume code and JWT token.
     """
-    current_step = await step_service.get_with_navigation(new_participant.current_step_id)
+    print(new_participant)
+    current_step = await step_service.get_with_navigation(new_participant.current_step_id, StudyStepPreview)
     if not current_step:
         raise HTTPException(status_code=500, detail='Could not find next step, study is configuration fault.')
     new_participant.current_step_id = current_step['next_id']
@@ -213,7 +223,12 @@ async def create_new_participant_with_session(
     if session is None:
         raise HTTPException(status_code=500, detail='Could not create unique session.')
 
-    jwt_payload = {'sub': str(study_participant.id), 'sid': str(session.id), 'exp': session.expires_at}
+    jwt_payload = {
+        'sub': str(study_participant.id),
+        'sid': str(session.id),
+        'sty': str(study_id),
+        'exp': session.expires_at,
+    }
     jwt_token = generate_jwt_token_for_payload(jwt_payload)
 
     return {'resume_code': session.resume_code, 'token': jwt_token}
@@ -262,6 +277,7 @@ async def resume_study_session(
     jwt_payload = {
         'sub': str(participant.id),
         'sid': str(participant_session.id),
+        'sty': str(study_id),
         'exp': participant_session.expires_at,
     }
     jwt_token = generate_jwt_token_for_payload(jwt_payload)
@@ -273,3 +289,21 @@ async def resume_study_session(
             'token': jwt_token,
         }
     )
+
+
+@router.get(
+    '/{study_id}/finalize',
+    status_code=status.HTTP_200_OK,
+    response_model=dict[str, str],
+    summary='Finalize study, and get completion code.',
+    description='Check that all steps have been completed, and send the completion code.',
+)
+async def finalize_study(
+    id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
+):
+    """Final step confirmation to retreive completion code and redirect url."""
+    completion_code = 'SOMEVAL'
+    redirect_url = 'SOMEURL'
+    message = 'Thank you so much for participating in this study. You have reached the end of the study.'
+
+    return {'completion_code': completion_code, 'redirect_url': redirect_url, 'message': message}

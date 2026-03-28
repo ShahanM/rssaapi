@@ -1,6 +1,5 @@
 """Router for managing study steps in the admin API."""
 
-import logging
 import uuid
 from typing import Annotated
 
@@ -10,13 +9,14 @@ from rssa_api.auth.security import get_auth0_authenticated_user, get_current_use
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
-from rssa_api.data.schemas.study_components import StudyStepPageCreate, StudyStepPageRead, StudyStepRead
+from rssa_api.data.schemas.study_components import (
+    StudyStepPageBase,
+    StudyStepPageCreate,
+    StudyStepRead,
+)
 from rssa_api.data.services.dependencies import StudyServiceDep, StudyStepPageServiceDep, StudyStepServiceDep
 
 from ...docs import ADMIN_STUDY_STEPS_TAG
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 router = APIRouter(
     prefix='/steps',
@@ -48,7 +48,7 @@ async def get_study_step(
     Returns:
         The study step details.
     """
-    study_step = await step_service.get(step_id)
+    study_step = await step_service.get(step_id, StudyStepRead)
     if not study_step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 
@@ -93,26 +93,26 @@ async def get_pages_for_study_step(
         if not has_access:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 
-    pages_from_db = await page_service.get_items_for_owner_as_ordered_list(step_id)
+    pages_from_db = await page_service.get_all(OrderedListItem, owner_id=step_id)
 
     return [OrderedListItem.model_validate(p) for p in pages_from_db]
 
 
-@router.post('/{step_id}/pages', status_code=status.HTTP_201_CREATED, response_model=StudyStepPageRead)
+@router.post('/{step_id}/pages', status_code=status.HTTP_201_CREATED, response_model=OrderedListItem)
 async def create_page_for_step(
     step_id: uuid.UUID,
-    new_page: StudyStepPageCreate,
+    new_page_payload: StudyStepPageBase,
     step_service: StudyStepServiceDep,
     page_service: StudyStepPageServiceDep,
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('create:pages', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> StudyStepPageRead:
+) -> OrderedListItem:
     """Create a new page for a study step.
 
     Args:
         step_id: The UUID of the step.
-        new_page: Data for the new page.
+        new_page_payload: Data for the new page.
         step_service: The study step service (to verify step exists).
         page_service: The page service.
         study_service: The study service.
@@ -135,24 +135,12 @@ async def create_page_for_step(
         if not has_access:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 
-    created_page = await page_service.create_for_owner(step_id, new_page, study_id=step.study_id)
-    page_dict = {
-        'id': created_page.id,
-        'created_at': created_page.created_at,
-        'updated_at': created_page.updated_at,
-        'enabled': created_page.enabled,
-        'page_type': created_page.page_type,
-        'name': created_page.name,
-        'description': created_page.description,
-        'title': created_page.title,
-        'instructions': created_page.instructions,
-        'study_id': created_page.study_id,
-        'study_step_id': created_page.study_step_id,
-        'order_position': created_page.order_position,
-        'study_step_page_contents': [],
-    }
+    new_page = StudyStepPageCreate(
+        **new_page_payload.model_dump(exclude_computed_fields=True), study_id=step.study_id, study_step_id=step.id
+    )
+    created_page = await page_service.create(new_page, owner_id=step_id)
 
-    return StudyStepPageRead.model_validate(page_dict)
+    return OrderedListItem.model_validate(created_page)
 
 
 @router.patch('/{step_id}', status_code=status.HTTP_204_NO_CONTENT)

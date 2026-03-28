@@ -22,11 +22,9 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
-    # Startup: Configure logging
     configure_structlog()
     logger.info('Starting up RSSA API...')
     yield
-    # Shutdown
     logger.info('Shutting down RSSA API...')
 
 
@@ -44,7 +42,6 @@ app = FastAPI(
     },
 )
 
-# Robust static file mounting
 static_dir = PROJECT_ROOT / 'src' / 'rssa_api' / 'static'
 if static_dir.exists():
     app.mount('/static', StaticFiles(directory=static_dir), name='static')
@@ -80,7 +77,6 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-# Add access logging middleware
 app.add_middleware(StructlogAccessMiddleware)
 
 

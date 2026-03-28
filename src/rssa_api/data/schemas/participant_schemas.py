@@ -5,7 +5,7 @@ import uuid
 from pydantic import BaseModel, Field, field_validator
 
 from .base_schemas import DBMixin
-from .study_components import StudyConditionRead
+from .study_components import StudyConditionPresent
 
 
 class StudyParticipantBase(BaseModel):
@@ -35,6 +35,7 @@ class StudyParticipantCreate(BaseModel):
     external_id: str
     current_step_id: uuid.UUID
     current_page_id: uuid.UUID | None = None
+    source_meta: dict[str, str] | None
 
 
 class StudyParticipantRead(StudyParticipantBase, DBMixin):
@@ -45,6 +46,7 @@ class StudyParticipantRead(StudyParticipantBase, DBMixin):
     current_status: str
 
     def __hash__(self):
+        """Simple string hash of the json string to help caching."""
         return self.model_dump_json().__hash__()
 
 
@@ -52,7 +54,7 @@ class StudyParticipantTypeRead(BaseModel):
     """Schema for reading a study participant type."""
 
     id: uuid.UUID
-    key: str = Field(validation_alias='type')
+    type: str
 
     model_config = {'from_attributes': True}
 
@@ -60,8 +62,8 @@ class StudyParticipantTypeRead(BaseModel):
 class StudyParticipantReadWithCondition(StudyParticipantRead):
     """Schema for reading a study participant with condition."""
 
-    study_condition: 'StudyConditionRead'
-    participant_type: StudyParticipantTypeRead = Field(validation_alias='study_participant_type')
+    study_condition: StudyConditionPresent
+    study_participant_type: StudyParticipantTypeRead
 
 
 class DemographicsBase(BaseModel):

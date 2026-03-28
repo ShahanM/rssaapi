@@ -103,10 +103,14 @@ class SurveyScaleCreate(SurveyScaleBase):
     pass
 
 
-class SurveyScaleRead(SurveyScaleBase, DBMixin, DisplayNameMixin):
+class SurveyScalePreview(SurveyScaleBase, DBMixin, DisplayNameMixin):
     """Schema for reading a survey scale."""
 
     _display_name_source_field: ClassVar[str] = 'name'
+
+
+class SurveyScaleRead(SurveyScalePreview):
+    survey_scale_levels: list[SurveyScaleLevelRead] | None = None
 
 
 class SurveyScaleAudit(SurveyScaleRead, AuditMixin):
@@ -133,11 +137,15 @@ class SurveyConstructCreate(SurveyConstructBase):
     pass
 
 
-class SurveyConstructRead(SurveyConstructBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
+class SurveyConstructPreview(SurveyConstructBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
     """Schema for reading a survey construct."""
 
     _display_name_source_field: ClassVar[str] = 'name'
     _display_info_source_field: ClassVar[str] = 'description'
+
+
+class SurveyConstructRead(SurveyConstructPreview):
+    survey_items: list[SurveyItemRead]
 
 
 class SurveyConstructAudit(SurveyConstructRead, AuditMixin):

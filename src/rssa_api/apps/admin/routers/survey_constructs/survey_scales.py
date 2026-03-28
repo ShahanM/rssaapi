@@ -65,10 +65,10 @@ async def get_construct_scales(
     """
     offset = page_index * page_size
     total_items = await service.count(search=search)
-    constructs_from_db = await service.get_paged_list(
+    constructs_from_db = await service.get_all(
+        PreviewSchema,
         limit=page_size,
         offset=offset,
-        schema=PreviewSchema,
         sort_by=sort_by,
         sort_dir=sort_dir.value if sort_dir else None,
         search=search,
@@ -116,7 +116,7 @@ async def get_construct_scale_detail(
     Returns:
         The scale details.
     """
-    scale_in_db = await service.get_detailed(scale_id)
+    scale_in_db = await service.get(scale_id, SurveyScaleRead)
     if not scale_in_db:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Construct scale not found.')
 
@@ -140,7 +140,7 @@ async def get_construct_scale(
     Returns:
         The scale summary.
     """
-    scale_in_db = await service.get_detailed(scale_id)
+    scale_in_db = await service.get(scale_id, SurveyScaleRead)
     if not scale_in_db:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Construct scale not found.')
 
@@ -201,7 +201,7 @@ async def get_scale_levels(
     Returns:
         A list of ordered scale levels.
     """
-    levels_in_db = await service.get_items_for_owner_as_ordered_list(scale_id)
+    levels_in_db = await service.get_all(SurveyScaleLevelRead, owner_id=scale_id)
     if not levels_in_db:
         return []
     converted = [SurveyScaleLevelRead.model_validate(c) for c in levels_in_db]
@@ -232,7 +232,7 @@ async def create_scale_level(
     """
     if scale_id != new_level.survey_scale_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='There was an error due to scale mismatch.')
-    new_scale_in_db = await service.create_for_owner(scale_id, new_level)
+    new_scale_in_db = await service.create(new_level, owner_id=scale_id)
 
     return SurveyScaleLevelRead.model_validate(new_scale_in_db)
 

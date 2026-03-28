@@ -35,6 +35,14 @@ class RecommendationTextSchema(DBMixin):
     updated_at: datetime
 
 
+class MovieBase(DBMixin):
+    title: str
+    year: int
+    movielens_id: str
+    poster: str
+    tmdb_poster: str | None = ''
+
+
 class MovieSchema(DBMixin):
     """Base schema for a Movie."""
 
@@ -118,10 +126,14 @@ class MovieDetailSchema(MovieSchema):
     recommendations_text: RecommendationTextSchema | None = None
 
 
+class MovieGalleryPreview(MovieBase):
+    pass
+
+
 class PaginatedMovieList(BaseModel):
     """Schema for a paginated list of movies."""
 
-    data: list[MovieDetailSchema]
+    data: list[MovieGalleryPreview]
     count: int
 
 

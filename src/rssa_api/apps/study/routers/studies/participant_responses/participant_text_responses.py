@@ -37,7 +37,7 @@ async def create_freeform_text_response(
     Returns:
         The created text response.
     """
-    created_response = await service.create_response(text_response, id_token['sid'], id_token['pid'])
+    created_response = await service.create_response(text_response, id_token['sty'], id_token['sub'])
     return created_response
 
 
@@ -89,7 +89,7 @@ async def get_participant_text_response(
         The text response data for the specified study step and participant.
     """
     text_response = await service.get_response_for_page(
-        ResponseType.TEXT_RESPONSE, id_token['sid'], id_token['pid'], page_id
+        ResponseType.TEXT_RESPONSE, id_token['sty'], id_token['sub'], page_id
     )
 
     return text_response

@@ -46,7 +46,7 @@ async def create_content_Rating(
     Returns:
         The created content rating.
     """
-    content_rating = await service.create_response(rating, id_token['sid'], id_token['pid'])
+    content_rating = await service.create_response(rating, id_token['sty'], id_token['sub'])
 
     return content_rating
 
@@ -119,6 +119,6 @@ async def get_user_ratings(
         A list of content ratings for the participant.
     """
     ratings = await service.get_response_for_page(
-        ResponseType.CONTENT_RATING, id_token['sid'], id_token['pid'], page_id
+        ResponseType.CONTENT_RATING, id_token['sty'], id_token['sub'], page_id
     )
     return ratings

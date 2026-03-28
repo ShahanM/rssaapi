@@ -1,6 +1,5 @@
 """Authentication related schemas."""
 
-# in a file like 'core/schemas.py'
 import datetime
 import uuid
 
@@ -29,7 +28,3 @@ class UserSchema(BaseModel):
     picture: str | None = None
     created_at: datetime.datetime | None = None
     updated_at: datetime.datetime | None = None
-    # studies_owned: list[Any] = []
-    # studies_created: list[Any] = []
-
-    # api_keys: list[Any] = []

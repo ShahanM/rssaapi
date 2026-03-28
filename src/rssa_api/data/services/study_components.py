@@ -31,8 +31,6 @@ from rssa_storage.rssadb.repositories.study_participants import (
     StudyParticipantRepository,
 )
 from rssa_storage.shared import RepoQueryOptions
-from rssa_storage.shared.generators import generate_ref_code
-from sqlalchemy.exc import IntegrityError
 
 from rssa_api.data.schemas.participant_schemas import DemographicsCreate
 from rssa_api.data.schemas.preferences_schemas import RecommendationContextBaseSchema, RecommendationContextSchema
@@ -40,6 +38,7 @@ from rssa_api.data.schemas.study_components import ConditionCountSchema
 from rssa_api.data.services.base_ordered_service import BaseOrderedService
 from rssa_api.data.services.base_scoped_service import BaseScopedService
 from rssa_api.data.services.navigation_mixin import NavigationMixin
+from rssa_api.data.utility import extract_load_strategies
 
 
 class StudyService(BaseScopedService[Study, StudyRepository]):
@@ -68,7 +67,7 @@ class StudyService(BaseScopedService[Study, StudyRepository]):
         roles_hierarchy = {'viewer': 0, 'editor': 1, 'admin': 2, 'owner': 3}
         min_level = roles_hierarchy.get(min_role, 0) if min_role else 0
 
-        study = await self.repo.find_one(RepoQueryOptions(filters={'id': study_id}))
+        study = await self.repo.find_one(RepoQueryOptions(filters={'id': study_id}, load_columns=['id', 'owner_id']))
         if not study:
             return False
 
@@ -96,6 +95,8 @@ class StudyService(BaseScopedService[Study, StudyRepository]):
         search: str | None = None,
     ) -> list[Any]:
         """Get a paged list of studies the user is authorized to view."""
+        top_cols, rel_map = extract_load_strategies(schema) if schema else (None, None)
+
         options = RepoQueryOptions(
             limit=limit,
             offset=offset,
@@ -103,6 +104,8 @@ class StudyService(BaseScopedService[Study, StudyRepository]):
             sort_desc=(sort_dir == 'desc') if sort_dir else False,
             search_text=search,
             search_columns=getattr(self.repo, 'SEARCHABLE_COLUMNS', []),
+            load_columns=top_cols,
+            load_relationships=rel_map,
         )
 
         items = await self.repo.get_authorized_for_user(user_id, options)
@@ -127,7 +130,9 @@ class StudyService(BaseScopedService[Study, StudyRepository]):
 
     async def remove_study_authorization(self, study_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Remove authorization for a user from a study."""
-        existing = await self.auth_repo.find_one(RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id}))
+        existing = await self.auth_repo.find_one(
+            RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id}, load_columns=['id'])
+        )
         if existing:
             await self.auth_repo.delete(existing.id)
 
@@ -136,32 +141,6 @@ class StudyConditionService(BaseScopedService[StudyCondition, StudyConditionRepo
     """Service for managing study conditions."""
 
     scope_field = 'study_id'
-
-    async def create_for_owner(self, owner_id: uuid.UUID, schema: Any, **kwargs) -> StudyCondition:
-        """Create a study condition for an owner."""
-        for _ in range(5):
-            try:
-                return await super().create_for_owner(owner_id, schema, **kwargs)
-            except IntegrityError:
-                continue
-
-        existing_conditions = await self.get_all_for_owner(owner_id)
-        existing_codes = {c.short_code for c in existing_conditions}
-
-        short_code = generate_ref_code()
-
-        for attempt_count in range(1, 102):
-            if short_code not in existing_codes:
-                break
-
-            if attempt_count > 100:
-                short_code = f'{short_code}-{attempt_count}'
-                break
-
-            short_code = generate_ref_code()
-
-        kwargs['short_code'] = short_code
-        return await super().create_for_owner(owner_id, schema, **kwargs)
 
     async def get_participant_count_by_condition(
         self,
@@ -227,7 +206,6 @@ class StudyStepPageContentService(BaseOrderedService[StudyStepPageContent, Study
         """
         created = await super().create_for_owner(owner_id, schema, **kwargs)
 
-        # Reload with full details
         return await self.repo.find_one(
             RepoQueryOptions(
                 filters={'study_step_page_id': owner_id, 'order_position': created.order_position},

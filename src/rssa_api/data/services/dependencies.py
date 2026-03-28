@@ -34,6 +34,7 @@ from rssa_storage.rssadb.repositories.survey_components import (
     SurveyScaleLevelRepository,
     SurveyScaleRepository,
 )
+from rssa_storage.telemetrydb.repositories.telemetry import TelemetryRepo
 
 from rssa_api.data.services.movie_service import MovieService
 from rssa_api.data.services.response_service import ParticipantResponseService
@@ -44,9 +45,12 @@ from rssa_api.data.services.study_participants import (
     ParticipantStudySessionService,
     StudyParticipantMovieSessionService,
 )
+from rssa_api.data.services.telemetry_service import TelemetryService
 from rssa_api.data.sources.moviedb import get_repository as movie_repo
 from rssa_api.data.sources.moviedb import get_service as movie_service
 from rssa_api.data.sources.rssadb import get_service as rssa_service
+from rssa_api.data.sources.telemetrydb import get_repository as telemetry_repo
+from rssa_api.data.sources.telemetrydb import get_service as telemetry_service
 
 from .study_components import (
     StudyAuthorizationService,
@@ -148,4 +152,10 @@ ParticipantResponseServiceDep = Annotated[
             ParticipantStudyInteractionResponseRepository,
         )
     ),
+]
+
+
+TelemetryServiceDep = Annotated[
+    TelemetryService,
+    Depends(telemetry_service(TelemetryService, telemetry_repo(TelemetryRepo))),
 ]

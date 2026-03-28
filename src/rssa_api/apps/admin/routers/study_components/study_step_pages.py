@@ -1,6 +1,5 @@
 """Router for managing study step pages in the admin API."""
 
-import logging
 import uuid
 from typing import Annotated
 
@@ -11,8 +10,8 @@ from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
 from rssa_api.data.schemas.study_components import (
-    StudyStepPageContentCreate,
-    StudyStepPageContentRead,
+    StudyStepPageContentBase,
+    StudyStepPageContentPreview,
     StudyStepPageRead,
 )
 from rssa_api.data.services.dependencies import (
@@ -24,9 +23,6 @@ from rssa_api.data.services.dependencies import (
 
 from ...docs import ADMIN_STEP_PAGES_TAG
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
 router = APIRouter(
     prefix='/pages',
     tags=[ADMIN_STEP_PAGES_TAG],
@@ -34,10 +30,7 @@ router = APIRouter(
 )
 
 
-@router.get(
-    '/{page_id}',
-    response_model=StudyStepPageRead,
-)
+@router.get('/{page_id}', response_model=StudyStepPageRead)
 async def get_step_page_details(
     page_id: uuid.UUID,
     page_service: StudyStepPageServiceDep,
@@ -59,7 +52,7 @@ async def get_step_page_details(
     Returns:
         The study step page details.
     """
-    page_from_db = await page_service.get_detailed(page_id, StudyStepPageRead)
+    page_from_db = await page_service.get(page_id, StudyStepPageRead)
     if not page_from_db:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
@@ -166,10 +159,7 @@ async def delete_step_page(
     await page_service.delete(page_id)
 
 
-@router.get(
-    '/{page_id}/contents',
-    response_model=list[OrderedListItem],
-)
+@router.get('/{page_id}/contents', response_model=list[OrderedListItem])
 async def get_page_content(
     page_id: uuid.UUID,
     content_service: StudyStepPageContentServiceDep,
@@ -208,7 +198,7 @@ async def get_page_content(
             if not has_access:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
-    content = await content_service.get_items_for_owner_as_ordered_list(page_id)
+    content = await content_service.get_all(StudyStepPageContentPreview, owner_id=page_id)
 
     return [OrderedListItem.model_validate(c) for c in content]
 
@@ -216,11 +206,11 @@ async def get_page_content(
 @router.post(
     '/{page_id}/contents',
     status_code=status.HTTP_201_CREATED,
-    response_model=StudyStepPageContentRead,
+    response_model=StudyStepPageContentPreview,
 )
 async def add_content_to_page(
     page_id: uuid.UUID,
-    new_content: StudyStepPageContentCreate,
+    new_content_payload: StudyStepPageContentBase,
     content_service: StudyStepPageContentServiceDep,
     page_service: StudyStepPageServiceDep,
     step_service: StudyStepServiceDep,
@@ -230,12 +220,12 @@ async def add_content_to_page(
         Depends(require_permissions('create:content', 'admin:all')),
     ],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> StudyStepPageContentRead:
+) -> StudyStepPageContentPreview:
     """Add content to a study step page.
 
     Args:
         page_id: The UUID of the page.
-        new_content: The content to add.
+        new_content_payload: The content to add.
         content_service: The content service.
         page_service: The page service.
         step_service: The step service.
@@ -257,9 +247,8 @@ async def add_content_to_page(
             has_access = await study_service.check_study_access(step.study_id, current_user.id)
             if not has_access:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
-
-    content = await content_service.create_for_owner(page_id, new_content)
-    return StudyStepPageContentRead.model_validate(content)
+    created_content = await content_service.create(new_content_payload, owner_id=page.id)
+    return await content_service.get(created_content.id, StudyStepPageContentPreview)
 
 
 @router.patch('/{page_id}/contents/reorder', status_code=status.HTTP_204_NO_CONTENT)

@@ -21,18 +21,20 @@ from rssa_api.data.schemas.base_schemas import (
     SortDir,
 )
 from rssa_api.data.schemas.study_components import (
+    ApiKeyBase,
     ApiKeyCreate,
     ApiKeyRead,
     PaginatedStudyResponse,
     StudyAudit,
     StudyAuthorizationCreate,
     StudyAuthorizationRead,
+    StudyConditionBase,
     StudyConditionCreate,
     StudyConditionRead,
     StudyCreate,
     StudyRead,
+    StudyStepBase,
     StudyStepCreate,
-    StudyStepRead,
 )
 from rssa_api.data.services.dependencies import (
     ApiKeyServiceDep,
@@ -114,10 +116,10 @@ async def get_studies(
     total_items = 0
     if is_super_admin:
         total_items = await study_service.count(search)
-        studies_from_db = await study_service.get_paged_list(
+        studies_from_db = await study_service.get_all(
+            PreviewSchema,
             limit=page_size,
             offset=offset,
-            schema=PreviewSchema,
             sort_by=sort_by,
             sort_dir=sort_dir.value if sort_dir else None,
             search=search,
@@ -189,7 +191,7 @@ async def get_study_detail(
     Returns:
         The study details.
     """
-    study = await study_service.get_detailed(study_id, StudyAudit)
+    study = await study_service.get(study_id, StudyAudit)
 
     if study is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
@@ -214,9 +216,7 @@ async def get_study_detail(
     status_code=status.HTTP_201_CREATED,
     response_model=StudyRead,
     summary='Create a new study.',
-    description="""
-    Create a new study instance.
-    """,
+    description="""Create a new study instance.""",
 )
 async def create_study(
     new_study: StudyCreate,
@@ -238,12 +238,18 @@ async def create_study(
     Returns:
         The created study instance.
     """
-    created_study = await study_service.create_for_owner(current_user.id, new_study)
+    created_study = await study_service.create(new_study, owner_id=current_user.id)
 
     return StudyRead.model_validate(created_study)
 
 
-@router.get('/{study_id}/steps', response_model=list[OrderedListItem])
+@router.get(
+    '/{study_id}/steps',
+    status_code=status.HTTP_200_OK,
+    response_model=list[OrderedListItem],
+    summary='Get a list of steps.',
+    description="""Retrieve the list of steps belonging to a study.""",
+)
 async def get_study_steps(
     study_id: uuid.UUID,
     step_service: StudyStepServiceDep,
@@ -261,33 +267,31 @@ async def get_study_steps(
     Returns:
         A list of ordered study steps.
     """
-    study_steps = await step_service.get_items_for_owner_as_ordered_list(study_id, OrderedListItem)
+    study_steps = await step_service.get_all(OrderedListItem, owner_id=study_id)
     return study_steps
 
 
 @router.post(
     '/{study_id}/steps',
     status_code=status.HTTP_201_CREATED,
-    response_model=StudyStepRead,
+    response_model=OrderedListItem,
     summary='Create a new study step.',
-    description="""
-    Create a new step within a study.
-    """,
+    description="""Create a new step within a study.""",
     response_description='The created study step instance.',
 )
 async def create_study_step(
     study_id: uuid.UUID,
-    new_step: StudyStepCreate,
+    new_step_payload: StudyStepBase,
     step_service: StudyStepServiceDep,
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('create:steps', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> StudyStepRead:
+) -> OrderedListItem:
     """Create a new study step.
 
     Args:
         study_id: The UUID of the study to add the step to.
-        new_step: The step data to create.
+        new_step_payload: The step data to create.
         step_service: The service to handle study step operations.
         study_service: The study service.
         user: The currently authenticated user.
@@ -302,18 +306,17 @@ async def create_study_step(
         if not has_access:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
 
-    step_in_db = await step_service.create_for_owner(study_id, new_step)
+    new_step = StudyStepCreate(**new_step_payload.model_dump(exclude_computed_fields=True), study_id=study_id)
+    step_in_db = await step_service.create(new_step, owner_id=study_id)
 
-    return StudyStepRead.model_validate(step_in_db)
+    return OrderedListItem.model_validate(step_in_db)
 
 
 @router.get(
     '/{study_id}/conditions',
     response_model=list[StudyConditionRead],
     summary='Get a list of conditions assigned to a study.',
-    description="""
-    Get a paginated list of conditions associated with a study.
-    """,
+    description="""Get a paginated list of conditions associated with a study.""",
     response_description="""A list of study conditions.""",
 )
 async def get_study_conditions(
@@ -335,8 +338,11 @@ async def get_study_conditions(
     Returns:
         A list of study conditions.
     """
-    study_conditions = await condition_service.get_paged_for_owner(
-        study_id, page_size, page_index * page_size, StudyConditionRead
+    study_conditions = await condition_service.get_all(
+        StudyConditionRead,
+        owner_id=study_id,
+        limit=page_size,
+        offset=page_index * page_size,
     )
     return study_conditions
 
@@ -345,14 +351,12 @@ async def get_study_conditions(
     '/{study_id}/conditions',
     status_code=status.HTTP_201_CREATED,
     summary='Create a study condition for a study.',
-    description="""
-    Create a new condition for the specified study.
-    """,
+    description="""Create a new condition for the specified study.""",
     response_description='The created study condition.',
 )
 async def create_study_condition(
     study_id: uuid.UUID,
-    new_condition: StudyConditionCreate,
+    new_condition_payload: StudyConditionBase,
     condition_service: StudyConditionServiceDep,
     study_service: StudyServiceDep,
     current_user: Annotated[UserSchema, Depends(get_current_user)],
@@ -362,7 +366,7 @@ async def create_study_condition(
 
     Args:
         study_id: The UUID of the study.
-        new_condition: The condition data to create.
+        new_condition_payload: The condition data to create.
         condition_service: The service to handle condition operations.
         study_service: The study service.
         current_user: The currently authenticated user.
@@ -377,7 +381,8 @@ async def create_study_condition(
         if not has_access:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
 
-    condition = await condition_service.create_for_owner(study_id, new_condition)
+    new_condition = StudyConditionCreate(**new_condition_payload.model_dump(), study_id=study_id)
+    condition = await condition_service.create(new_condition, owner_id=study_id)
 
     return condition
 
@@ -386,9 +391,7 @@ async def create_study_condition(
     '/{study_id}',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Update a study.',
-    description="""
-    Updates an existing study with the provided fields.
-    """,
+    description="""Updates an existing study with the provided fields.""",
 )
 async def update_study(
     study_id: uuid.UUID,
@@ -443,7 +446,6 @@ async def delete_study(
     Returns:
         An empty dictionary on success.
     """
-    # Check authorization if not super admin
     is_super_admin = 'admin:all' in user.permissions or 'delete:studies' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
@@ -491,9 +493,7 @@ async def reorder_study_steps(
     '/{study_id}/steps/validate',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Check if a step path is unique within a study',
-    description="""
-    Verifies that a proposed path for a study step is unique within the study.
-    """,
+    description="""Verifies that a proposed path for a study step is unique within the study.""",
     response_description="""HTTP 204 No Content on success.""",
 )
 async def validate_step_path_uniqueness(
@@ -525,10 +525,16 @@ async def validate_step_path_uniqueness(
         )
 
 
-@router.post('/{study_id}/apikeys', response_model=ApiKeyRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    '/{study_id}/apikeys',
+    status_code=status.HTTP_201_CREATED,
+    response_model=ApiKeyRead,
+    summary='Generate a new API key for the study.',
+    description="""Creates a new API key and key secret to be used a study application.""",
+)
 async def generate_study_api_key(
     study_id: uuid.UUID,
-    new_api_key: ApiKeyCreate,
+    new_api_key_payload: ApiKeyBase,
     key_service: ApiKeyServiceDep,
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
@@ -538,7 +544,7 @@ async def generate_study_api_key(
 
     Args:
         study_id: The UUID of the study.
-        new_api_key: The API key data (description).
+        new_api_key_payload: The API key data (description).
         key_service: The service to handle API key operations.
         study_service: The study service.
         user: The currently authenticated user.
@@ -552,13 +558,19 @@ async def generate_study_api_key(
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
         if not has_access:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
-
-    api_key = await key_service.create_api_key_for_study(study_id, new_api_key.description, current_user.id)
+    new_api_key = ApiKeyCreate(**new_api_key_payload.model_dump(), study_id=study_id, user_id=current_user.id)
+    api_key = await key_service.generate_new_api_key(new_api_key)
 
     return api_key
 
 
-@router.get('/{study_id}/apikeys', response_model=list[ApiKeyRead])
+@router.get(
+    '/{study_id}/apikeys',
+    status_code=status.HTTP_200_OK,
+    response_model=list[ApiKeyRead],
+    summary='Get a list of API keys.',
+    description="""Retrieive a list of active API keys for the authenticated user.""",
+)
 async def get_api_keys(
     study_id: uuid.UUID,
     service: ApiKeyServiceDep,
@@ -583,9 +595,7 @@ async def get_api_keys(
     '/{study_id}/authorizations',
     response_model=list[StudyAuthorizationRead],
     summary='Get list of authorized users for a study.',
-    description="""
-    Get a list of users who are authorized to access this study.
-    """,
+    description="""Get a list of users who are authorized to access this study.""",
 )
 async def get_study_authorizations(
     study_id: uuid.UUID,
@@ -618,9 +628,7 @@ async def get_study_authorizations(
     status_code=status.HTTP_201_CREATED,
     response_model=StudyAuthorizationRead,
     summary='Add an authorized user to a study.',
-    description="""
-    Authorize a user to access a study.
-    """,
+    description="""Authorize a user to access a study.""",
 )
 async def add_study_authorization(
     study_id: uuid.UUID,
@@ -654,9 +662,7 @@ async def add_study_authorization(
     '/{study_id}/authorizations/{user_id}',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Remove an authorized user from a study.',
-    description="""
-    Revoke access for a user to a study.
-    """,
+    description="""Revoke access for a user to a study.""",
 )
 async def remove_study_authorization(
     study_id: uuid.UUID,
