@@ -61,7 +61,6 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
         Returns:
             The newly created participant.
         """
-        print('ENROLLMENT:', new_participant)
         participant_type = await self.participant_type_repo.find_one(
             RepoQueryOptions(filter_ilike={'type': new_participant.participant_type_key})
         )
@@ -119,7 +118,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
                 filters={'study_id': study_id, 'discarded': False},
                 sort_by='created_at',
                 sort_desc=True,
-                load_columns=['id'],
+                load_columns=['id', 'study_condition_id'],
             )
         )
         if last_participant:
