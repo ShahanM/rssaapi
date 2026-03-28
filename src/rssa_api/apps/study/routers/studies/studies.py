@@ -25,6 +25,7 @@ from rssa_api.data.services.dependencies import (
     StudyConditionServiceDep,
     StudyParticipantMovieSessionServiceDep,
     StudyParticipantServiceDep,
+    StudyServiceDep,
     StudyStepServiceDep,
 )
 
@@ -33,6 +34,17 @@ class ErrorResponse(BaseModel):
     """Standard error response model."""
 
     detail: str
+
+
+class StudyCompletionPayload(BaseModel):
+    """Study completion payload."""
+
+    completion_code: str
+    redirect_url: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
 
 router = APIRouter(
@@ -300,10 +312,17 @@ async def resume_study_session(
 )
 async def finalize_study(
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
+    service: StudyServiceDep,
 ):
     """Final step confirmation to retreive completion code and redirect url."""
-    completion_code = 'SOMEVAL'
-    redirect_url = 'SOMEURL'
+    completion_data = await service.get(id_token['sty'], StudyCompletionPayload)
+
+    # completion_code = 'SOMEVAL'
+    # redirect_url = 'SOMEURL'
     message = 'Thank you so much for participating in this study. You have reached the end of the study.'
 
-    return {'completion_code': completion_code, 'redirect_url': redirect_url, 'message': message}
+    return {
+        'completion_code': completion_data.completion_code,
+        'redirect_url': completion_data.redirect_url,
+        'message': message,
+    }
