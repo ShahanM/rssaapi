@@ -1,3 +1,5 @@
+"""Authorization methods."""
+
 import uuid
 from typing import Annotated
 
@@ -54,6 +56,37 @@ async def validate_api_key(
     return valid_key.study_id
 
 
+async def decode_jwt(token: Annotated[str, Depends(oauth2_scheme)]) -> dict[str, str]:
+    """Decodes the JWT and returns a dictionary of the JWT content.
+
+    Args:
+        token: The bearer token from the request.
+
+    Returns:
+        A dictionary of the JWT content.
+
+    Raises:
+        HTTPException: If the token is invalid, expired, or the participant is not found (401).
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail='Could not validate credentials',
+        headers={'WWW-Authenticate': 'Bearer'},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        participant_id: str | None = payload.get('sub')
+        session_id: str | None = payload.get('sid')
+        study_id: str | None = payload.get('sty')
+        expires_at: str | None = payload.get('exp')  # TODO: check expiration at some point
+        if not all([participant_id, session_id, study_id]):
+            raise credentials_exception
+    except JWTError as e:
+        raise credentials_exception from e
+
+    return {'sub': participant_id, 'sid': session_id, 'sty': study_id, 'exp': expires_at}
+
+
 async def authorize_api_key_for_study(
     study_id: Annotated[uuid.UUID, Path()],
     valid_study_id: Annotated[uuid.UUID, Depends(validate_api_key)],
@@ -79,13 +112,13 @@ async def authorize_api_key_for_study(
 
 
 async def get_current_participant(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    token_content: Annotated[dict, Depends(decode_jwt)],
     participant_service: StudyParticipantServiceDep,
 ) -> StudyParticipantRead:
     """Decodes the JWT to retrieve the current study participant.
 
     Args:
-        token: The bearer token from the request.
+        token_content: The decoded token from the request.
         participant_service: The service to retrieve participant details.
 
     Returns:
@@ -99,15 +132,9 @@ async def get_current_participant(
         detail='Could not validate credentials',
         headers={'WWW-Authenticate': 'Bearer'},
     )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        participant_id: str | None = payload.get('sub')
-        if participant_id is None:
-            raise credentials_exception
-    except JWTError as e:
-        raise credentials_exception from e
 
-    participant = await participant_service.get(uuid.UUID(participant_id))
+    participant_id = uuid.UUID(token_content['sub'])
+    participant = await participant_service.get(participant_id, StudyParticipantRead)
 
     if participant is None:
         raise credentials_exception
@@ -133,7 +160,7 @@ async def validate_study_participant(
     """
     if participant.study_id != study_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Permission denied.')
-    return {'sid': study_id, 'pid': participant.id}
+    return {'sty': study_id, 'sub': participant.id}
 
 
 def generate_jwt_token_for_payload(payload: dict[str, str], algorithm: str = 'HS256') -> str:

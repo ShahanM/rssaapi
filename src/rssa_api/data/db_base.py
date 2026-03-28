@@ -10,19 +10,20 @@ import rssa_api.core.config as cfg
 
 def create_db_components(
     db_name_env_key: str,
+    env_prefix: str = 'DB',
     use_env_port: bool = False,
     use_neon_params: bool = False,
     echo: bool = False,
 ):
     """Creates the async engine and session factory based on environment variables."""
-    dbuser = cfg.get_env_var('DB_USER')
-    dbpass = cfg.get_env_var('DB_PASSWORD')
-    dbhost = cfg.get_env_var('DB_HOST')
-    dbport = cfg.get_env_var('DB_PORT')
+    dbuser = cfg.get_env_var(f'{env_prefix}_USER')
+    dbpass = cfg.get_env_var(f'{env_prefix}_PASSWORD')
+    dbhost = cfg.get_env_var(f'{env_prefix}_HOST')
+    dbport = cfg.get_env_var(f'{env_prefix}_PORT')
     dbname = cfg.get_env_var(db_name_env_key)
 
-    sslmode = cfg.get_env_var('DB_SSLMODE')
-    channel = cfg.get_env_var('DB_CHANNELBINDING')
+    sslmode = cfg.get_env_var(f'{env_prefix}_SSLMODE')
+    channel = cfg.get_env_var(f'{env_prefix}_CHANNELBINDING')
 
     db_url = f'postgresql+asyncpg://{dbuser}:{dbpass}@{dbhost}'
 
@@ -31,19 +32,17 @@ def create_db_components(
 
     db_url = f'{db_url}/{dbname}'
 
+    print(db_url)
+
     connect_args = {}
     if use_neon_params:
-        # asyncpg specific connection arguments
         connect_args = {
             'ssl': sslmode,  # e.g. "require" or "verify-full"
             'server_settings': {'channel_binding': channel or 'prefer'},
         }
-        # Fallback if the user wants to force it via URL, but connect_args is better for asyncpg
-        # However, for simplicity and compatibility with existing env vars strings:
         if sslmode:
             connect_args['ssl'] = sslmode
 
-    # Recommended settings for cloud databases (Neon, RDS, etc.)
     engine = create_async_engine(
         db_url,
         echo=echo,
@@ -85,7 +84,7 @@ class BaseDatabaseContext:
 
     async def __call__(self) -> AsyncGenerator[AsyncSession, None]:
         """Allows the instance to be used as a FastAPI Dependency."""
-        session = self.session_factory()  # <--- Create LOCAL session
+        session = self.session_factory()
         try:
             yield session
             await session.commit()

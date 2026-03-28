@@ -46,3 +46,4 @@ def configure_structlog():
     # Silence noisy libraries
     logging.getLogger('uvicorn.access').handlers = []
     logging.getLogger('uvicorn.error').handlers = []
+    logging.getLogger('sqlalchemy.engine.Engine').handlers = []

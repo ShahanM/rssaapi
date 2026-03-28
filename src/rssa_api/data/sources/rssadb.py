@@ -6,8 +6,9 @@ from rssa_api.data.factory import DependencyFactory
 # Initialize components specifically for the RSSA DB
 async_engine, AsyncSessionLocal = create_db_components(
     'RSSA_DB_NAME',
+    env_prefix='NEON',
     use_neon_params=True,
-    echo=False,
+    echo=True,
 )
 
 
