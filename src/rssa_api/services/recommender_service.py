@@ -126,8 +126,7 @@ class RecommenderService:
         dedup_key = f'{study_participant_id}_{context_tag}'
         if dedup_key in self._in_flight:
             log.info(f'Intercepted concurrent request. Joining in-flight generation for {dedup_key}')
-            raw_result = await self._in_flight[dedup_key]
-            return await self._process_recommendation_result(raw_result)
+            return await self._in_flight[dedup_key]
         gen_task = asyncio.create_task(
             self._generate_and_background_save(
                 study_id, step_id, step_page_id, study_participant_id, context_tag, context_data
@@ -136,21 +135,21 @@ class RecommenderService:
         self._in_flight[dedup_key] = gen_task
 
         try:
-            raw_result = await gen_task
+            enriched_result = await gen_task
         finally:
             self._in_flight.pop(dedup_key, None)
 
-        return await self._process_recommendation_result(raw_result)
+        return enriched_result
 
-    async def _getnerate_and_background_save(
+    async def _generate_and_background_save(
         self,
         study_id: uuid.UUID,
-        step_id: uuid.UUId,
-        step_page_id: uuid.UUId | None,
+        step_id: uuid.UUID,
+        step_page_id: uuid.UUID | None,
         study_participant_id: uuid.UUID,
         context_tag: str,
         context_data: dict[str, Any],
-    ) -> ResponseWrapper:
+    ) -> EnrichedResponseWrapper:
         """Handles parallel data fetching, algorithm execution, and backgrounding side-effects."""
         # Gather participant configuration and historical ratings
         config_task = self._get_participant_algorithm_config(study_participant_id)
@@ -292,7 +291,7 @@ class RecommenderService:
         else:
             raise KeyError('Result response_type key did not match any known types.')
 
-        return EnrichedResponseWrapper(rec_type=result.response_type, items=response_items)
+        return EnrichedResponseWrapper(response_type=result.response_type, items=response_items)
 
     async def _enrich_advisor_response(self, response: ResponseWrapper) -> EnrichedRecUnionType:
         """Helper to hydrate Advisor responses with movie data."""

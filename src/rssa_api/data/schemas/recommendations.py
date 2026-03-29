@@ -1,6 +1,6 @@
 """Schemas for recommendations."""
 
-from typing import Literal, Union
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,14 +13,6 @@ class Avatar(BaseModel):
     name: str
     alt: str
     src: str
-
-
-class StandardRecResponse(BaseModel):
-    """Schema for standard recommendation response."""
-
-    response_type: Literal['standard'] = 'standard'
-    items: list[int]
-    total_count: int
 
 
 class AdvisorRecItem(BaseModel):
@@ -38,14 +30,6 @@ class EnrichedAdvisorRecItem(BaseModel):
     recommendation: MovieDetailSchema
     avatar: Avatar | None
     profile_top_n: list[MovieSchema]
-
-
-class EnrichedRecResponse(BaseModel):
-    """Schema for enriched recommendation response."""
-
-    # response_type: Literal['enriched'] = 'enriched'
-    items: list[MovieDetailSchema]
-    # total_count: int
 
 
 class CommunityScoreRecItem(BaseModel):
@@ -70,15 +54,14 @@ class EnrichedCommunityScoreItem(BaseModel):
     cluster: int = 0
 
 
-RecUnionType = Union[AdvisorRecItem, CommunityScoreRecItem, int, str]
+RecUnionType = AdvisorRecItem | CommunityScoreRecItem | int | str
 
 
 class ResponseWrapper(BaseModel):
-    """Wrapper for recommendation responses."""
+    """Wrapper for raw recommendation responses from the algorithm."""
 
     response_type: Literal['standard', 'community_advisors', 'community_comparison']
     items: list[RecUnionType]
-    # total_count: int # FIXME: We eventually want this but it is not very important right now.
 
 
 EnrichedRecUnionType = (
@@ -87,9 +70,10 @@ EnrichedRecUnionType = (
 
 
 class EnrichedResponseWrapper(BaseModel):
-    """Wrapper for enriched recommendation responses."""
+    """Wrapper for enriched recommendation responses sent to the frontend."""
 
-    rec_type: Literal['standard', 'community_advisors', 'community_comparison']
+    # Renamed from 'rec_type' to 'response_type' for consistency!
+    response_type: Literal['standard', 'community_advisors', 'community_comparison']
     items: EnrichedRecUnionType
 
 

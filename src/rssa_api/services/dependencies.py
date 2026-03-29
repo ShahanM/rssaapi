@@ -1,3 +1,5 @@
+"""Dependency factory for router injection."""
+
 from typing import Annotated
 
 from fastapi import Depends
