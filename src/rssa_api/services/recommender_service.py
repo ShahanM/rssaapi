@@ -99,6 +99,7 @@ class RecommenderService:
         self.ttl = ttl_seconds
         self._cache: dict[str, dict[str, Any]] = {}  # caching results for ttl seconds
         self._in_flight: dict[str, asyncio.Future] = {}  # caching currently running tasks
+        self._bg_tasks: set[asyncio.Task] = set()  # For fire-and-forget database calls
 
     async def get_recommendations(
         self, ratings: list[MovieLensRating], limit: int, context_data: dict[str, Any] | None = None
@@ -115,6 +116,74 @@ class RecommenderService:
         self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict[str, Any]
     ) -> EnrichedResponseWrapper:
         """Get recommendations for a study participant."""
+        step_id, context_tag, step_page_id = self._parse_recommendation_context(context_data)
+
+        # Check for previously generated recommendations (Cache/Persistence)
+        existing_result = await self._get_existing_recommendations(study_id, study_participant_id, context_tag)
+        if existing_result:
+            return await self._process_recommendation_result(existing_result)
+
+        dedup_key = f'{study_participant_id}_{context_tag}'
+        if dedup_key in self._in_flight:
+            log.info(f'Intercepted concurrent request. Joining in-flight generation for {dedup_key}')
+            raw_result = await self._in_flight[dedup_key]
+            return await self._process_recommendation_result(raw_result)
+        gen_task = asyncio.create_task(
+            self._generate_and_background_save(
+                study_id, step_id, step_page_id, study_participant_id, context_tag, context_data
+            )
+        )
+        self._in_flight[dedup_key] = gen_task
+
+        try:
+            raw_result = await gen_task
+        finally:
+            self._in_flight.pop(dedup_key, None)
+
+        return await self._process_recommendation_result(raw_result)
+
+    async def _getnerate_and_background_save(
+        self,
+        study_id: uuid.UUID,
+        step_id: uuid.UUId,
+        step_page_id: uuid.UUId | None,
+        study_participant_id: uuid.UUID,
+        context_tag: str,
+        context_data: dict[str, Any],
+    ) -> ResponseWrapper:
+        """Handles parallel data fetching, algorithm execution, and backgrounding side-effects."""
+        # Gather participant configuration and historical ratings
+        config_task = self._get_participant_algorithm_config(study_participant_id)
+        ratings_task = self._get_translated_participant_ratings(study_participant_id)
+        (algorithm_key, limit), ratings = await asyncio.gather(config_task, ratings_task)
+
+        # Handle Side Effects (Tracking interactions)
+        if context_data.get('emotion_input'):
+            self._fire_and_forget(self._upsert_interaction(study_id, study_participant_id, context_data))
+
+        # Generate new recommendations
+        strategy = REGISTRY.get(algorithm_key)
+        if not strategy:
+            raise ValueError(f'No strategy found for key: {algorithm_key}')
+
+        try:
+            result = await strategy.recommend(
+                user_id=str(study_participant_id), ratings=ratings, limit=limit, run_config=context_data
+            )
+        except Exception as e:
+            log.error(f'Error for {study_participant_id} [{algorithm_key}]: {e}')
+            raise
+
+        self._fire_and_forget(
+            self._save_recommendation_context(
+                study_id, step_id, step_page_id, study_participant_id, context_tag, result
+            )
+        )
+
+        return await self._process_recommendation_result(result)
+
+    def _parse_recommendation_context(self, context_data: dict[str, Any]) -> tuple[uuid.UUID, str, uuid.UUID | None]:
+        """Extracts and validates required context fields."""
         step_id = context_data.get('step_id')
         context_tag = context_data.get('context_tag')
         step_page_id = context_data.get('step_page_id')
@@ -122,13 +191,12 @@ class RecommenderService:
         if not step_id or not context_tag:
             raise ValueError('Step ID and context tag are required')
 
-        step_id = uuid.UUID(str(step_id))
-        context_tag = str(context_tag)
-        if step_page_id:
-            step_page_id = uuid.UUID(str(step_page_id))
+        return (uuid.UUID(str(step_id)), str(context_tag), uuid.UUID(str(step_page_id)) if step_page_id else None)
 
-        result = None
-
+    async def _get_existing_recommendations(
+        self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_tag: str
+    ) -> ResponseWrapper | None:
+        """Checks the database for previously generated recommendations for this context."""
         existing_ctx = await self.recommendation_context_repository.find_one(
             RepoQueryOptions(
                 filters={
@@ -139,13 +207,14 @@ class RecommenderService:
             )
         )
         if existing_ctx:
-            log.info(f'Found existing context for {study_id} {study_participant_id} {step_id} {context_tag}')
-            result = ResponseWrapper.model_validate(existing_ctx.recommendations_json)
-            return await self._process_recommendation_result(result)
+            log.info(f'Found existing context for {study_id} {study_participant_id} {context_tag}')
+            return ResponseWrapper.model_validate(existing_ctx.recommendations_json)
 
-        log.info(f'No existing context found for {study_id} {study_participant_id} {step_id} {context_tag}')
+        log.info(f'No existing context found for {study_id} {study_participant_id} {context_tag}')
+        return None
 
-        # Gather participant info
+    async def _get_participant_algorithm_config(self, study_participant_id: uuid.UUID) -> tuple[str, int]:
+        """Retrieves the assigned recommendation algorithm and limit for a participant."""
         participant = await self.study_participant_repository.find_one(
             RepoQueryOptions(
                 ids=[study_participant_id], load_options=StudyParticipantRepository.LOAD_ASSIGNED_CONDITION
@@ -157,12 +226,19 @@ class RecommenderService:
         algorithm_key = participant.study_condition.recommender_key
         if algorithm_key is None:
             raise ValueError(f'No recommender specified for study_condition: {participant.study_condition.name}')
-        limit = participant.study_condition.recommendation_count
 
-        # Gather participant ratings
+        return algorithm_key, participant.study_condition.recommendation_count
+
+    async def _get_translated_participant_ratings(self, study_participant_id: uuid.UUID) -> list[MovieLensRating]:
+        """Fetches participant ratings and maps internal UUIDs to external MovieLens IDs."""
         ratings_models = await self.participant_rating_repository.find_many(
             RepoQueryOptions(filters={'study_participant_id': study_participant_id})
         )
+
+        if not ratings_models:
+            return []
+
+        # Fetch movies to get the MovieLens IDs
         movies = await self.movie_repository.find_many(RepoQueryOptions(ids=[r.item_id for r in ratings_models]))
         movie_map = {m.id: m.movielens_id for m in movies}
 
@@ -173,36 +249,36 @@ class RecommenderService:
             else:
                 log.warning(f'Rating for item {r.item_id} skipped: Movie not found in DB')
 
-        # Select the right strategy
-        strategy = REGISTRY.get(algorithm_key)
-        if not strategy:
-            raise ValueError(f'No strategy found for key: {algorithm_key}')
+        return ratings
 
-        try:
-            # Record Interaction (Side Effect)
-            if context_data.get('emotion_input'):
-                await self._upsert_interaction(participant.study_id, participant.id, context_data)
+    def _fire_and_forget(self, coro):
+        """Safely executes a task in the background without garbage collection risk."""
+        task = asyncio.create_task(coro)
+        self._bg_tasks.add(task)
+        task.add_done_callback(self._bg_tasks.discard)
 
-            result = await strategy.recommend(
-                user_id=str(study_participant_id), ratings=ratings, limit=limit, run_config=context_data
-            )
-
-            rec_ctx = ParticipantRecommendationContext(
-                study_id=study_id,
-                study_step_id=step_id,
-                study_step_page_id=step_page_id,
-                study_participant_id=study_participant_id,
-                context_tag=context_tag,
-                recommendations_json=result.model_dump(),
-            )
-            await self.recommendation_context_repository.create(rec_ctx)
-            return await self._process_recommendation_result(result)
-        except Exception as e:
-            log.error(f'Error for {study_participant_id} [{algorithm_key}]: {e}')
-            raise
+    async def _save_recommendation_context(
+        self,
+        study_id: uuid.UUID,
+        step_id: uuid.UUID,
+        step_page_id: uuid.UUID | None,
+        study_participant_id: uuid.UUID,
+        context_tag: str,
+        result: ResponseWrapper,
+    ) -> None:
+        """Persists the newly generated recommendations to the database."""
+        rec_ctx = ParticipantRecommendationContext(
+            study_id=study_id,
+            study_step_id=step_id,
+            study_step_page_id=step_page_id,
+            study_participant_id=study_participant_id,
+            context_tag=context_tag,
+            recommendations_json=result.model_dump(),
+        )
+        await self.recommendation_context_repository.create(rec_ctx)
 
     async def _process_recommendation_result(self, result: ResponseWrapper) -> EnrichedResponseWrapper:
-        reponse_items: EnrichedRecUnionType
+        response_items: EnrichedRecUnionType
         if result.response_type == 'standard':
             # TODO: Check if we should use OrderedDict here or does dict in Python3 maintain order?
             movies = await self._enrich_with_moviedata([cast(str, rec_item) for rec_item in result.items])
