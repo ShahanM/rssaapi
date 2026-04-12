@@ -5,10 +5,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
+from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.base_schemas import SortDir
+from rssa_api.data.schemas.base_schemas import DBMixin, PaginatedResponse, SortDir
 from rssa_api.data.services.dependencies import MovieServiceDep, PreShuffledMovieServiceDep
 
 router = APIRouter(
@@ -43,16 +44,16 @@ class ShuffledMovieList(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class PaginatedListResponse(BaseModel):
-    """Paginated response for users."""
+# class PaginatedListResponse(BaseModel):
+#     """Paginated response for users."""
 
-    rows: list[ShuffledMovieList]
-    page_count: int
+#     rows: list[ShuffledMovieList]
+#     page_count: int
 
 
 @router.get(
     '/',
-    response_model=PaginatedListResponse,
+    response_model=PaginatedResponse[ShuffledMovieList],
     summary='Get a paginated and sortable list of local users',
     description="""
     Retrieves a paginated list of all the users in the local database.
@@ -68,7 +69,7 @@ async def get_shuffled_lists(
     sort_by: str | None = Query(None, description='The field to sort by.'),
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results'),
-) -> ShuffledMovieList:
+) -> PaginatedResponse[ShuffledMovieList]:
     """Get a paginated list of local users.
 
     Args:
@@ -95,7 +96,7 @@ async def get_shuffled_lists(
     )
     page_count = math.ceil(total_items / float(page_size)) if total_items > 0 else 1
 
-    return PaginatedListResponse(rows=lists_from_db, page_count=page_count)
+    return PaginatedResponse[ShuffledMovieList](data=lists_from_db, page_count=page_count, total=total_items)
 
 
 @router.post('/')
@@ -106,17 +107,28 @@ async def create_new_shuffled_list(
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ):
     """Creates a new randomized sequence of movies based on filter criteria."""
-    movie_ids = await movie_service.get_filtered_movie_ids(
+    query_opts = RepoQueryOptions()
+    if payload.exclude_no_emotions:
+        query_opts.filter_not_null.append('emotions')
+    if payload.exclude_no_recommendations:
+        query_opts.filter_not_null.append('recommendation_text')
+
+    query_opts.filter_ranges.append(('movielens_rate_count', '>=', 50))
+
+    movies = await movie_service.get_all(
+        DBMixin,
+        options=query_opts,
         # year_min=payload.year_min,
         # year_max=payload.year_max,
         # genre=payload.genre,
-        exclude_no_emotions=payload.exclude_no_emotions,
-        exclude_no_recommendations=payload.exclude_no_recommendations,
+        # exclude_no_emotions=payload.exclude_no_emotions,
+        # exclude_no_recommendations=payload.exclude_no_recommendations,
     )
 
-    if not movie_ids:
+    if not movies:
         raise HTTPException(status_code=400, detail='No movies matched the given criteria. Try relaxing your filters.')
 
+    movie_ids = [movie.id for movie in movies]
     await shuffled_service.create_pre_shuffled_movie_list(
         movie_ids=movie_ids, subset=payload.subset_desc, seed=payload.seed
     )

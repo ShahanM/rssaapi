@@ -3,9 +3,19 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
+
+T = TypeVar('T', bound=BaseModel)
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Generic schema for any paginated list."""
+
+    data: list[T]
+    page_count: int
+    total: int
 
 
 class DBMixin(BaseModel):

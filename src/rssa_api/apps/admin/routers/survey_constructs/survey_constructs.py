@@ -8,9 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.base_schemas import OrderedTextListItem, PreviewSchema, ReorderPayloadSchema, SortDir
+from rssa_api.data.schemas.base_schemas import (
+    OrderedTextListItem,
+    PaginatedResponse,
+    ReorderPayloadSchema,
+    SortDir,
+)
 from rssa_api.data.schemas.survey_components import (
-    PaginatedConstructResponse,
     SurveyConstructCreate,
     SurveyConstructPreview,
     SurveyConstructRead,
@@ -29,7 +33,7 @@ router = APIRouter(
 
 @router.get(
     '/',
-    response_model=PaginatedConstructResponse,
+    response_model=PaginatedResponse[SurveyConstructPreview],
     summary='Get a paginated and sortable list of constructs',
     description="""
     Retrieves a paginated list of all the constructs.
@@ -48,7 +52,7 @@ async def get_survey_constructs(
     sort_by: str | None = Query(None, description='The field to sort by.'),
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results by name or dscription'),
-) -> PaginatedConstructResponse:
+) -> PaginatedResponse[SurveyConstructPreview]:
     """Get a paginated list of survey constructs.
 
     Args:
@@ -66,7 +70,7 @@ async def get_survey_constructs(
     offset = page_index * page_size
     total_items = await service.count(search=search)
     constructs_from_db = await service.get_all(
-        PreviewSchema,
+        SurveyConstructPreview,
         limit=page_size,
         offset=offset,
         sort_by=sort_by,
@@ -75,7 +79,7 @@ async def get_survey_constructs(
     )
     page_count = math.ceil(total_items / float(page_size)) if total_items > 0 else 1
 
-    return PaginatedConstructResponse(rows=constructs_from_db, page_count=page_count)
+    return PaginatedResponse[SurveyConstructPreview](data=constructs_from_db, page_count=page_count, total=total_items)
 
 
 @router.get(
@@ -279,7 +283,7 @@ async def create_construct_item(
     Returns:
         A success message.
     """
-    await item_service.create_for_owner(construct_id, new_item)
+    await item_service.create(new_item, owner_id=construct_id)
 
     return {'message': 'Construct item created.'}
 

@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 from rssa_api.data.schemas.base_schemas import DBMixin, VersionMixin
 
@@ -12,6 +12,7 @@ class ParticipantResponseContextMixin:
     """Mixin for participant response context."""
 
     __abstract__ = True
+
     study_step_id: uuid.UUID
     study_step_page_id: uuid.UUID | None = None
     context_tag: str
@@ -36,12 +37,32 @@ class ParticipantSurveyResponseRead(ParticipantSurveyResponseBase, VersionMixin,
     """Schema for reading a participant survey response."""
 
     pass
+    # survey_construct_id: uuid.UUID
 
 
 class ParticipantSurveyResponseUpdate(ParticipantSurveyResponseRead):
     """Schema for updating a participant survey response."""
 
     survey_scale_level_id: uuid.UUID
+
+
+class UnifiedItemResponsePayload(BaseModel, ParticipantResponseContextMixin):
+    """Generic payload received from the frontend for ANY survey item."""
+
+    item_id: uuid.UUID
+    parent_id: uuid.UUID | None = None
+    survey_scale_id: uuid.UUID
+    survey_scale_level_id: uuid.UUID
+    version: int | None = None
+    id: uuid.UUID | None = None
+
+
+class ParticipantAttentionCheckResponseCreate(BaseModel, ParticipantResponseContextMixin):
+    """Strict schema for the Service Layer to create an Attention Check."""
+
+    study_attention_check_id: uuid.UUID
+    survey_scale_id: uuid.UUID
+    responded_survey_scale_level_id: uuid.UUID
 
 
 class ParticipantFreeformResponseBase(BaseModel, ParticipantResponseContextMixin):
@@ -121,6 +142,35 @@ class ParticipantStudyInteractionResponseUpdate(ParticipantStudyInteractionRespo
     """Schema for updating a participant study interaction response."""
 
     pass
+
+
+class ParticipantAttentionCheckResponseRead(ParticipantResponseContextMixin, DBMixin, VersionMixin):
+    """Schema for attention check."""
+
+    text: str | None = None
+    assigned_position: int | None = None
+
+    study_step_page_content_id: uuid.UUID | None = None
+    survey_scale_id: uuid.UUID
+    expected_survey_scale_level_id: uuid.UUID | None = None
+
+    responded_survey_scale_level_id: uuid.UUID | None = None
+
+    study_attention_check_id: uuid.UUID
+
+    @computed_field
+    @property
+    def display_name(self) -> str:
+        if self.text:
+            return self.text
+        return ''
+
+    @computed_field
+    @property
+    def order_position(self) -> int:
+        if self.assigned_position:
+            return self.assigned_position
+        return 0
 
 
 # The Feedback Schemas are deprecated. They will be refactored to become user feedback. Participant feedback will

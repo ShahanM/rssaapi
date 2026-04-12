@@ -130,11 +130,11 @@ class MovieGalleryPreview(MovieBase):
     pass
 
 
-class PaginatedMovieList(BaseModel):
-    """Schema for a paginated list of movies."""
+# class PaginatedMovieList(BaseModel):
+#     """Schema for a paginated list of movies."""
 
-    data: list[MovieGalleryPreview]
-    count: int
+#     data: list[MovieGalleryPreview]
+#     count: int
 
 
 class ReviewItem(BaseModel):

@@ -1,11 +1,14 @@
 """Services related to the study participants."""
 
+import json
 import random
 import string
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Annotated
 
 from async_lru import alru_cache
+from fastapi import Depends
 from pydantic import BaseModel
 from rssa_storage.rssadb.models.participant_movie_sequence import ShuffledMovieListItem, StudyParticipantMovieSession
 from rssa_storage.rssadb.models.participant_responses import Feedback
@@ -28,6 +31,7 @@ from sqlalchemy.exc import IntegrityError
 from rssa_api.data.schemas.participant_response_schemas import FeedbackBaseSchema
 from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
 from rssa_api.data.services.base_service import BaseService
+from rssa_api.data.sources.rssadb import get_service
 
 
 class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository]):
@@ -71,9 +75,10 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
             raise ValueError('No default participant_type in the database. Please get in touch with an adult.')
 
         condition_key = None
-        if participant_type.type == 'test':
-            if 'condition_key' in new_participant.source_meta:
-                condition_key = new_participant.source_meta['condition_key']
+        source_meta = new_participant.source_meta
+        if source_meta and participant_type.type == 'test':
+            if 'condition_key' in source_meta:
+                condition_key = source_meta['condition_key']
 
         condition_id = await self._pick_condition(study_id, condition_key)
 
@@ -84,7 +89,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
             external_id=new_participant.external_id,
             current_step_id=new_participant.current_step_id,
             current_page_id=new_participant.current_page_id,
-            source_meta=new_participant.source_meta,
+            source_meta=json.dumps(source_meta) if source_meta else None,
             updated_at=func.now(),
         )
 
@@ -290,3 +295,18 @@ class ParticipantStudySessionService(BaseService[ParticipantStudySession, Partic
         await self.repo.update(session.id, {'expires_at': session_expires_at})
 
         return session
+
+
+EnrollmentServiceDep = Annotated[
+    EnrollmentService,
+    Depends(
+        get_service(
+            EnrollmentService, StudyParticipantRepository, StudyParticipantTypeRepository, StudyConditionRepository
+        )
+    ),
+]
+
+ParticipantStudySessionServiceDep = Annotated[
+    ParticipantStudySessionService,
+    Depends(get_service(ParticipantStudySessionService, ParticipantStudySessionRepository)),
+]

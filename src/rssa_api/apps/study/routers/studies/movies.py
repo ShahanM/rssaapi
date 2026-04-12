@@ -1,17 +1,18 @@
 """Router for movie endpoints."""
 
+import math
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from rssa_api.auth.authorization import get_current_participant, validate_study_participant
+from rssa_api.data.schemas.base_schemas import PaginatedResponse
 from rssa_api.data.schemas.movie_schemas import (
     MovieGalleryPreview,
     MovieSchema,
     MovieSearchRequest,
     MovieSearchResponse,
-    PaginatedMovieList,
 )
 from rssa_api.data.schemas.participant_schemas import StudyParticipantRead
 from rssa_api.data.services.dependencies import MovieServiceDep, StudyParticipantMovieSessionServiceDep
@@ -44,15 +45,12 @@ async def get_movies_with_emotions(
     """
     movies_to_fetch = await session_service.get_next_session_movie_ids_batch(current_participant.id, offset, limit)
     if movies_to_fetch:
-        movies = await movie_service.get_movies_with_emotions_from_ids(movies_to_fetch.movies)
-        if movies:
-            movies_to_send = [MovieSchema.model_validate(m) for m in movies]
-            return movies_to_send
+        return await movie_service.get_all_cached(MovieSchema, limit=limit, offset=offset, exclude_no_emotions=True)
 
     return []
 
 
-@router.get('/', response_model=PaginatedMovieList)
+@router.get('/', response_model=PaginatedResponse[MovieGalleryPreview])
 async def get_movies(
     movie_service: MovieServiceDep,
     session_service: StudyParticipantMovieSessionServiceDep,
@@ -75,8 +73,10 @@ async def get_movies(
     movies_to_fetch = await session_service.get_next_session_movie_ids_batch(id_token['sub'], offset, limit)
     if movies_to_fetch is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Could not find a valid session.')
+    total_items = movies_to_fetch.total
     movies = await movie_service.get_movies_from_ids(MovieGalleryPreview, movies_to_fetch.movies)
-    response_obj = PaginatedMovieList(data=movies, count=movies_to_fetch.total)
+    page_count = math.ceil(total_items / limit) if total_items > 0 else 1
+    response_obj = PaginatedResponse[MovieGalleryPreview](data=movies, page_count=page_count, total=total_items)
 
     return response_obj
 

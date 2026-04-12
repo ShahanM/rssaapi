@@ -223,7 +223,6 @@ async def create_new_participant_with_session(
     Returns:
         Dictionary containing resume code and JWT token.
     """
-    print(new_participant)
     current_step = await step_service.get_with_navigation(new_participant.current_step_id, StudyStepPreview)
     if not current_step:
         raise HTTPException(status_code=500, detail='Could not find next step, study is configuration fault.')
@@ -231,7 +230,7 @@ async def create_new_participant_with_session(
 
     study_participant = await enrollment_service.enroll_participant(study_id, new_participant)
     session = await session_service.create_session(study_participant.id)
-    await movie_session_service.assign_pre_shuffled_list_participant(study_participant.id, 'ers')
+    await movie_session_service.assign_pre_shuffled_list_participant(study_participant.id, 'Movielens-32M')
     if session is None:
         raise HTTPException(status_code=500, detail='Could not create unique session.')
 
@@ -316,9 +315,10 @@ async def finalize_study(
 ):
     """Final step confirmation to retreive completion code and redirect url."""
     completion_data = await service.get(id_token['sty'], StudyCompletionPayload)
-
-    # completion_code = 'SOMEVAL'
-    # redirect_url = 'SOMEURL'
+    if completion_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Something went wrong, could not find a completion code.'
+        )
     message = 'Thank you so much for participating in this study. You have reached the end of the study.'
 
     return {

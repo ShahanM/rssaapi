@@ -1,16 +1,13 @@
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-exclude = ["__init__.py"]
 fix = true
 
 [tool.ruff.lint]
 ignore = [
 	"W191",  # indentation contains tabs
 	"B008", # function call in default argument
-    "D107",
-    "D101",
-    "D102"
+    "D1",
 ]
 select = [
 	"E",  # Pyflakes errors
@@ -55,6 +52,7 @@ dependencies = [
     "async-lru>=2.1.0",
     "aiobotocore>=3.1.1",
     "pre-commit>=4.5.1",
+    "pandas>=3.0.2",
 ]
 
 [dependency-groups]

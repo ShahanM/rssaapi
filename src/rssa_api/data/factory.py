@@ -1,16 +1,16 @@
 """Dependency Factory for Database Sessions."""
 
 from collections.abc import AsyncGenerator, Callable
-from typing import Annotated, TypeVar
+from typing import TYPE_CHECKING, Annotated, TypeVar
 
 from fastapi import Depends
 from rssa_storage.shared import BaseRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from rssa_api.data.services.base_service import BaseService
-
-S = TypeVar('S', bound='BaseService')  # Generic service type
-R = TypeVar('R', bound='BaseRepository')  # Generic repository type
+if TYPE_CHECKING:
+    from rssa_api.data.services.base_service import BaseService
+S = TypeVar('S', bound='BaseService')
+R = TypeVar('R', bound='BaseRepository')
 
 
 class DependencyFactory:
@@ -34,7 +34,6 @@ class DependencyFactory:
         """Composite Factory: Creates a Service by first creating its required Repositories."""
 
         def _get_service(db: Annotated[AsyncSession, Depends(self.db_provider)]) -> S:
-            # Instantiate all required repos using the injected session
             repos = [repo_cls(db) for repo_cls in repo_constructors]
             return service_constructor(*repos)
 

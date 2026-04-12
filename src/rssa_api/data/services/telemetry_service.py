@@ -1,14 +1,18 @@
 """Telemetry service."""
 
 import uuid
+from typing import Annotated
 
+from fastapi import Depends
 from rssa_storage.telemetrydb.models import ParticipantTelemetry
 from rssa_storage.telemetrydb.repositories import TelemetryRepo
 
 from rssa_api.data.schemas.telemetry import TelemetryBatchPayload
+from rssa_api.data.services.base_service import BaseService
+from rssa_api.data.sources.telemetrydb import get_repository, get_service
 
 
-class TelemetryService:
+class TelemetryService(BaseService[ParticipantTelemetry, TelemetryRepo]):
     """Service to help record implicit behavior data."""
 
     def __init__(self, repository: TelemetryRepo):
@@ -33,3 +37,9 @@ class TelemetryService:
         ]
 
         await self.repository.create_all(instances)
+
+
+TelemetryServiceDep = Annotated[
+    TelemetryService,
+    Depends(get_service(TelemetryService, get_repository(TelemetryRepo))),
+]

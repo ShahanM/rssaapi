@@ -8,9 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.base_schemas import PreviewSchema, ReorderPayloadSchema, SortDir
+from rssa_api.data.schemas.base_schemas import PaginatedResponse, PreviewSchema, ReorderPayloadSchema, SortDir
 from rssa_api.data.schemas.survey_components import (
-    PaginatedConstructResponse,
     SurveyScaleCreate,
     SurveyScaleLevelCreate,
     SurveyScaleLevelRead,
@@ -32,7 +31,7 @@ router = APIRouter(
 
 @router.get(
     '/',
-    response_model=PaginatedConstructResponse,
+    response_model=PaginatedResponse[PreviewSchema],
     summary='Get a paginated list of survey scales.',
     description="""
     Retrieves a paginated list of all survey scales.
@@ -48,7 +47,7 @@ async def get_construct_scales(
     sort_by: str | None = Query(None, description='The field to sort by.'),
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results by name or description'),
-) -> PaginatedConstructResponse:
+) -> PaginatedResponse[PreviewSchema]:
     """Get a paginated list of survey scales.
 
     Args:
@@ -75,7 +74,7 @@ async def get_construct_scales(
     )
     page_count = math.ceil(total_items / page_size) if total_items > 0 else 1
 
-    return PaginatedConstructResponse(rows=constructs_from_db, page_count=page_count)
+    return PaginatedResponse[PreviewSchema](data=constructs_from_db, page_count=page_count, total=total_items)
 
 
 @router.post('/', status_code=status.HTTP_201_CREATED)

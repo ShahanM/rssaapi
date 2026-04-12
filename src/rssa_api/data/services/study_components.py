@@ -2,8 +2,9 @@
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any
 
+from fastapi import Depends
 from rssa_storage.rssadb.models.study_components import (
     Study,
     StudyAuthorization,
@@ -18,6 +19,7 @@ from rssa_storage.rssadb.models.study_participants import (
     StudyParticipant,
 )
 from rssa_storage.rssadb.repositories.study_components import (
+    StudyAttentionCheckRepository,
     StudyAuthorizationRepository,
     StudyConditionRepository,
     StudyRepository,
@@ -34,17 +36,17 @@ from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.data.schemas.participant_schemas import DemographicsCreate
 from rssa_api.data.schemas.preferences_schemas import RecommendationContextBaseSchema, RecommendationContextSchema
-from rssa_api.data.schemas.study_components import ConditionCountSchema
+from rssa_api.data.schemas.study_components import ConditionCountSchema, NavigationWrapper
 from rssa_api.data.services.base_ordered_service import BaseOrderedService
-from rssa_api.data.services.base_scoped_service import BaseScopedService
+from rssa_api.data.services.base_scoped_service import BaseScopedService, SchemaType
+from rssa_api.data.services.base_service import BaseService
 from rssa_api.data.services.navigation_mixin import NavigationMixin
+from rssa_api.data.sources.rssadb import get_service
 from rssa_api.data.utility import extract_load_strategies
 
 
-class StudyService(BaseScopedService[Study, StudyRepository]):
+class StudyService(BaseService[Study, StudyRepository]):
     """Service for managing studies."""
-
-    scope_field = 'owner_id'
 
     def __init__(self, repo: StudyRepository, auth_repo: StudyAuthorizationRepository):
         """Initialize the study service."""
@@ -193,25 +195,38 @@ class StudyStepPageService(
 
     scope_field = 'study_step_id'
 
+    def __init__(self, repo: StudyStepPageRepository, ac_repo: StudyAttentionCheckRepository):
+        """Initialize the study service."""
+        super().__init__(repo)
+        self.ac_repo = ac_repo
+
+    async def get_first_survey_page(
+        self, step_id: uuid.UUID, schema: type[SchemaType]
+    ) -> NavigationWrapper[SchemaType] | None:
+        page = await self.get_first_with_navigation(step_id, schema)
+        if not page:
+            return None
+
+        return NavigationWrapper[schema](
+            data=schema.model_validate(page['current']), next_id=page['next_id'], next_path=page['next_path']
+        )
+
+    async def get_survey_page(
+        self, page_id: uuid.UUID, schema: type[SchemaType]
+    ) -> NavigationWrapper[SchemaType] | None:
+        page = await self.get_with_navigation(page_id, schema)
+        if not page:
+            return None
+
+        return NavigationWrapper[schema](
+            data=schema.model_validate(page['current']), next_id=page['next_id'], next_path=page['next_path']
+        )
+
 
 class StudyStepPageContentService(BaseOrderedService[StudyStepPageContent, StudyStepPageContentRepository]):
     """Service for managing study step page content."""
 
     scope_field = 'study_step_page_id'
-
-    async def create_for_owner(self, owner_id: uuid.UUID, schema: Any, **kwargs) -> StudyStepPageContent:
-        """Create content for a page.
-
-        Overridden to ensure that the returned object has all relationships loaded.
-        """
-        created = await super().create_for_owner(owner_id, schema, **kwargs)
-
-        return await self.repo.find_one(
-            RepoQueryOptions(
-                filters={'study_step_page_id': owner_id, 'order_position': created.order_position},
-                load_options=self.repo.DETAILED_LOAD_OPTIONS,
-            )
-        )
 
 
 class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipantRepository]):
@@ -258,19 +273,31 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
         Returns:
             The created demographic information.
         """
-        demographic_obj = Demographic(
-            study_participant_id=participant_id,
-            age_range=demographic_data.age_range,
-            gender=demographic_data.gender,
-            gender_other=demographic_data.gender_other,
-            race=';'.join(demographic_data.race),
-            race_other=demographic_data.race_other,
-            education=demographic_data.education,
-            country=demographic_data.country,
-            state_region=demographic_data.state_region,
-            updated_at=datetime.now(UTC),
-            version=1,
-        )
+        serialized_data = demographic_data.model_dump()
+
+        # 2. Add your database-specific overrides
+        serialized_data['study_participant_id'] = participant_id
+        serialized_data['updated_at'] = datetime.now(UTC)
+        serialized_data['version'] = 1
+
+        # 3. Unpack directly into your SQLAlchemy model
+        demographic_obj = Demographic(**serialized_data)
+
+        # demographic_obj = Demographic(
+        #     study_participant_id=participant_id,
+        #     age_range=demographic_data.age_range,
+        #     gender=demographic_data.gender,
+        #     gender_other=demographic_data.gender_other,
+        #     race=';'.join(demographic_data.race) if demographic_data.race else None,
+        #     race_other=demographic_data.race_other,
+        #     education=demographic_data.education,
+        #     country=demographic_data.country,
+        #     state_region=demographic_data.state_region,
+        #     urbanicity=demographic_data.urbanicity,
+        #     raw_json=demographic_data.raw_json,
+        #     updated_at=datetime.now(UTC),
+        #     version=1,
+        # )
         await self.demographics_repo.create(demographic_obj)
 
         return DemographicsCreate.model_validate(demographic_obj)
@@ -353,3 +380,42 @@ class StudyAuthorizationService(BaseScopedService[StudyAuthorization, StudyAutho
     """Service for managing study authorizations."""
 
     scope_field = 'study_id'
+
+
+StudyServiceDep = Annotated[
+    StudyService, Depends(get_service(StudyService, StudyRepository, StudyAuthorizationRepository))
+]
+
+StudyConditionServiceDep = Annotated[
+    StudyConditionService,
+    Depends(get_service(StudyConditionService, StudyConditionRepository)),
+]
+
+StudyStepServiceDep = Annotated[StudyStepService, Depends(get_service(StudyStepService, StudyStepRepository))]
+
+StudyStepPageServiceDep = Annotated[
+    StudyStepPageService,
+    Depends(get_service(StudyStepPageService, StudyStepPageRepository, StudyAttentionCheckRepository)),
+]
+
+StudyStepPageContentServiceDep = Annotated[
+    StudyStepPageContentService,
+    Depends(get_service(StudyStepPageContentService, StudyStepPageContentRepository)),
+]
+
+StudyAuthorizationServiceDep = Annotated[
+    StudyAuthorizationService,
+    Depends(get_service(StudyAuthorizationService, StudyAuthorizationRepository)),
+]
+
+StudyParticipantServiceDep = Annotated[
+    StudyParticipantService,
+    Depends(
+        get_service(
+            StudyParticipantService,
+            StudyParticipantRepository,
+            ParticipantDemographicRepository,
+            ParticipantRecommendationContextRepository,
+        )
+    ),
+]

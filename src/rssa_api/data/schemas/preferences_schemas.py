@@ -12,15 +12,20 @@ from rssa_api.data.schemas.recommendations import Avatar
 from rssa_api.data.schemas.study_components import StudyConditionRead
 
 
-class PrefVizItem(BaseModel):
-    """Schema for a single item in the preference visualization."""
+class PrefVizMetricsMixin(BaseModel):
+    """A mixin for recommendation metrics (No ID!)."""
 
-    id: str
     community_score: float
     score: float
     community_label: int
     label: int
     cluster: int = 0
+
+
+class PrefVizItem(PrefVizMetricsMixin):
+    """Schema for a single item in the preference visualization."""
+
+    id: str
 
 
 class PrefVizDemoRequestSchema(BaseModel):
@@ -35,10 +40,7 @@ class PrefVizDemoRequestSchema(BaseModel):
     init_sample_size: int
     min_rating_count: int
 
-    model_config = ConfigDict(from_attributes=True)
-
-    def __hash__(self):
-        return self.model_dump_json().__hash__()
+    model_config = ConfigDict(from_attributes=True, frozen=True)
 
 
 class PreferenceRequestSchema(BaseModel):
@@ -49,8 +51,7 @@ class PreferenceRequestSchema(BaseModel):
     rec_type: Literal['baseline', 'reference', 'diverse']
     ratings: list[RatedItem]
 
-    def __hash__(self):
-        return self.model_dump_json().__hash__()
+    model_config = ConfigDict(frozen=True)
 
 
 class PrefVizMetadata(BaseModel, frozen=True):
@@ -69,10 +70,7 @@ class PrefVizDemoResponseSchema(BaseModel):
     metadata: PrefVizMetadata
     recommendations: list[PrefVizItem]
 
-    model_config = ConfigDict(from_attributes=True)
-
-    def __hash__(self):
-        return self.model_dump_json().__hash__()
+    model_config = ConfigDict(from_attributes=True, frozen=True)
 
 
 class PrefVizResponseSchema(BaseModel):
@@ -81,8 +79,7 @@ class PrefVizResponseSchema(BaseModel):
     metadata: PrefVizMetadata
     recommendations: list[PrefVizItem]
 
-    def __hash__(self):
-        return self.model_dump_json().__hash__()
+    model_config = ConfigDict(frozen=True)
 
 
 class EmotionContinuousInputSchema(BaseModel):
@@ -184,7 +181,7 @@ class RecommendationJsonPrefCommSchema(RecommendationJsonBaseSchema):
     advisors: list[AdvisorProfileSchema]
 
 
-class PreferenceVizRecommendedItemSchema(MovieSchema, PrefVizItem):
+class PreferenceVizRecommendedItemSchema(MovieSchema, PrefVizMetricsMixin):
     """Schema for a recommended item in preference visualization."""
 
     pass

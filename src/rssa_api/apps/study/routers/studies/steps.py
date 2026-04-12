@@ -84,15 +84,10 @@ async def get_first_page_endpoint(
     Returns:
         SurveyPageSchema: The full content of the first survey page for the survey step.
     """
-    page_result = await page_service.get_first_with_navigation(step_id, StudyStepPagePresent)
+    page_result = await page_service.get_first_survey_page(step_id, StudyStepPagePresent)
     if not page_result:
         raise HTTPException(status_code=404, detail='No first page found for this step or step not in study.')
 
-    if page_result.study_id != study_id:
+    if page_result.data.study_id != study_id:
         raise HTTPException(status_code=403, detail='Study step page does not belong to the authorized study.')
-    first_page = NavigationWrapper[StudyStepPagePresent](
-        data=page_result,
-        next_id=page_result['next_id'],
-        next_path=page_result['next_path'],
-    )
-    return first_page
+    return page_result

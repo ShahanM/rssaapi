@@ -1,11 +1,12 @@
+import math
+
 from fastapi import APIRouter, Query
 
+from rssa_api.data.schemas.base_schemas import PaginatedResponse
 from rssa_api.data.schemas.movie_schemas import (
-    MovieDetailSchema,
-    PaginatedMovieList,
+    MovieGalleryPreview,
 )
 from rssa_api.data.services.dependencies import MovieServiceDep
-from rssa_api.data.utility import sa_obj_to_dict
 
 router = APIRouter(
     prefix='/movies',
@@ -13,22 +14,15 @@ router = APIRouter(
 )
 
 
-@router.get('/', response_model=PaginatedMovieList)
+@router.get('/', response_model=PaginatedResponse[MovieGalleryPreview])
 async def get_movies(
     movie_service: MovieServiceDep,
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):
-    movies = await movie_service.get_movies(limit, offset, '')
-    total_count = await movie_service.get_movie_count()
-    validated_movies = []
-    for movie in movies:
-        movie_dict = sa_obj_to_dict(movie)
-        movie_dict['emotions'] = None
-        movie_dict['recommendations_text'] = None
-        validated_movies.append(MovieDetailSchema.model_validate(movie_dict))
-
-    # validated_movies = [MovieDetailSchema.model_validate(movie) for movie in movies]
-    response_obj = PaginatedMovieList(data=validated_movies, count=total_count)
+    movies = await movie_service.get_all_cached(MovieGalleryPreview, limit=limit, offset=offset)
+    total_items = await movie_service.get_movie_count()
+    page_count = math.ceil(total_items / float(limit)) if total_items > 0 else 1
+    response_obj = PaginatedResponse[MovieGalleryPreview](data=movies, page_count=page_count, total=total_items)
 
     return response_obj

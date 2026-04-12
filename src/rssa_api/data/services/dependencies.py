@@ -4,29 +4,12 @@ from typing import Annotated
 
 from fastapi import Depends
 from rssa_storage.moviedb.repositories import MovieRepository
-from rssa_storage.rssadb.repositories.participant_responses import (
-    ParticipantFreeformResponseRepository,
-    ParticipantRatingRepository,
-    ParticipantStudyInteractionResponseRepository,
-    ParticipantSurveyResponseRepository,
-)
 from rssa_storage.rssadb.repositories.study_admin import ApiKeyRepository, PreShuffledMovieRepository, UserRepository
 from rssa_storage.rssadb.repositories.study_components import (
     FeedbackRepository,
-    StudyAuthorizationRepository,
-    StudyConditionRepository,
-    StudyRepository,
-    StudyStepPageContentRepository,
-    StudyStepPageRepository,
-    StudyStepRepository,
 )
 from rssa_storage.rssadb.repositories.study_participants import (
-    ParticipantDemographicRepository,
-    ParticipantRecommendationContextRepository,
-    ParticipantStudySessionRepository,
     StudyParticipantMovieSessionRepository,
-    StudyParticipantRepository,
-    StudyParticipantTypeRepository,
 )
 from rssa_storage.rssadb.repositories.survey_components import (
     SurveyConstructRepository,
@@ -34,58 +17,35 @@ from rssa_storage.rssadb.repositories.survey_components import (
     SurveyScaleLevelRepository,
     SurveyScaleRepository,
 )
-from rssa_storage.telemetrydb.repositories.telemetry import TelemetryRepo
 
 from rssa_api.data.services.movie_service import MovieService
-from rssa_api.data.services.response_service import ParticipantResponseService
+from rssa_api.data.services.response_service import ParticipantResponseServiceDep
 from rssa_api.data.services.study_admin import ApiKeyService, PreShuffledMovieService, UserService
 from rssa_api.data.services.study_participants import (
-    EnrollmentService,
+    EnrollmentServiceDep,
     FeedbackService,
-    ParticipantStudySessionService,
+    ParticipantStudySessionServiceDep,
     StudyParticipantMovieSessionService,
 )
-from rssa_api.data.services.telemetry_service import TelemetryService
+from rssa_api.data.services.telemetry_service import TelemetryServiceDep
 from rssa_api.data.sources.moviedb import get_repository as movie_repo
 from rssa_api.data.sources.moviedb import get_service as movie_service
 from rssa_api.data.sources.rssadb import get_service as rssa_service
-from rssa_api.data.sources.telemetrydb import get_repository as telemetry_repo
-from rssa_api.data.sources.telemetrydb import get_service as telemetry_service
 
 from .study_components import (
-    StudyAuthorizationService,
-    StudyConditionService,
-    StudyParticipantService,
-    StudyService,
-    StudyStepPageContentService,
-    StudyStepPageService,
-    StudyStepService,
+    StudyAuthorizationServiceDep,
+    StudyConditionServiceDep,
+    StudyParticipantServiceDep,
+    StudyServiceDep,
+    StudyStepPageContentServiceDep,
+    StudyStepPageServiceDep,
+    StudyStepServiceDep,
 )
 from .survey_components import SurveyConstructService, SurveyItemService, SurveyScaleLevelService, SurveyScaleService
 
 # Item services
 MovieServiceDep = Annotated[MovieService, Depends(movie_service(MovieService, movie_repo(MovieRepository)))]
 
-# Study component services
-StudyAuthorizationServiceDep = Annotated[
-    StudyAuthorizationService,
-    Depends(rssa_service(StudyAuthorizationService, StudyAuthorizationRepository)),
-]
-StudyServiceDep = Annotated[
-    StudyService, Depends(rssa_service(StudyService, StudyRepository, StudyAuthorizationRepository))
-]
-StudyStepServiceDep = Annotated[StudyStepService, Depends(rssa_service(StudyStepService, StudyStepRepository))]
-StudyStepPageServiceDep = Annotated[
-    StudyStepPageService, Depends(rssa_service(StudyStepPageService, StudyStepPageRepository))
-]
-StudyStepPageContentServiceDep = Annotated[
-    StudyStepPageContentService,
-    Depends(rssa_service(StudyStepPageContentService, StudyStepPageContentRepository)),
-]
-StudyConditionServiceDep = Annotated[
-    StudyConditionService,
-    Depends(rssa_service(StudyConditionService, StudyConditionRepository)),
-]
 
 # Survey construct services
 SurveyConstructServiceDep = Annotated[
@@ -99,25 +59,6 @@ SurveyScaleLevelServiceDep = Annotated[
 
 
 # Study participant services
-EnrollmentServiceDep = Annotated[
-    EnrollmentService,
-    Depends(
-        rssa_service(
-            EnrollmentService, StudyParticipantRepository, StudyParticipantTypeRepository, StudyConditionRepository
-        )
-    ),
-]
-StudyParticipantServiceDep = Annotated[
-    StudyParticipantService,
-    Depends(
-        rssa_service(
-            StudyParticipantService,
-            StudyParticipantRepository,
-            ParticipantDemographicRepository,
-            ParticipantRecommendationContextRepository,
-        )
-    ),
-]
 StudyParticipantMovieSessionServiceDep = Annotated[
     StudyParticipantMovieSessionService,
     Depends(
@@ -127,10 +68,7 @@ StudyParticipantMovieSessionServiceDep = Annotated[
     ),
 ]
 FeedbackServiceDep = Annotated[FeedbackService, Depends(rssa_service(FeedbackService, FeedbackRepository))]
-ParticipantStudySessionServiceDep = Annotated[
-    ParticipantStudySessionService,
-    Depends(rssa_service(ParticipantStudySessionService, ParticipantStudySessionRepository)),
-]
+
 
 # Study admin services
 PreShuffledMovieServiceDep = Annotated[
@@ -140,22 +78,16 @@ ApiKeyServiceDep = Annotated[ApiKeyService, Depends(rssa_service(ApiKeyService, 
 UserServiceDep = Annotated[UserService, Depends(rssa_service(UserService, UserRepository))]
 
 
-ParticipantResponseServiceDep = Annotated[
-    ParticipantResponseService,
-    Depends(
-        rssa_service(
-            ParticipantResponseService,
-            StudyParticipantRepository,
-            ParticipantSurveyResponseRepository,
-            ParticipantFreeformResponseRepository,
-            ParticipantRatingRepository,
-            ParticipantStudyInteractionResponseRepository,
-        )
-    ),
-]
-
-
-TelemetryServiceDep = Annotated[
-    TelemetryService,
-    Depends(telemetry_service(TelemetryService, telemetry_repo(TelemetryRepo))),
+__all__ = [
+    'StudyAuthorizationServiceDep',
+    'StudyConditionServiceDep',
+    'StudyServiceDep',
+    'StudyStepServiceDep',
+    'StudyStepPageServiceDep',
+    'StudyStepPageContentServiceDep',
+    'EnrollmentServiceDep',
+    'StudyParticipantServiceDep',
+    'ParticipantResponseServiceDep',
+    'ParticipantStudySessionServiceDep',
+    'TelemetryServiceDep',
 ]

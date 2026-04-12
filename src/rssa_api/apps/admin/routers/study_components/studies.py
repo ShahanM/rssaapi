@@ -16,6 +16,7 @@ from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import (
     OrderedListItem,
+    PaginatedResponse,
     PreviewSchema,
     ReorderPayloadSchema,
     SortDir,
@@ -24,7 +25,6 @@ from rssa_api.data.schemas.study_components import (
     ApiKeyBase,
     ApiKeyCreate,
     ApiKeyRead,
-    PaginatedStudyResponse,
     StudyAudit,
     StudyAuthorizationCreate,
     StudyAuthorizationRead,
@@ -39,7 +39,6 @@ from rssa_api.data.schemas.study_components import (
 from rssa_api.data.services.dependencies import (
     ApiKeyServiceDep,
     StudyConditionServiceDep,
-    StudyParticipantServiceDep,
     StudyServiceDep,
     StudyStepServiceDep,
 )
@@ -66,7 +65,7 @@ router = APIRouter(
 
 @router.get(
     '/',
-    response_model=PaginatedStudyResponse,
+    response_model=PaginatedResponse[PreviewSchema],
     summary='Get a list of studies.',
     description="""
     Get a paginated and sortable list of studies accessible to the current user.
@@ -87,7 +86,7 @@ async def get_studies(
     sort_by: str | None = Query(None, description='The field to sort by.'),
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results by name or description'),
-) -> PaginatedStudyResponse:
+) -> PaginatedResponse[PreviewSchema]:
     """Get a paginated and sortable list of studies accessible to the current user.
 
     This returns all studies where the user is either an owner or has specific
@@ -137,7 +136,7 @@ async def get_studies(
         )
     page_count = math.ceil(total_items / page_size) if total_items > 0 else 1
 
-    return PaginatedStudyResponse(rows=studies_from_db, page_count=page_count)
+    return PaginatedResponse[PreviewSchema](data=studies_from_db, page_count=page_count, total=total_items)
 
 
 @router.get(
@@ -161,7 +160,6 @@ async def get_studies(
 async def get_study_detail(
     study_id: uuid.UUID,
     study_service: StudyServiceDep,
-    study_participant_service: StudyParticipantServiceDep,
     study_condition_service: StudyConditionServiceDep,
     user: Annotated[
         Auth0UserSchema,
@@ -183,7 +181,6 @@ async def get_study_detail(
     Args:
         study_id: The UUID of the study.
         study_service: The study service.
-        study_participant_service: The participant service.
         study_condition_service: The condition service.
         user: The authenticated user.
         current_user: The current user details.
@@ -384,7 +381,7 @@ async def create_study_condition(
     new_condition = StudyConditionCreate(**new_condition_payload.model_dump(), study_id=study_id)
     condition = await condition_service.create(new_condition, owner_id=study_id)
 
-    return condition
+    return StudyConditionRead.model_validate(condition)
 
 
 @router.patch(
@@ -620,7 +617,8 @@ async def get_study_authorizations(
         if not has_access:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
 
-    return await study_service.get_study_authorizations(study_id)
+    study_auths = await study_service.get_study_authorizations(study_id)
+    return [StudyAuthorizationRead.model_validate(study_auth) for study_auth in study_auths]
 
 
 @router.post(
@@ -655,7 +653,8 @@ async def add_study_authorization(
         if not has_access:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
 
-    return await study_service.add_study_authorization(study_id, payload.user_id, payload.role)
+    study_auth = await study_service.add_study_authorization(study_id, payload.user_id, payload.role)
+    return StudyAuthorizationRead.model_validate(study_auth)
 
 
 @router.delete(

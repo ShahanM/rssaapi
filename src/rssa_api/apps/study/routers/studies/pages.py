@@ -35,20 +35,22 @@ async def get_step_page_details(
     Returns:
         Page details with navigation info.
     """
-    page_result = await page_service.get_with_navigation(page_id, StudyStepPagePresent)
+    page_result = await page_service.get_survey_page(page_id, StudyStepPagePresent)
     if page_result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Page was not found, study configuration fault.'
         )
-
-    validated_page = StudyStepPagePresent.model_validate(page_result['current'])
-
-    if validated_page.study_id != study_id:
+    if page_result.data.study_id != study_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Step not valid for this study.')
 
-    step_page = NavigationWrapper[StudyStepPagePresent](
-        data=validated_page,
-        next_id=page_result['next_id'],
-        next_path=page_result['next_path'],
-    )
-    return step_page
+    return page_result
+    # survey_page = page_result['current']
+    # survey_page.study_step_page_contents[0].items = survey_page.study_step_page_contents[0].db_items
+    # validated_page = StudyStepPagePresent.model_validate(survey_page)
+
+    # step_page = NavigationWrapper[StudyStepPagePresent](
+    #     data=validated_page,
+    #     next_id=page_result['next_id'],
+    #     next_path=page_result['next_path'],
+    # )
+    # return step_page

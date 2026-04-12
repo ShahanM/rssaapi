@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import ClassVar, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, Field, computed_field
 
 from .base_schemas import (
     AuditMixin,
@@ -12,7 +12,6 @@ from .base_schemas import (
     DBMixin,
     DisplayInfoMixin,
     DisplayNameMixin,
-    PreviewSchema,
 )
 from .survey_components import (
     SurveyConstructPreview,
@@ -21,15 +20,6 @@ from .survey_components import (
     SurveyScaleLevelRead,
     SurveyScaleRead,
 )
-
-
-class PaginatedStudyResponse(BaseModel):
-    """Schema for a paginated list of studies."""
-
-    rows: list[PreviewSchema]  # type: ignore
-    page_count: int
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class ConditionCountSchema(BaseModel):
@@ -117,6 +107,48 @@ class StudyConditionAdminSchema(StudyConditionRead, AuditMixin):
 
 
 # ==============================================================================
+# Study attention checks
+# table: study_attention_checks
+# model: StudyAttentionCheck
+# ==============================================================================
+class StudyAttentionCheckBase(BaseModel):
+    """Base schema for the attention check blueprint."""
+
+    text: str
+    assigned_position: int
+    study_step_id: uuid.UUID
+    study_step_page_id: uuid.UUID
+    study_step_page_content_id: uuid.UUID
+    survey_scale_id: uuid.UUID
+    expected_survey_scale_level_id: uuid.UUID
+
+
+class StudyAttentionCheckCreate(StudyAttentionCheckBase):
+    """Schema for creating a study attention check."""
+
+    pass
+
+
+class StudyAttentionCheckRead(StudyAttentionCheckBase, DBMixin, DisplayNameMixin):
+    """Schema for reading a study attention check.
+
+    Note: This is used internally for validation and hydration.
+    When sent to the frontend, it is 'ghosted' into a SurveyItemRead
+    via the StudyStepPageContentRead computed property.
+    """
+
+    _display_name_source_field: ClassVar[str] = 'text'
+
+    pass
+
+
+class StudyAttentionCheckAudit(StudyAttentionCheckRead, AuditMixin):
+    """Schema for auditing an attention check."""
+
+    pass
+
+
+# ==============================================================================
 # Page content
 # table: page_contents
 # model: PageContent
@@ -161,6 +193,8 @@ class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMix
     survey_construct: SurveyConstructRead | None = None
     survey_scale: SurveyScaleRead | None = None
 
+    study_attention_check: StudyAttentionCheckRead | None = None
+
     @computed_field
     @property
     def name(self) -> str:
@@ -178,9 +212,14 @@ class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMix
     @computed_field
     @property
     def items(self) -> list[SurveyItemRead]:
+        """Raw DB items only. Ignored by extract_load_strategies because it's a computed field."""
+        item_list: list = []
         if self.survey_construct:
-            return self.survey_construct.survey_items
-        return []
+            item_list = self.survey_construct.survey_items
+        if self.study_attention_check:
+            item_list.insert(self.study_attention_check.assigned_position, self.study_attention_check)
+
+        return item_list
 
     @computed_field
     @property
@@ -192,16 +231,27 @@ class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMix
     @computed_field
     @property
     def scale_name(self) -> str:
-        if self.survey_scale:
+        if self.survey_scale and self.survey_scale.name:
             return self.survey_scale.name
         return ''
 
     @computed_field
     @property
     def scale_levels(self) -> list[SurveyScaleLevelRead]:
-        if self.survey_scale:
+        if self.survey_scale and self.survey_scale.survey_scale_levels:
             return self.survey_scale.survey_scale_levels
         return []
+
+
+class StudyStepPageContentPresent(StudyStepPageContentRead):
+    """Used ONLY for the final FastAPI response."""
+
+    pass
+    # items: list[SurveyItemRead | ParticipantAttentionCheckResponseRead] = Field(default_factory=list)
+    # @computed_field
+    # @property
+    # def items(self) -> list[SurveyItemRead | ParticipantAttentionCheckResponseRead]:
+    #     if self.db_items and self.
 
 
 class StudyStepPageContentAudit(StudyStepPageContentRead, AuditMixin):
@@ -236,6 +286,7 @@ class StudyStepPageRead(
     StudyMetaOverrideMixin,
     DisplayNameMixin,
     DisplayInfoMixin,
+    Generic[T],
 ):
     """Schema for reading study step page."""
 
@@ -243,23 +294,17 @@ class StudyStepPageRead(
     _display_info_source_field: ClassVar[str] = 'description'
     study_step_id: uuid.UUID
 
-    study_step_page_contents: list[StudyStepPageContentPreview] | None = None
+    study_step_page_contents: list[T] | None = None
 
 
-class StudyStepPagePresent(
-    StudyStepPageBase,
-    DBMixin,
-    StudyParentMixin,
-    BaseOrderedMixin,
-    StudyMetaOverrideMixin,
-    DisplayNameMixin,
-    DisplayInfoMixin,
-):
-    _display_name_source_field: ClassVar[str] = 'name'
-    _display_info_source_field: ClassVar[str] = 'description'
-    study_step_id: uuid.UUID
+class StudyStepPageReadAdmin(StudyStepPageRead[StudyStepPageContentPreview]):
+    """Schema for the admin dashboard."""
 
-    study_step_page_contents: list[StudyStepPageContentRead] | None = None
+    pass
+
+
+class StudyStepPagePresent(StudyStepPageRead[StudyStepPageContentPresent]):
+    study_step_page_contents: list[StudyStepPageContentPresent] | None = Field(default_factory=list)
 
 
 class StudyStepPageAudit(StudyStepPageRead, AuditMixin):
@@ -357,6 +402,7 @@ class StudyRead(StudyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
 
     completion_code: str | None = None
     redirect_url: str | None = None
+    dataset_subset: str | None = None
 
 
 class StudyAudit(StudyRead, AuditMixin):

@@ -43,24 +43,19 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
         if not isinstance(options, OrderedRepoQueryOptions):
             options = OrderedRepoQueryOptions(**(options.__dict__ if options else {}))
 
-        options.sort_by = options.sort_by or 'order_position'
-
         top_cols, _ = extract_load_strategies(schema) if schema else (None, None)
         if top_cols is not None:
             required = {'id', 'order_position', self.repo.parent_id_column_name}
             current_cols = options.load_columns or []
             options.load_columns = list(set(current_cols).union(top_cols).union(required))
 
-        return await super().get_all(
-            schema,
-            owner_id=owner_id,
-            options=options,
-            limit=limit,
-            offset=offset,
-            sort_by=sort_by or 'order_position',  # Apply default ordering here
-            sort_dir=sort_dir,
-            search=search,
-        )
+        options.limit = limit
+        options.offset = offset
+        options.sort_by = sort_by or 'order_position'
+        options.sort_desc = sort_dir == 'desc'
+        options.search_text = search
+
+        return await super().get_all(schema, owner_id=owner_id, options=options)
 
     async def create(self, schema: BaseModel, *, owner_id: uuid.UUID | None = None, **kwargs) -> OrderedModelType:
         """Shadowed create: injects owner scope AND calculates order position."""

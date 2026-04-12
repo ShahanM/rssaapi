@@ -75,6 +75,19 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         self, schema: None = None, *, owner_id: uuid.UUID | None = None, options: RepoQueryOptions
     ) -> list[ModelType]: ...
 
+    @overload
+    async def get_all(
+        self,
+        schema: None = None,
+        *,
+        owner_id: uuid.UUID | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        sort_by: str | None = None,
+        sort_dir: str | None = None,
+        search: str | None = None,
+    ) -> list[ModelType]: ...
+
     async def get_all(
         self,
         schema: type[SchemaType] | None = None,
@@ -89,12 +102,23 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
     ) -> list[Any]:
         """Shadowed get_all: automatically applies owner scope."""
         options = options or RepoQueryOptions()
-        if owner_id:
-            options.filters[self.scope_field] = owner_id
 
-        return await super().get_all(
-            schema, options=options, limit=limit, offset=offset, sort_by=sort_by, sort_dir=sort_dir, search=search
-        )
+        if not owner_id:
+            raise ValueError('Scoped repository must specify a owner_id parameter.')
+
+        options.filters[self.scope_field] = owner_id
+        if limit is not None:
+            options.limit = limit
+        if offset is not None:
+            options.offset = offset
+        if sort_by is not None:
+            options.sort_by = sort_by
+        if sort_dir is not None:
+            options.sort_desc = sort_dir == 'desc'
+        if search is not None:
+            options.search_text = search
+
+        return await super().get_all(schema, options=options)
 
     async def create(self, schema: BaseModel, *, owner_id: uuid.UUID | None = None, **kwargs) -> ModelType:
         """Shadowed create: automatically injects scope."""

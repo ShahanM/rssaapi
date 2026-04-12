@@ -3,11 +3,10 @@
 from rssa_api.data.db_base import BaseDatabaseContext, create_db_components
 from rssa_api.data.factory import DependencyFactory
 
-# Initialize components specifically for the Movie DB
 async_engine, AsyncSessionLocal = create_db_components(
     'MOVIE_DB_NAME',
-    env_prefix='NEON',
-    use_neon_params=True,
+    # env_prefix='NEON',
+    use_neon_params=False,
     echo=True,
 )
 

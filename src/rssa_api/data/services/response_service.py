@@ -4,9 +4,11 @@ import uuid
 from datetime import UTC, datetime
 from enum import Enum
 from functools import singledispatchmethod
-from typing import Any
+from typing import Annotated, Any
 
+from fastapi import Depends
 from rssa_storage.rssadb.models.participant_responses import (
+    ParticipantAttentionCheckResponse,
     ParticipantFreeformResponse,
     ParticipantRating,
     ParticipantStudyInteractionResponse,
@@ -14,6 +16,7 @@ from rssa_storage.rssadb.models.participant_responses import (
 )
 from rssa_storage.rssadb.models.study_participants import StudyParticipant
 from rssa_storage.rssadb.repositories.participant_responses import (
+    ParticipantAttentionCheckResponseRepository,
     ParticipantFreeformResponseRepository,
     ParticipantRatingRepository,
     ParticipantStudyInteractionResponseRepository,
@@ -23,6 +26,8 @@ from rssa_storage.rssadb.repositories.study_participants import StudyParticipant
 from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.data.schemas.participant_response_schemas import (
+    ParticipantAttentionCheckResponseCreate,
+    ParticipantAttentionCheckResponseRead,
     ParticipantFreeformResponseCreate,
     ParticipantFreeformResponseRead,
     ParticipantRatingBase,
@@ -33,6 +38,7 @@ from rssa_api.data.schemas.participant_response_schemas import (
     ParticipantSurveyResponseRead,
 )
 from rssa_api.data.services.base_service import BaseService
+from rssa_api.data.sources.rssadb import get_service
 from rssa_api.data.utility import convert_datetime_to_str, convert_uuids_to_str
 
 ResponseCreateUnionType = (
@@ -40,6 +46,7 @@ ResponseCreateUnionType = (
     | ParticipantStudyInteractionResponseCreate
     | ParticipantRatingBase
     | ParticipantFreeformResponseCreate
+    | ParticipantAttentionCheckResponseCreate
 )
 
 ResponseSchemaType = (
@@ -47,6 +54,7 @@ ResponseSchemaType = (
     | ParticipantStudyInteractionResponseRead
     | ParticipantRatingRead
     | ParticipantFreeformResponseRead
+    | ParticipantAttentionCheckResponseRead
 )
 
 
@@ -57,6 +65,7 @@ class ResponseType(str, Enum):
     STUDY_INTERACTION = 'study_interaction'
     TEXT_RESPONSE = 'text_response'
     CONTENT_RATING = 'content_rating'
+    ATTENTION_CHECK = 'attention_check'
 
 
 class ParticipantResponseService(BaseService[StudyParticipant, StudyParticipantRepository]):
@@ -74,31 +83,36 @@ class ParticipantResponseService(BaseService[StudyParticipant, StudyParticipantR
 
     def __init__(
         self,
-        particpant_repo: StudyParticipantRepository,
+        participant_repo: StudyParticipantRepository,
         item_response_repo: ParticipantSurveyResponseRepository,
         text_response_repo: ParticipantFreeformResponseRepository,
         content_rating_repo: ParticipantRatingRepository,
         interact_response_repo: ParticipantStudyInteractionResponseRepository,
+        ac_response_repo: ParticipantAttentionCheckResponseRepository,
     ):
         """Initialize the ParticipantResponseService with the necessary repositories.
 
         Args:
+            participant_repo: Repository for the StudyParticipant.
             item_response_repo: Repository for survey item responses.
             text_response_repo: Repository for freeform text responses.
             content_rating_repo: Repository for participant ratings.
             interact_response_repo: Repository for study interaction responses.
+            ac_response_repo: Repository for participant attention check.
         """
-        super().__init__(particpant_repo)
+        super().__init__(participant_repo)
         self.item_repo = item_response_repo
         self.text_repo = text_response_repo
         self.rating_repo = content_rating_repo
         self.interact_repo = interact_response_repo
+        self.ac_repo = ac_response_repo
 
         self.strategy_map = {
             ResponseType.SURVEY_ITEM: (item_response_repo, ParticipantSurveyResponseRead),
             ResponseType.TEXT_RESPONSE: (text_response_repo, ParticipantFreeformResponseRead),
             ResponseType.CONTENT_RATING: (content_rating_repo, ParticipantRatingRead),
             ResponseType.STUDY_INTERACTION: (interact_response_repo, ParticipantStudyInteractionResponseRead),
+            ResponseType.ATTENTION_CHECK: (ac_response_repo, ParticipantAttentionCheckResponseRead),
         }
 
     def _get_strategy(self, response_type: ResponseType):
@@ -253,12 +267,10 @@ class ParticipantResponseService(BaseService[StudyParticipant, StudyParticipantR
         )
 
         if existing:
-            # Update
             updated_fields = {
                 'response_text': text_response_data.response_text,
                 'updated_at': datetime.now(UTC),
             }
-            # Handle study_step_id update if provided? Model has it.
             if text_response_data.study_step_id:
                 updated_fields['study_step_id'] = text_response_data.study_step_id
 
@@ -295,3 +307,37 @@ class ParticipantResponseService(BaseService[StudyParticipant, StudyParticipantR
         )
         await self.item_repo.create(response_item)
         return ParticipantSurveyResponseRead.model_validate(response_item)
+
+    @create_response.register
+    async def _(
+        self, ac_data: ParticipantAttentionCheckResponseCreate, study_id: uuid.UUID, participant_id: uuid.UUID
+    ) -> ParticipantAttentionCheckResponseRead:
+        new_ac_response = ParticipantAttentionCheckResponse(
+            study_id=study_id,
+            study_participant_id=participant_id,
+            study_step_id=ac_data.study_step_id,
+            study_step_page_id=ac_data.study_step_page_id,
+            context_tag=ac_data.context_tag,
+            study_attention_check_id=ac_data.study_attention_check_id,
+            survey_scale_id=ac_data.survey_scale_id,
+            responded_survey_scale_level_id=ac_data.responded_survey_scale_level_id,
+        )
+
+        created_response = await self.ac_repo.create(new_ac_response)
+        return ParticipantAttentionCheckResponseRead.model_validate(created_response)
+
+
+ParticipantResponseServiceDep = Annotated[
+    ParticipantResponseService,
+    Depends(
+        get_service(
+            ParticipantResponseService,
+            StudyParticipantRepository,
+            ParticipantSurveyResponseRepository,
+            ParticipantFreeformResponseRepository,
+            ParticipantRatingRepository,
+            ParticipantStudyInteractionResponseRepository,
+            ParticipantAttentionCheckResponseRepository,
+        )
+    ),
+]

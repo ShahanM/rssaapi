@@ -1,8 +1,9 @@
 """Schemas for study participants."""
 
 import uuid
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from .base_schemas import DBMixin
 from .study_components import StudyConditionPresent
@@ -45,9 +46,7 @@ class StudyParticipantRead(StudyParticipantBase, DBMixin):
     study_condition_id: uuid.UUID
     current_status: str
 
-    def __hash__(self):
-        """Simple string hash of the json string to help caching."""
-        return self.model_dump_json().__hash__()
+    model_config = ConfigDict(frozen=True)
 
 
 class StudyParticipantTypeRead(BaseModel):
@@ -69,27 +68,30 @@ class StudyParticipantReadWithCondition(StudyParticipantRead):
 class DemographicsBase(BaseModel):
     """Base schema for demographics."""
 
-    age_range: str
-    gender: str
-    race: list[str]
-    education: str
-    country: str
-    state_region: str | None
-    gender_other: str | None
-    race_other: str | None
+    age_range: str | None = None
+    gender: str | None = None
+    race: list[str] | None = None
+    education: str | None = None
+    country: str | None = None
+    state_region: str | None = None
+    gender_other: str | None = None
+    race_other: str | None = None
+    urbanicity: str | None = None
+    raw_json: dict | None = None
 
     @field_validator('race', mode='before')
     @classmethod
-    def handle_raw_data(cls, value):
+    def handle_raw_data(cls, value: Any) -> list[str] | None:
         if isinstance(value, str):
             return [race_opt.strip() for race_opt in value.split(';')]
         return value
 
-    def model_dump(self, **kwargs):
-        data = super().model_dump(**kwargs)
-        data['race'] = ';'.join(self.race)
-        del data['participant_id']
-        return data
+    @field_serializer('race')
+    def serialize_race(self, race: list[str] | None, _info) -> str | None:
+        """Serializes the race list back into a semicolon-separated string for the DB."""
+        if not race:
+            return None
+        return ';'.join(race)
 
 
 class DemographicsCreate(DemographicsBase):

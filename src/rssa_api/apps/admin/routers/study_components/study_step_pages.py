@@ -12,7 +12,7 @@ from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSc
 from rssa_api.data.schemas.study_components import (
     StudyStepPageContentBase,
     StudyStepPageContentPreview,
-    StudyStepPageRead,
+    StudyStepPageReadAdmin,
 )
 from rssa_api.data.services.dependencies import (
     StudyServiceDep,
@@ -30,7 +30,7 @@ router = APIRouter(
 )
 
 
-@router.get('/{page_id}', response_model=StudyStepPageRead)
+@router.get('/{page_id}', response_model=StudyStepPageReadAdmin)
 async def get_step_page_details(
     page_id: uuid.UUID,
     page_service: StudyStepPageServiceDep,
@@ -38,7 +38,7 @@ async def get_step_page_details(
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('read:pages', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> StudyStepPageRead:
+) -> StudyStepPageReadAdmin:
     """Get details of a specific study step page.
 
     Args:
@@ -52,7 +52,7 @@ async def get_step_page_details(
     Returns:
         The study step page details.
     """
-    page_from_db = await page_service.get(page_id, StudyStepPageRead)
+    page_from_db = await page_service.get(page_id, StudyStepPageReadAdmin)
     if not page_from_db:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
@@ -64,7 +64,7 @@ async def get_step_page_details(
             if not has_access:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
-    return StudyStepPageRead.model_validate(page_from_db)
+    return StudyStepPageReadAdmin.model_validate(page_from_db)
 
 
 @router.patch(
@@ -248,7 +248,8 @@ async def add_content_to_page(
             if not has_access:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
     created_content = await content_service.create(new_content_payload, owner_id=page.id)
-    return await content_service.get(created_content.id, StudyStepPageContentPreview)
+
+    return StudyStepPageContentPreview.model_validate(created_content)
 
 
 @router.patch('/{page_id}/contents/reorder', status_code=status.HTTP_204_NO_CONTENT)
