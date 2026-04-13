@@ -152,8 +152,8 @@ class MovieService(BaseService[Movie, MovieRepository]):
             repo_options.sort_by = ordering
         return repo_options
 
-    def _get_filter_opts(
-        self,
+    @staticmethod
+    def get_filter_opts(
         title: str | None = None,
         genre: str | None = None,
         year_min: int | None = None,
@@ -224,7 +224,7 @@ class MovieService(BaseService[Movie, MovieRepository]):
         Returns:
             list[SchemaType]: The movies that match the given filters.
         """
-        filter_opts = self._get_filter_opts(
+        filter_opts = self.get_filter_opts(
             title, genre, year_min, year_max, exclude_no_emotions, exclude_no_recommendations
         )
         order_opts = self._get_ordering_opts(limit, offset, sort_by, ordering)
@@ -255,7 +255,7 @@ class MovieService(BaseService[Movie, MovieRepository]):
         Returns:
             int: The count of movies that match the given filters.
         """
-        opts = self._get_filter_opts(title, genre, year_min, year_max, exclude_no_emotions, exclude_no_recommendations)
+        opts = self.get_filter_opts(title, genre, year_min, year_max, exclude_no_emotions, exclude_no_recommendations)
         return await self.repo.count(opts)
 
 

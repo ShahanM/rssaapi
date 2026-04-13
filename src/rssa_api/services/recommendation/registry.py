@@ -1,9 +1,11 @@
+import os
+
 from .strategies import LambdaStrategy
 
 # Assuming these are the names of your deployed Lambda functions
-LAMBDA_IMPLICIT = 'ImplicitMFRecsFunction'
-LAMBDA_BIASED = 'BiasedMFRecsFunction'
-LAMBDA_EMOTION = 'ImplicitMFErsRecsFunction'
+LAMBDA_IMPLICIT = os.environ.get('LAMBDA_NAME_IMPLICIT', 'ImplicitMFRecsFunction')
+LAMBDA_BIASED = os.environ.get('LAMBDA_NAME_BIASED', 'BiasedMFRecsFunction')
+LAMBDA_EMOTION = os.environ.get('LAMBDA_NAME_EMOTION', 'ImplicitMFErsRecsFunction')
 
 REGISTRY = {
     # --- Implicit Models ---
@@ -21,11 +23,20 @@ REGISTRY = {
     ),
     # --- Biased Models ---
     'biased_recs_top_n': LambdaStrategy(function_name=LAMBDA_BIASED, payload_template={'path': 'top_n'}),
-    'biased_recs_diverse_community_score': LambdaStrategy(
-        function_name=LAMBDA_BIASED, payload_template={'path': 'diverse_community_score'}
+    'biased_community_scored': LambdaStrategy(
+        function_name=LAMBDA_BIASED, payload_template={'path': 'community_scored_predictions'}
     ),
-    'biased_recs_reference_community_score': LambdaStrategy(
-        function_name=LAMBDA_BIASED, payload_template={'path': 'reference_community_score'}
+    'biased_ann_predicted_community_scored': LambdaStrategy(
+        function_name=LAMBDA_BIASED,
+        payload_template={'path': 'community_scored_predictions', 'ave_score_type': 'nn_predicted'},
+    ),
+    'biased_ann_observed_community_scored': LambdaStrategy(
+        function_name=LAMBDA_BIASED,
+        payload_template={'path': 'community_scored_predictions', 'ave_score_type': 'nn_observed'},
+    ),
+    'biased_global_observed_community_scored': LambdaStrategy(
+        function_name=LAMBDA_BIASED,
+        payload_template={'path': 'community_scored_predictions', 'ave_score_type': 'global'},
     ),
     # --- Emotion Models ---
     'implicit_ers_top_n': LambdaStrategy(function_name=LAMBDA_EMOTION, payload_template={'path': 'top_n'}),

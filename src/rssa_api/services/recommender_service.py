@@ -81,6 +81,10 @@ AVATARS = {
 class RecommenderService:
     """Service for handling recommendation logic."""
 
+    _cache: dict[str, dict[str, Any]] = {}  # caching results for ttl seconds
+    _in_flight: dict[str, asyncio.Future] = {}  # caching currently running tasks
+    _bg_tasks: set[asyncio.Task] = set()  # For fire-and-forget database calls
+
     def __init__(
         self,
         study_participant_repository: StudyParticipantRepository,
@@ -97,9 +101,6 @@ class RecommenderService:
         self.recommendation_context_repository = recommendation_context_repository
 
         self.ttl = ttl_seconds
-        self._cache: dict[str, dict[str, Any]] = {}  # caching results for ttl seconds
-        self._in_flight: dict[str, asyncio.Future] = {}  # caching currently running tasks
-        self._bg_tasks: set[asyncio.Task] = set()  # For fire-and-forget database calls
 
     async def get_recommendations(
         self, ratings: list[MovieLensRating], limit: int, context_data: dict[str, Any] | None = None
@@ -107,10 +108,10 @@ class RecommenderService:
         """Get recommendations based on ratings."""
         if not context_data:
             # TODO: This will return the implicit top N.
-            return []
+            return EnrichedResponseWrapper(response_type='standard', items=[])
         # TODO: This should be a generic call to the recommender without needing participant context. The idea is for
         # this method to service the demo endpoints.
-        return ResponseWrapper(response_type='standard', items=[])
+        return EnrichedResponseWrapper(response_type='standard', items=[])
 
     async def get_recommendations_for_study_participant(
         self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict[str, Any]
@@ -280,7 +281,7 @@ class RecommenderService:
         response_items: EnrichedRecUnionType
         if result.response_type == 'standard':
             # TODO: Check if we should use OrderedDict here or does dict in Python3 maintain order?
-            movies = await self._enrich_with_moviedata([cast(str, rec_item) for rec_item in result.items])
+            movies = await self._enrich_with_moviedata([str(rec_item) for rec_item in result.items])
             response_items = {int(movie.movielens_id): movie for movie in movies}
 
         elif result.response_type == 'community_advisors':
@@ -320,7 +321,6 @@ class RecommenderService:
         """Helper to hydrate Preference Visualization responses with movie data."""
         all_rec_ids = set()
         comm_scores = []
-        log.info(f'ITEM LENGTH {len(response.items)}')
         for score_item in response.items:
             score_item = cast(CommunityScoreRecItem, score_item)
             comm_scores.append(score_item)

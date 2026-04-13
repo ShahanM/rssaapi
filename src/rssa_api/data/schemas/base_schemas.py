@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, ClassVar, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -126,3 +126,14 @@ class VersionMixin(BaseModel):
     """A mixin that provides versioning capabilities."""
 
     version: int
+
+
+class EmptyStringToNoneMixin(BaseModel):
+    """Mixin that intercepts incoming payloads and scrubs empty strings ('') into None before validation."""
+
+    @model_validator(mode='before')
+    @classmethod
+    def scrub_empty_strings(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return {key: (None if value == '' else value) for key, value in data.items()}
+        return data

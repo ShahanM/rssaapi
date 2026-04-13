@@ -1,15 +1,14 @@
 """Router for PreShuffled movie list."""
 
 import math
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
-from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
-from rssa_api.data.schemas.base_schemas import DBMixin, PaginatedResponse, SortDir
+from rssa_api.data.schemas.base_schemas import DBMixin, EmptyStringToNoneMixin, PaginatedResponse, SortDir
 from rssa_api.data.services.dependencies import MovieServiceDep, PreShuffledMovieServiceDep
 
 router = APIRouter(
@@ -21,16 +20,23 @@ router = APIRouter(
 )
 
 
-class ShuffledMovieListCreate(BaseModel):
+class ShufflingMovieQuerySchema(DBMixin):
+    movielens_rate_count: int
+
+
+class ShuffledMovieListCreate(EmptyStringToNoneMixin):
     """Payload for generating a new pre-shuffled subset of movies."""
 
     subset_desc: str
     seed: int = 144
 
-    # Optional Filtering Criteria
-    # year_min: int | None = None
-    # year_max: int | None = None
-    # genre: str | None = None
+    strategy: Literal['A-Res', 'Stratified Chunking', 'Random'] = 'A-Res'
+
+    year_min: int | None = None
+    year_max: int | None = None
+    genre: str | None = None
+    min_rate_count: int = 50
+
     exclude_no_emotions: bool = False
     exclude_no_recommendations: bool = False
 
@@ -42,13 +48,6 @@ class ShuffledMovieList(BaseModel):
     seed: int
 
     model_config = ConfigDict(from_attributes=True)
-
-
-# class PaginatedListResponse(BaseModel):
-#     """Paginated response for users."""
-
-#     rows: list[ShuffledMovieList]
-#     page_count: int
 
 
 @router.get(
@@ -99,6 +98,9 @@ async def get_shuffled_lists(
     return PaginatedResponse[ShuffledMovieList](data=lists_from_db, page_count=page_count, total=total_items)
 
 
+SHUFFLING_STRATEGY = ['A-Res', 'Stratified Chunking', 'Random']
+
+
 @router.post('/')
 async def create_new_shuffled_list(
     payload: ShuffledMovieListCreate,
@@ -107,33 +109,37 @@ async def create_new_shuffled_list(
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ):
     """Creates a new randomized sequence of movies based on filter criteria."""
-    query_opts = RepoQueryOptions()
-    if payload.exclude_no_emotions:
-        query_opts.filter_not_null.append('emotions')
-    if payload.exclude_no_recommendations:
-        query_opts.filter_not_null.append('recommendation_text')
+    query_opts = movie_service.get_filter_opts(
+        genre=payload.genre,
+        year_min=payload.year_min,
+        year_max=payload.year_max,
+        exclude_no_emotions=payload.exclude_no_emotions,
+        exclude_no_recommendations=payload.exclude_no_recommendations,
+    )
 
-    query_opts.filter_ranges.append(('movielens_rate_count', '>=', 50))
+    query_opts.filter_ranges.append(('movielens_rate_count', '>=', payload.min_rate_count))
 
+    strategy = payload.strategy
     movies = await movie_service.get_all(
-        DBMixin,
+        DBMixin if strategy == 'Random' else ShufflingMovieQuerySchema,
         options=query_opts,
-        # year_min=payload.year_min,
-        # year_max=payload.year_max,
-        # genre=payload.genre,
-        # exclude_no_emotions=payload.exclude_no_emotions,
-        # exclude_no_recommendations=payload.exclude_no_recommendations,
     )
 
     if not movies:
         raise HTTPException(status_code=400, detail='No movies matched the given criteria. Try relaxing your filters.')
 
-    movie_ids = [movie.id for movie in movies]
+    if strategy == 'A-Res':
+        movie_data = [{'id': movie.id, 'weight': math.log10(movie.movielens_rate_count + 1)} for movie in movies]
+    elif strategy == 'Stratified Chunking':
+        movie_data = [{'id': movie.id, 'rate_count': movie.movielens_rate_count} for movie in movies]
+    else:
+        movie_data = [{'id': movie.id} for movie in movies]
+
     await shuffled_service.create_pre_shuffled_movie_list(
-        movie_ids=movie_ids, subset=payload.subset_desc, seed=payload.seed
+        movie_data=movie_data, subset=payload.subset_desc, strategy=strategy, seed=payload.seed
     )
 
     return {
         'status': 'success',
-        'message': f"Successfully created shuffled list '{payload.subset_desc}' with {len(movie_ids)} movies.",
+        'message': f"Successfully created shuffled list '{payload.subset_desc}' with {len(movie_data)} movies.",
     }

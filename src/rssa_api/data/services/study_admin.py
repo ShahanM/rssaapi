@@ -160,14 +160,82 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
 
     async def create_pre_shuffled_movie_list(
         self,
-        movie_ids: list[uuid.UUID],
+        # movie_ids: list[uuid.UUID],
+        movie_data: list[dict],
         subset: str,
+        strategy: str,
         seed: int = 144,
+        page_size: int = 18,
     ) -> None:
         """Create a pre-shuffled movie list via normalized junction table."""
         random.seed(seed)
-        shuffled_ids = movie_ids[:]  # Copy to avoid mutating original
-        random.shuffle(shuffled_ids)
+
+        if strategy == 'A-Res':
+            weighted_sort_list = []
+            for item in movie_data:
+                m_id = item['id']
+                weight = max(item['weight'], 0.0001)  # Safety to prevent ZeroDivisionError
+                u = random.random()
+
+                # Calculate A-Res key
+                key = u ** (1.0 / weight)
+                weighted_sort_list.append((key, m_id))
+
+            weighted_sort_list.sort(key=lambda x: x[0], reverse=True)
+
+            shuffled_ids = [m_id for key, m_id in weighted_sort_list]
+        elif strategy == 'Stratified Chunking':
+            sorted_movies = sorted(movie_data, key=lambda x: x['rate_count'])
+
+            # Define the threshold (e.g., top 25% of the dataset is considered "popular")
+            split_idx = int(len(sorted_movies) * 0.75)
+
+            obscure_bucket = [m['id'] for m in sorted_movies[:split_idx]]
+            popular_bucket = [m['id'] for m in sorted_movies[split_idx:]]
+
+            random.shuffle(obscure_bucket)
+            random.shuffle(popular_bucket)
+
+            # Cap popular movies at ~65% of the page
+            max_popular_per_page = int(page_size * 0.65)
+
+            # Increase popular movies by ~20% of the page size each step (minimum of 1)
+            step_size = max(1, int(page_size * 0.20))
+            popular_schedule = [0, 0]
+            current_pop = step_size
+            while current_pop < max_popular_per_page:
+                popular_schedule.append(current_pop)
+                current_pop += step_size
+
+            shuffled_ids = []
+            page_num = 0
+
+            while obscure_bucket or popular_bucket:
+                if page_num < len(popular_schedule):
+                    target_pop = popular_schedule[page_num]
+                else:
+                    target_pop = max_popular_per_page
+
+                actual_pop = min(target_pop, len(popular_bucket))
+                actual_obs = min(page_size - actual_pop, len(obscure_bucket))
+
+                # If we ran out of obscure movies, fill the rest of the page with popular ones (and vice versa)
+                if actual_obs < (page_size - actual_pop):
+                    actual_pop = min(page_size - actual_obs, len(popular_bucket))
+
+                page_items = []
+                for _ in range(actual_obs):
+                    page_items.append(obscure_bucket.pop())
+                for _ in range(actual_pop):
+                    page_items.append(popular_bucket.pop())
+
+                random.shuffle(page_items)
+
+                shuffled_ids.extend(page_items)
+                page_num += 1
+        else:
+            shuffled_ids = [datum['id'] for datum in movie_data]  # Copy to avoid mutating original
+            random.shuffle(shuffled_ids)
 
         preshuffled_list = PreShuffledMovieList(subset_desc=subset, seed=seed)
         preshuffled_list = await self.repo.create(preshuffled_list)

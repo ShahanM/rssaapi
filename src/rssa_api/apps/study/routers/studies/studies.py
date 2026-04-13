@@ -12,6 +12,7 @@ from rssa_api.auth.authorization import (
     generate_jwt_token_for_payload,
     validate_study_participant,
 )
+from rssa_api.data.schemas.base_schemas import DBMixin
 from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
 from rssa_api.data.schemas.study_components import (
     NavigationWrapper,
@@ -86,6 +87,10 @@ class StudyConfigSchema(BaseModel):
     study_id: uuid.UUID
     conditions: dict[str, uuid.UUID]
     steps: list[StudyStepConfigObj]
+
+
+class StudyDataSubset(DBMixin):
+    dataset_subset: str
 
 
 class ResumePayloadSchema(BaseModel):
@@ -203,6 +208,7 @@ async def create_new_participant_with_session(
     study_id: uuid.UUID,
     new_participant: StudyParticipantCreate,
     enrollment_service: EnrollmentServiceDep,
+    study_service: StudyServiceDep,
     step_service: StudyStepServiceDep,
     session_service: ParticipantStudySessionServiceDep,
     movie_session_service: StudyParticipantMovieSessionServiceDep,
@@ -213,6 +219,7 @@ async def create_new_participant_with_session(
         study_id: The UUID of the study.
         new_participant: Participant creation data.
         enrollment_service: Service for enrollment.
+        study_service: Service for studies.
         step_service: Service for study steps.
         session_service: Service for session management.
         movie_session_service: Service for movie session assignments.
@@ -230,7 +237,16 @@ async def create_new_participant_with_session(
 
     study_participant = await enrollment_service.enroll_participant(study_id, new_participant)
     session = await session_service.create_session(study_participant.id)
-    await movie_session_service.assign_pre_shuffled_list_participant(study_participant.id, 'Movielens-32M')
+
+    ds_subset = 'movielens-32M-default'
+    study_wds = await study_service.get(study_id, StudyDataSubset)
+    if not study_wds:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not find study')
+
+    if study_wds.dataset_subset:
+        ds_subset = study_wds.dataset_subset
+
+    await movie_session_service.assign_pre_shuffled_list_participant(study_participant.id, ds_subset)
     if session is None:
         raise HTTPException(status_code=500, detail='Could not create unique session.')
 
