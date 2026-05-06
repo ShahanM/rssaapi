@@ -19,6 +19,7 @@ from rssa_storage.rssadb.repositories.study_participants import (
 )
 from rssa_storage.shared import RepoQueryOptions
 
+from rssa_api.core.queue import BackgroundWriteCommand, background_write_queue
 from rssa_api.data.schemas.movie_schemas import MovieDetailSchema
 from rssa_api.data.schemas.participant_response_schemas import (
     DynamicPayload,
@@ -119,7 +120,6 @@ class RecommenderService:
         """Get recommendations for a study participant."""
         step_id, context_tag, step_page_id = self._parse_recommendation_context(context_data)
 
-        # Check for previously generated recommendations (Cache/Persistence)
         existing_result = await self._get_existing_recommendations(study_id, study_participant_id, context_tag)
         if existing_result:
             return await self._process_recommendation_result(existing_result)
@@ -142,26 +142,26 @@ class RecommenderService:
 
         return enriched_result
 
+    def _enqueue_command(self, task_name: str, payload: dict[str, Any]) -> None:
+        """Emits a pure-data command to the background worker."""
+        try:
+            cmd = BackgroundWriteCommand(task_name=task_name, payload=payload)
+            background_write_queue.put_nowait(cmd)
+        except asyncio.QueueFull:
+            log.error(f'Background queue full! Dropped command: {task_name}')
+
     async def _generate_and_background_save(
-        self,
-        study_id: uuid.UUID,
-        step_id: uuid.UUID,
-        step_page_id: uuid.UUID | None,
-        study_participant_id: uuid.UUID,
-        context_tag: str,
-        context_data: dict[str, Any],
-    ) -> EnrichedResponseWrapper:
-        """Handles parallel data fetching, algorithm execution, and backgrounding side-effects."""
-        # Gather participant configuration and historical ratings
-        config_task = self._get_participant_algorithm_config(study_participant_id)
-        ratings_task = self._get_translated_participant_ratings(study_participant_id)
-        (algorithm_key, limit), ratings = await asyncio.gather(config_task, ratings_task)
+        self, study_id, step_id, step_page_id, study_participant_id, context_tag, context_data
+    ):
+        algorithm_key, limit = await self._get_participant_algorithm_config(study_participant_id)
+        ratings = await self._get_translated_participant_ratings(study_participant_id)
 
-        # Handle Side Effects (Tracking interactions)
         if context_data.get('emotion_input'):
-            self._fire_and_forget(self._upsert_interaction(study_id, study_participant_id, context_data))
+            self._enqueue_command(
+                'upsert_interaction',
+                {'study_id': study_id, 'study_participant_id': study_participant_id, 'context_data': context_data},
+            )
 
-        # Generate new recommendations
         strategy = REGISTRY.get(algorithm_key)
         if not strategy:
             raise ValueError(f'No strategy found for key: {algorithm_key}')
@@ -174,10 +174,16 @@ class RecommenderService:
             log.error(f'Error for {study_participant_id} [{algorithm_key}]: {e}')
             raise
 
-        self._fire_and_forget(
-            self._save_recommendation_context(
-                study_id, step_id, step_page_id, study_participant_id, context_tag, result
-            )
+        self._enqueue_command(
+            'save_rec_context',
+            {
+                'study_id': study_id,
+                'step_id': step_id,
+                'step_page_id': step_page_id,
+                'study_participant_id': study_participant_id,
+                'context_tag': context_tag,
+                'result_json': result.model_dump(),
+            },
         )
 
         return await self._process_recommendation_result(result)
@@ -238,7 +244,6 @@ class RecommenderService:
         if not ratings_models:
             return []
 
-        # Fetch movies to get the MovieLens IDs
         movies = await self.movie_repository.find_many(RepoQueryOptions(ids=[r.item_id for r in ratings_models]))
         movie_map = {m.id: m.movielens_id for m in movies}
 
@@ -250,12 +255,6 @@ class RecommenderService:
                 log.warning(f'Rating for item {r.item_id} skipped: Movie not found in DB')
 
         return ratings
-
-    def _fire_and_forget(self, coro):
-        """Safely executes a task in the background without garbage collection risk."""
-        task = asyncio.create_task(coro)
-        self._bg_tasks.add(task)
-        task.add_done_callback(self._bg_tasks.discard)
 
     async def _save_recommendation_context(
         self,

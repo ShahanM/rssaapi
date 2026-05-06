@@ -32,11 +32,9 @@ RUNTIME_DIR = PROJECT_ROOT / 'runtime'
 LOGS_DIR = RUNTIME_DIR / 'logs'
 CACHE_DIR = RUNTIME_DIR / 'cache'
 
-# Asset Directories (Static Files)
 ASSETS_DIR = PROJECT_ROOT / 'assets'
 MODELS_DIR = ASSETS_DIR / 'models'
 
-# Ensure runtime directories exist
 os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(CACHE_DIR, exist_ok=True)
 

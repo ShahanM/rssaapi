@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 from typing import TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 import rssa_api.core.config as cfg
 
@@ -39,6 +40,7 @@ def create_db_components(
         connect_args = {
             'ssl': sslmode,  # e.g. "require" or "verify-full"
             'server_settings': {'channel_binding': channel or 'prefer'},
+            'prepared_statement_cache_size': 0,
         }
         if sslmode:
             connect_args['ssl'] = sslmode
@@ -46,10 +48,11 @@ def create_db_components(
     engine = create_async_engine(
         db_url,
         echo=echo,
-        pool_pre_ping=True,  # Critical for handling severed connections
-        pool_recycle=1800,  # Recycle connections every 30 minutes
-        pool_size=20,
-        max_overflow=10,
+        # pool_pre_ping=True,  # Critical for handling severed connections
+        # pool_recycle=1800,  # Recycle connections every 30 minutes
+        # pool_size=20,
+        # max_overflow=10,
+        poolclass=NullPool,
         connect_args=connect_args,
     )
     session_factory = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)

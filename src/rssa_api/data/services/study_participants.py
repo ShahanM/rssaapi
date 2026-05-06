@@ -10,7 +10,7 @@ from typing import Annotated
 from async_lru import alru_cache
 from fastapi import Depends
 from pydantic import BaseModel
-from rssa_storage.rssadb.models.participant_movie_sequence import ShuffledMovieListItem, StudyParticipantMovieSession
+from rssa_storage.rssadb.models.participant_movie_sequence import PreShuffledMovieList, StudyParticipantMovieSession
 from rssa_storage.rssadb.models.participant_responses import Feedback
 from rssa_storage.rssadb.models.study_participants import (
     ParticipantStudySession,
@@ -155,11 +155,48 @@ class StudyParticipantMovieSessionService(
         super().__init__(movie_session_repo)
         self.shuffled_movie_repo = shuffled_movie_repo
 
+    # @alru_cache(maxsize=128)
+    # async def get_next_session_movie_ids_batch(
+    #     self, participant_id: uuid.UUID, offset: int, limit: int
+    # ) -> PagedMoviesSchema | None:
+    #     """Fetches the next set of movies from a pre shuffles list.
+
+    #     Args:
+    #         participant_id: The participant's id.
+    #         offset: offset to skip
+    #         limit: number of movies to return.
+
+    #     Returns:
+    #         A list of movies wrapped in a paging wrapper.
+    #     """
+    #     participant_session = await self.repo.get_movie_session_by_participant_id(participant_id)
+    #     if not participant_session:
+    #         return None
+
+    #     list_id = participant_session.assigned_list_id
+
+    #     stmt = (
+    #         select(ShuffledMovieListItem.movie_id)
+    #         .where(ShuffledMovieListItem.shuffle_list_id == list_id)
+    #         .order_by(ShuffledMovieListItem.position.asc())
+    #         .offset(offset)
+    #         .limit(limit)
+    #     )
+    #     result = await self.repo.db.execute(stmt)
+    #     movie_ids = list(result.scalars().all())
+
+    #     if not movie_ids:
+    #         return None
+
+    #     count_stmt = select(func.count()).where(ShuffledMovieListItem.shuffle_list_id == list_id)
+    #     total_count = await self.repo.db.scalar(count_stmt)
+
+    #     return PagedMoviesSchema(movies=movie_ids, total=total_count or 0)
     @alru_cache(maxsize=128)
     async def get_next_session_movie_ids_batch(
         self, participant_id: uuid.UUID, offset: int, limit: int
     ) -> PagedMoviesSchema | None:
-        """Fetches the next set of movies from a pre shuffles list.
+        """Fetches the next set of movies from a pre-shuffled list.
 
         Args:
             participant_id: The participant's id.
@@ -175,23 +212,27 @@ class StudyParticipantMovieSessionService(
 
         list_id = participant_session.assigned_list_id
 
-        stmt = (
-            select(ShuffledMovieListItem.movie_id)
-            .where(ShuffledMovieListItem.shuffle_list_id == list_id)
-            .order_by(ShuffledMovieListItem.position.asc())
-            .offset(offset)
-            .limit(limit)
-        )
-        result = await self.repo.db.execute(stmt)
-        movie_ids = list(result.scalars().all())
+        pg_start = offset + 1
+        pg_end = offset + limit
 
-        if not movie_ids:
+        stmt = select(
+            PreShuffledMovieList.movie_ids[pg_start:pg_end], func.array_length(PreShuffledMovieList.movie_ids, 1)
+        ).where(PreShuffledMovieList.id == list_id)
+
+        result = await self.repo.db.execute(stmt)
+        row = result.first()
+
+        if not row:
             return None
 
-        count_stmt = select(func.count()).where(ShuffledMovieListItem.shuffle_list_id == list_id)
-        total_count = await self.repo.db.scalar(count_stmt)
+        movie_ids_slice, total_count = row
 
-        return PagedMoviesSchema(movies=movie_ids, total=total_count or 0)
+        # Postgres returns None for the slice if the offset is completely out of bounds.
+        # We catch that and return an empty list instead to keep the schema valid.
+        if not movie_ids_slice:
+            movie_ids_slice = []
+
+        return PagedMoviesSchema(movies=movie_ids_slice, total=total_count or 0)
 
     async def assign_pre_shuffled_list_participant(self, participant_id: uuid.UUID, subset: str):
         """Assigned a pre-shuffled list of movies to a study_participant.

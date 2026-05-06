@@ -11,11 +11,10 @@ from collections.abc import Sequence
 
 from async_lru import alru_cache
 from cryptography.fernet import Fernet
-from rssa_storage.rssadb.models.participant_movie_sequence import PreShuffledMovieList, ShuffledMovieListItem
+from rssa_storage.rssadb.models.participant_movie_sequence import PreShuffledMovieList
 from rssa_storage.rssadb.models.study_components import ApiKey, User
 from rssa_storage.rssadb.repositories.study_admin import ApiKeyRepository, PreShuffledMovieRepository, UserRepository
 from rssa_storage.shared import RepoQueryOptions
-from sqlalchemy import insert
 
 from rssa_api.core.config import get_env_var
 from rssa_api.data.schemas import Auth0UserSchema
@@ -174,7 +173,7 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
             weighted_sort_list = []
             for item in movie_data:
                 m_id = item['id']
-                weight = max(item['weight'], 0.0001)  # Safety to prevent ZeroDivisionError
+                weight = max(item['weight'], 0.0001)
                 u = random.random()
 
                 # Calculate A-Res key
@@ -237,17 +236,24 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
             shuffled_ids = [datum['id'] for datum in movie_data]  # Copy to avoid mutating original
             random.shuffle(shuffled_ids)
 
-        preshuffled_list = PreShuffledMovieList(subset_desc=subset, seed=seed)
-        preshuffled_list = await self.repo.create(preshuffled_list)
+        # preshuffled_list = PreShuffledMovieList(subset_desc=subset, seed=seed)
+        # preshuffled_list = await self.repo.create(preshuffled_list)
 
-        items_data = [
-            {'shuffle_list_id': preshuffled_list.id, 'movie_id': m_id, 'position': idx}
-            for idx, m_id in enumerate(shuffled_ids)
-        ]
+        # items_data = [
+        # {'shuffle_list_id': preshuffled_list.id, 'movie_id': m_id, 'position': idx}
+        # for idx, m_id in enumerate(shuffled_ids)
+        # ]
 
-        stmt = insert(ShuffledMovieListItem)
-        await self.repo.db.execute(stmt, items_data)
-        await self.repo.db.flush()
+        # stmt = insert(ShuffledMovieListItem)
+        # await self.repo.db.execute(stmt, items_data)
+        # await self.repo.db.flush()
+        preshuffled_list = PreShuffledMovieList(
+            subset_desc=subset,
+            seed=seed,
+            movie_ids=shuffled_ids,
+        )
+
+        await self.repo.create(preshuffled_list)
 
 
 class UserService(BaseService[User, UserRepository]):

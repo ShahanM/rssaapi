@@ -25,7 +25,9 @@ class MovieService(BaseService[Movie, MovieRepository]):
         """Initialize the movie service."""
         self.repo = movie_repo
 
-    async def get_movies_from_ids(self, schema: type[SchemaType], movie_ids: list[uuid.UUID]) -> list[SchemaType]:
+    async def get_movies_from_ids(
+        self, schema: type[SchemaType], movie_ids: list[uuid.UUID], override_defaults=False
+    ) -> list[SchemaType]:
         if not movie_ids:
             return []
 

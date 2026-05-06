@@ -118,6 +118,7 @@ async def create_new_shuffled_list(
     )
 
     query_opts.filter_ranges.append(('movielens_rate_count', '>=', payload.min_rate_count))
+    query_opts.filter_not_null.append('tmdb_poster')
 
     strategy = payload.strategy
     movies = await movie_service.get_all(

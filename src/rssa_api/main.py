@@ -1,10 +1,11 @@
 """Main entrypoint for the RSSA API."""
 
-import logging
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 
+import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,8 +16,9 @@ from rssa_api.apps import admin_api, demo_api, study_api
 from rssa_api.core.config import CORS_ORIGINS, PROJECT_ROOT, ROOT_PATH
 from rssa_api.core.logging import configure_structlog
 from rssa_api.core.middleware import StructlogAccessMiddleware
+from rssa_api.data.workers import db_writer_worker
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -24,8 +26,15 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     configure_structlog()
     logger.info('Starting up RSSA API...')
+    worker_task = asyncio.create_task(db_writer_worker())
     yield
+
     logger.info('Shutting down RSSA API...')
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        logger.error('Could not cancel db session worker.')
 
 
 app = FastAPI(
@@ -72,6 +81,7 @@ app.mount('/demo', demo_api)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_origin_regex=r'^https://rssa-.*(\.recsys\.dev|-recsys-dev\.pages\.dev)$',
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
