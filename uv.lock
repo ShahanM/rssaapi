@@ -1756,7 +1756,7 @@ dev = [
 [[package]]
 name = "rssa-storage"
 version = "0.1.1"
-source = { git = "https://github.com/ShahanM/rssa-storage#7ade9c133519dfa0aabd4ce07681836cb784c71e" }
+source = { git = "https://github.com/ShahanM/rssa-storage#ed2ccb97085d45af88ab2c9c2b64c59854914e28" }
 dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
