@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
+import structlog
 from fastapi import Depends
 from rssa_storage.rssadb.models.study_components import (
     Study,
@@ -34,7 +35,8 @@ from rssa_storage.rssadb.repositories.study_participants import (
 )
 from rssa_storage.shared import RepoQueryOptions
 
-from rssa_api.data.schemas.participant_schemas import DemographicsCreate
+from rssa_api.core.queue import BackgroundWriteCommand, background_write_queue
+from rssa_api.data.schemas.participant_schemas import DemographicsCreate, DemographicsUpdate
 from rssa_api.data.schemas.preferences_schemas import RecommendationContextBaseSchema, RecommendationContextSchema
 from rssa_api.data.schemas.study_components import ConditionCountSchema, NavigationWrapper
 from rssa_api.data.services.base_ordered_service import BaseOrderedService
@@ -43,6 +45,8 @@ from rssa_api.data.services.base_service import BaseService
 from rssa_api.data.services.navigation_mixin import NavigationMixin
 from rssa_api.data.sources.rssadb import get_service
 from rssa_api.data.utility import extract_load_strategies
+
+logger = structlog.getLogger()
 
 
 class StudyService(BaseService[Study, StudyRepository]):
@@ -186,6 +190,16 @@ class StudyStepService(
         """
         return await self.repo.validate_path_uniqueness(study_id, path, exclude_step_id)
 
+    def enqueue_progress_update(self, participant_id: uuid.UUID, step_id: uuid.UUID):
+        """Pushes a progress update task to the background queue."""
+        try:
+            cmd = BackgroundWriteCommand(
+                task_name='update_participant_progress', payload={'participant_id': participant_id, 'step_id': step_id}
+            )
+            background_write_queue.put_nowait(cmd)
+        except Exception as e:
+            logger.error(f'Failed to enqueue progress update: {e}')
+
 
 class StudyStepPageService(
     BaseOrderedService[StudyStepPage, StudyStepPageRepository],
@@ -275,32 +289,51 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
         """
         serialized_data = demographic_data.model_dump()
 
-        # 2. Add your database-specific overrides
         serialized_data['study_participant_id'] = participant_id
         serialized_data['updated_at'] = datetime.now(UTC)
         serialized_data['version'] = 1
 
-        # 3. Unpack directly into your SQLAlchemy model
         demographic_obj = Demographic(**serialized_data)
-
-        # demographic_obj = Demographic(
-        #     study_participant_id=participant_id,
-        #     age_range=demographic_data.age_range,
-        #     gender=demographic_data.gender,
-        #     gender_other=demographic_data.gender_other,
-        #     race=';'.join(demographic_data.race) if demographic_data.race else None,
-        #     race_other=demographic_data.race_other,
-        #     education=demographic_data.education,
-        #     country=demographic_data.country,
-        #     state_region=demographic_data.state_region,
-        #     urbanicity=demographic_data.urbanicity,
-        #     raw_json=demographic_data.raw_json,
-        #     updated_at=datetime.now(UTC),
-        #     version=1,
-        # )
         await self.demographics_repo.create(demographic_obj)
 
         return DemographicsCreate.model_validate(demographic_obj)
+
+    async def upsert_demographic_info(
+        self, participant_id: uuid.UUID, demographic_data: DemographicsUpdate
+    ) -> DemographicsCreate:
+
+        existing = await self.demographics_repo.find_one(
+            RepoQueryOptions(filters={'study_participant_id': participant_id})
+        )
+
+        incoming_payload = demographic_data.model_dump(exclude_unset=True, mode='json')
+
+        update_data = demographic_data.model_dump(exclude_unset=True)
+        update_data['updated_at'] = datetime.now(UTC)
+
+        if existing:
+            update_data['version'] = existing.version + 1
+
+            current_raw_json = existing.raw_json or {}
+            update_data['raw_json'] = {**current_raw_json, **incoming_payload}
+
+            if 'race' in update_data and update_data['race'] is not None:
+                update_data['race'] = ';'.join(update_data['race'])
+
+            updated_obj = await self.demographics_repo.update(existing.id, update_data)
+            return DemographicsCreate.model_validate(updated_obj)
+
+        else:
+            update_data['study_participant_id'] = participant_id
+            update_data['version'] = 1
+            update_data['raw_json'] = incoming_payload
+
+            if 'race' in update_data and update_data['race'] is not None:
+                update_data['race'] = ';'.join(update_data['race'])
+
+            new_obj = Demographic(**update_data)
+            await self.demographics_repo.create(new_obj)
+            return DemographicsCreate.model_validate(new_obj)
 
     async def update_demographic_info(
         self, demographics_id: uuid.UUID, update_data: dict[str, Any], client_version: int
@@ -316,6 +349,22 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
             True if the update was successful, False otherwise.
         """
         return await self.demographics_repo.update_response(demographics_id, update_data, client_version)
+
+    async def get_demographic_info(
+        self, participant_id: uuid.UUID, payload_schema: type[SchemaType]
+    ) -> SchemaType | None:
+        top_cols, rel_map = extract_load_strategies(payload_schema) if payload_schema else (None, None)
+
+        options = RepoQueryOptions(filters={'study_participant_id': participant_id})
+        options.load_columns = top_cols
+        options.load_relationships = rel_map
+
+        demo = await self.demographics_repo.find_one(options)
+
+        if not demo:
+            return demo
+
+        return payload_schema.model_validate(demo)
 
     async def create_recommendation_context(
         self, study_id: uuid.UUID, participant_id: uuid.UUID, context_data: RecommendationContextBaseSchema

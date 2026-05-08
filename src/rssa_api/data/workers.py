@@ -8,7 +8,10 @@ from rssa_storage.rssadb.repositories.participant_responses import (
     ParticipantStudyInteractionResponse,
     ParticipantStudyInteractionResponseRepository,
 )
-from rssa_storage.rssadb.repositories.study_participants import ParticipantRecommendationContextRepository
+from rssa_storage.rssadb.repositories.study_participants import (
+    ParticipantRecommendationContextRepository,
+    StudyParticipantRepository,
+)
 from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.core.queue import background_write_queue
@@ -74,6 +77,15 @@ async def process_upsert_interaction(session, payload: dict):
         await repo.create(new_payload)
 
 
+async def process_update_participant_progress(session, payload: dict):
+    """Updates the participant's current location in the study."""
+    repo = StudyParticipantRepository(session)
+    participant_id = payload['participant_id']
+    step_id = payload['step_id']
+
+    await repo.update(participant_id, {'current_step_id': step_id})
+
+
 async def db_writer_worker():
     """Consumes commands and executes them using fresh DB sessions."""
     log.info('Background DB Writer Worker started.')
@@ -83,7 +95,9 @@ async def db_writer_worker():
 
             async with AsyncSessionLocal() as session:
                 try:
-                    if command.task_name == 'save_rec_context':
+                    if command.task_name == 'update_participant_progress':
+                        await process_update_participant_progress(session, command.payload)
+                    elif command.task_name == 'save_rec_context':
                         await process_save_rec_context(session, command.payload)
                     elif command.task_name == 'upsert_interaction':
                         await process_upsert_interaction(session, command.payload)

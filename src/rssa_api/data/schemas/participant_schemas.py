@@ -98,3 +98,17 @@ class DemographicsCreate(DemographicsBase):
     """Schema for creating demographics."""
 
     model_config = {'from_attributes': True}
+
+
+class DemographicsUpdate(BaseModel):
+    """Schema to help the upsert with partial data."""
+
+    age_range: str | None = None
+    gender: str | None = None
+    gender_other: str | None = None
+    race: list[str] | None = None
+    race_other: str | None = None
+    education: str | None = None
+    country: str | None = None
+    state_region: str | None = None
+    urbanicity: str | None = None

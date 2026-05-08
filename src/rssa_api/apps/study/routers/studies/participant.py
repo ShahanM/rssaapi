@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from rssa_api.auth.authorization import decode_jwt, validate_api_key, validate_study_participant
 from rssa_api.data.schemas.participant_schemas import (
     DemographicsCreate,
+    DemographicsUpdate,
     StudyParticipantReadWithCondition,
 )
 from rssa_api.data.schemas.telemetry import TelemetryBatchPayload
@@ -67,6 +68,30 @@ async def create_participant_demographic_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Something went wrong, could not record demographic data.',
         )
+    return dem_data
+
+
+@router.patch('/demographics', response_model=DemographicsCreate, status_code=status.HTTP_200_OK)
+async def upsert_participant_demographic_info(
+    demographic_data: DemographicsUpdate,
+    id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
+    service: StudyParticipantServiceDep,
+):
+    dem_data = await service.upsert_demographic_info(id_token['sub'], demographic_data)
+    if not dem_data:
+        raise HTTPException(status_code=500, detail='Could not upsert demographic data.')
+    return dem_data
+
+
+@router.get('/demographics', response_model=DemographicsCreate, status_code=status.HTTP_200_OK)
+async def get_participant_demographic_info(
+    id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
+    service: StudyParticipantServiceDep,
+):
+    dem_data = await service.get_demographic_info(id_token['sub'], DemographicsCreate)
+    if not dem_data:
+        raise HTTPException(status_code=404, detail='Demographics not found.')
+
     return dem_data
 
 

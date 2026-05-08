@@ -248,8 +248,13 @@ async def add_content_to_page(
             if not has_access:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
     created_content = await content_service.create(new_content_payload, owner_id=page.id)
+    content_preview = await content_service.get(created_content.id, StudyStepPageContentPreview)
 
-    return StudyStepPageContentPreview.model_validate(created_content)
+    if content_preview is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Something went wrong.')
+
+    return content_preview
+    # return StudyStepPageContentPreview.model_validate(created_content)
 
 
 @router.patch('/{page_id}/contents/reorder', status_code=status.HTTP_204_NO_CONTENT)

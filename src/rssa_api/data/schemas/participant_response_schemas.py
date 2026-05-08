@@ -16,6 +16,7 @@ class ParticipantResponseContextMixin:
     study_step_id: uuid.UUID
     study_step_page_id: uuid.UUID | None = None
     context_tag: str
+    pass
 
 
 class ParticipantSurveyResponseBase(BaseModel, ParticipantResponseContextMixin):
@@ -25,6 +26,7 @@ class ParticipantSurveyResponseBase(BaseModel, ParticipantResponseContextMixin):
     survey_item_id: uuid.UUID
     survey_scale_id: uuid.UUID
     survey_scale_level_id: uuid.UUID
+    pass
 
 
 class ParticipantSurveyResponseCreate(ParticipantSurveyResponseBase):
