@@ -424,6 +424,19 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
 
         return RecommendationContextSchema.model_validate(rec_ctx)
 
+    async def get_participants_summary(
+        self, schema: type[SchemaType], study_id: uuid.UUID, start_datetime: datetime, status: str
+    ) -> list[SchemaType]:
+
+        options = RepoQueryOptions(
+            filter_ranges=[('created_at', '>=', start_datetime)], filters={'current_status': status}
+        )
+
+        participants = await self.get_all(schema, owner_id=study_id, options=options)
+        if not participants:
+            return []
+        return participants
+
 
 class StudyAuthorizationService(BaseScopedService[StudyAuthorization, StudyAuthorizationRepository]):
     """Service for managing study authorizations."""

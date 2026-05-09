@@ -3,7 +3,7 @@
 import datetime
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, computed_field
 
 
 class Auth0UserSchema(BaseModel):
@@ -24,7 +24,15 @@ class UserSchema(BaseModel):
     id: uuid.UUID
     auth0_sub: str
     email: str | None = None
-    name: str | None = Field(default=None, validation_alias='desc')
+    desc: str | None
+    # name: str | None = Field(default=None, validation_alias='desc')
     picture: str | None = None
     created_at: datetime.datetime | None = None
     updated_at: datetime.datetime | None = None
+
+    @computed_field
+    @property
+    def name(self) -> str:
+        if self.desc:
+            return self.desc
+        return ''

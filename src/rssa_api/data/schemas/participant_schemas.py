@@ -1,11 +1,11 @@
 """Schemas for study participants."""
 
 import uuid
-from typing import Any
+from typing import Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_serializer, field_validator
 
-from .base_schemas import DBMixin
+from .base_schemas import AuditMixin, DBMixin, DisplayInfoMixin, DisplayNameMixin
 from .study_components import StudyConditionPresent
 
 
@@ -112,3 +112,47 @@ class DemographicsUpdate(BaseModel):
     country: str | None = None
     state_region: str | None = None
     urbanicity: str | None = None
+
+
+class StudyAttentionCheckMinimalRead(BaseModel):
+    id: uuid.UUID
+    expected_survey_scale_level_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ParticipantAttentionCheckResponseAudit(BaseModel):
+    id: uuid.UUID
+    study_attention_check_id: uuid.UUID
+    responded_survey_scale_level_id: uuid.UUID | None
+
+    study_attention_check: StudyAttentionCheckMinimalRead
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    def passed_attention(self) -> bool:
+        if not self.responded_survey_scale_level_id:
+            print('NOTHING TO REPORT')
+            return False
+        return self.responded_survey_scale_level_id == self.study_attention_check.expected_survey_scale_level_id
+
+
+class ParticipantAuditRead(DBMixin, AuditMixin, DisplayNameMixin, DisplayInfoMixin):
+    id: uuid.UUID
+    external_id: str | None = ''
+    current_status: str | None = 'active'
+
+    _display_name_source_field: ClassVar[str] = 'external_id'
+    _display_info_source_field: ClassVar[str] = 'current_status'
+
+    source_meta: str | None
+    attention_check_responses: list[ParticipantAttentionCheckResponseAudit] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    def all_attention_checks_passed(self) -> bool:
+        if not self.attention_check_responses:
+            return False
+        return all(check.passed_attention for check in self.attention_check_responses)

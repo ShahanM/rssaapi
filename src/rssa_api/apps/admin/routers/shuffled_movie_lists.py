@@ -22,6 +22,7 @@ router = APIRouter(
 
 class ShufflingMovieQuerySchema(DBMixin):
     movielens_rate_count: int
+    movielens_avg_rating: float
 
 
 class ShuffledMovieListCreate(EmptyStringToNoneMixin):
@@ -30,7 +31,13 @@ class ShuffledMovieListCreate(EmptyStringToNoneMixin):
     subset_desc: str
     seed: int = 144
 
-    strategy: Literal['A-Res', 'Stratified Chunking', 'Random'] = 'A-Res'
+    strategy: Literal[
+        'A-Res',
+        'Stratified Chunking RC',
+        'Stratified Chunking AvgRatingLD',
+        'Stratified Chunking AvgRatingBA',
+        'Random',
+    ] = 'A-Res'
 
     year_min: int | None = None
     year_max: int | None = None
@@ -122,7 +129,7 @@ async def create_new_shuffled_list(
 
     strategy = payload.strategy
     movies = await movie_service.get_all(
-        DBMixin if strategy == 'Random' else ShufflingMovieQuerySchema,
+        ShufflingMovieQuerySchema,
         options=query_opts,
     )
 
@@ -131,8 +138,15 @@ async def create_new_shuffled_list(
 
     if strategy == 'A-Res':
         movie_data = [{'id': movie.id, 'weight': math.log10(movie.movielens_rate_count + 1)} for movie in movies]
-    elif strategy == 'Stratified Chunking':
-        movie_data = [{'id': movie.id, 'rate_count': movie.movielens_rate_count} for movie in movies]
+    elif 'Stratified Chunking' in strategy:
+        movie_data = [
+            {
+                'id': movie.id,
+                'rate_count': movie.movielens_rate_count,
+                'average_rating': movie.movielens_avg_rating,
+            }
+            for movie in movies
+        ]
     else:
         movie_data = [{'id': movie.id} for movie in movies]
 

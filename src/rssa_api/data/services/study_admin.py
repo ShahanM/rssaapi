@@ -4,6 +4,7 @@ The ApiKeyService class is used to manage the API key to register and
 authenticate frontend study applications.
 """
 
+import math
 import random
 import secrets
 import uuid
@@ -183,55 +184,28 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
             weighted_sort_list.sort(key=lambda x: x[0], reverse=True)
 
             shuffled_ids = [m_id for key, m_id in weighted_sort_list]
-        elif strategy == 'Stratified Chunking':
+        elif strategy == 'Stratified Chunking RC':
             sorted_movies = sorted(movie_data, key=lambda x: x['rate_count'])
+            shuffled_ids = self._shuffle_stratified_chunking(sorted_movies, page_size)
+        elif strategy == 'Stratified Chunking AvgRatingLD':
+            # Score = average_rating * ln(1 + rate_count)
+            sorted_movies = sorted(
+                movie_data, key=lambda x: x.get('average_rating', 0) * math.log1p(x.get('rate_count', 0))
+            )
+            shuffled_ids = self._shuffle_stratified_chunking(sorted_movies, page_size)
+        elif strategy == 'Stratified Chunking AvgRatingBA':
+            C = sum(m.get('average_rating', 0) for m in movie_data) / len(movie_data)  # dataset prior
+            m = sum(m.get('rate_count', 0) for m in movie_data) / len(movie_data)  # stabilizing prior
 
-            # Define the threshold (e.g., top 25% of the dataset is considered "popular")
-            split_idx = int(len(sorted_movies) * 0.75)
+            def bayesian_score(movie):
+                v = movie.get('rate_count', 0)
+                R = movie.get('average_rating', 0)
+                if (v + m) == 0:
+                    return 0
+                return (v / (v + m)) * R + (m / (v + m)) * C
 
-            obscure_bucket = [m['id'] for m in sorted_movies[:split_idx]]
-            popular_bucket = [m['id'] for m in sorted_movies[split_idx:]]
-
-            random.shuffle(obscure_bucket)
-            random.shuffle(popular_bucket)
-
-            # Cap popular movies at ~65% of the page
-            max_popular_per_page = int(page_size * 0.65)
-
-            # Increase popular movies by ~20% of the page size each step (minimum of 1)
-            step_size = max(1, int(page_size * 0.20))
-            popular_schedule = [0, 0]
-            current_pop = step_size
-            while current_pop < max_popular_per_page:
-                popular_schedule.append(current_pop)
-                current_pop += step_size
-
-            shuffled_ids = []
-            page_num = 0
-
-            while obscure_bucket or popular_bucket:
-                if page_num < len(popular_schedule):
-                    target_pop = popular_schedule[page_num]
-                else:
-                    target_pop = max_popular_per_page
-
-                actual_pop = min(target_pop, len(popular_bucket))
-                actual_obs = min(page_size - actual_pop, len(obscure_bucket))
-
-                # If we ran out of obscure movies, fill the rest of the page with popular ones (and vice versa)
-                if actual_obs < (page_size - actual_pop):
-                    actual_pop = min(page_size - actual_obs, len(popular_bucket))
-
-                page_items = []
-                for _ in range(actual_obs):
-                    page_items.append(obscure_bucket.pop())
-                for _ in range(actual_pop):
-                    page_items.append(popular_bucket.pop())
-
-                random.shuffle(page_items)
-
-                shuffled_ids.extend(page_items)
-                page_num += 1
+            sorted_movies = sorted(movie_data, key=bayesian_score)
+            shuffled_ids = self._shuffle_stratified_chunking(sorted_movies, page_size)
         else:
             shuffled_ids = [datum['id'] for datum in movie_data]  # Copy to avoid mutating original
             random.shuffle(shuffled_ids)
@@ -254,6 +228,55 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
         )
 
         await self.repo.create(preshuffled_list)
+
+    def _shuffle_stratified_chunking(self, sorted_movies: list[dict], page_size: int) -> list[uuid.UUID]:
+        # Define the threshold (e.g., top 25% of the dataset is considered "popular")
+        split_idx = int(len(sorted_movies) * 0.75)
+
+        obscure_bucket = [m['id'] for m in sorted_movies[:split_idx]]
+        popular_bucket = [m['id'] for m in sorted_movies[split_idx:]]
+
+        random.shuffle(obscure_bucket)
+        random.shuffle(popular_bucket)
+
+        # Cap popular movies at ~65% of the page
+        max_popular_per_page = int(page_size * 0.65)
+
+        # Increase popular movies by ~20% of the page size each step (minimum of 1)
+        step_size = max(1, int(page_size * 0.20))
+        popular_schedule = [0, 0]
+        current_pop = step_size
+        while current_pop < max_popular_per_page:
+            popular_schedule.append(current_pop)
+            current_pop += step_size
+
+        shuffled_ids = []
+        page_num = 0
+
+        while obscure_bucket or popular_bucket:
+            if page_num < len(popular_schedule):
+                target_pop = popular_schedule[page_num]
+            else:
+                target_pop = max_popular_per_page
+
+            actual_pop = min(target_pop, len(popular_bucket))
+            actual_obs = min(page_size - actual_pop, len(obscure_bucket))
+
+            # If we ran out of obscure movies, fill the rest of the page with popular ones (and vice versa)
+            if actual_obs < (page_size - actual_pop):
+                actual_pop = min(page_size - actual_obs, len(popular_bucket))
+
+            page_items = []
+            for _ in range(actual_obs):
+                page_items.append(obscure_bucket.pop())
+            for _ in range(actual_pop):
+                page_items.append(popular_bucket.pop())
+
+            random.shuffle(page_items)
+
+            shuffled_ids.extend(page_items)
+            page_num += 1
+        return shuffled_ids
 
 
 class UserService(BaseService[User, UserRepository]):

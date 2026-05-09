@@ -328,8 +328,10 @@ async def resume_study_session(
 async def finalize_study(
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
     service: StudyServiceDep,
+    participant_service: StudyParticipantServiceDep,
 ):
     """Final step confirmation to retreive completion code and redirect url."""
+    await participant_service.update(id_token['sub'], {'current_status': 'completed'})
     completion_data = await service.get(id_token['sty'], StudyCompletionPayload)
     if completion_data is None:
         raise HTTPException(

@@ -2,6 +2,7 @@
 
 import math
 import uuid
+from datetime import UTC, datetime
 from functools import reduce
 from typing import Annotated
 
@@ -21,6 +22,7 @@ from rssa_api.data.schemas.base_schemas import (
     ReorderPayloadSchema,
     SortDir,
 )
+from rssa_api.data.schemas.participant_schemas import ParticipantAuditRead
 from rssa_api.data.schemas.study_components import (
     ApiKeyBase,
     ApiKeyCreate,
@@ -42,6 +44,7 @@ from rssa_api.data.services.dependencies import (
     StudyServiceDep,
     StudyStepServiceDep,
 )
+from rssa_api.data.services.study_components import StudyParticipantServiceDep
 
 from ...docs import ADMIN_STUDIES_TAG
 
@@ -250,7 +253,7 @@ async def create_study(
 async def get_study_steps(
     study_id: uuid.UUID,
     step_service: StudyStepServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
+    _: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
 ) -> list[OrderedListItem]:
     """Get a list of steps for a study.
 
@@ -319,7 +322,7 @@ async def create_study_step(
 async def get_study_conditions(
     study_id: uuid.UUID,
     condition_service: StudyConditionServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'read:conditions'))],
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'read:conditions'))],
     page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
     page_size: int = Query(10, ge=1, le=100, description='The number of items per page'),
 ) -> list[StudyConditionRead]:
@@ -422,9 +425,7 @@ async def update_study(
     '/{study_id}',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Delete a study.',
-    description="""
-    Deletes a study by its ID.
-    """,
+    description="""Deletes a study by its ID.""",
 )
 async def delete_study(
     study_id: uuid.UUID,
@@ -689,3 +690,22 @@ async def remove_study_authorization(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
 
     await study_service.remove_study_authorization(study_id, user_id)
+
+
+@router.get('/{study_id}/participants', response_model=list[ParticipantAuditRead])
+async def get_study_participants(
+    study_id: uuid.UUID,
+    # start_datetime: datetime,
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
+    participant_service: StudyParticipantServiceDep,
+    # status: str = Query(default='completed'),
+):
+    # 2026-05-08 23:32:02.23193+00
+    start_time = datetime(year=2026, month=5, day=8, hour=23, minute=32, second=2, microsecond=231930, tzinfo=UTC)
+    status = 'completed'
+    return await participant_service.get_participants_summary(
+        schema=ParticipantAuditRead,
+        study_id=study_id,
+        start_datetime=start_time,
+        status=status,
+    )
