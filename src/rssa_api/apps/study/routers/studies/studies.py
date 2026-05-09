@@ -13,7 +13,7 @@ from rssa_api.auth.authorization import (
     validate_study_participant,
 )
 from rssa_api.data.schemas.base_schemas import DBMixin
-from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate
+from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate, StudyParticipantRead
 from rssa_api.data.schemas.study_components import (
     NavigationWrapper,
     StudyConditionPresent,
@@ -296,7 +296,7 @@ async def resume_study_session(
     if participant_session.expires_at < datetime.datetime.now(datetime.UTC) or not participant_session.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Expired or invalid resume code.')
 
-    participant = await participant_service.get(participant_session.study_participant_id)
+    participant = await participant_service.get(participant_session.study_participant_id, StudyParticipantRead)
 
     if participant is None or participant.study_id != study_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Resume code not valid for this study.')

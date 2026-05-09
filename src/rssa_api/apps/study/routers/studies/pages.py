@@ -44,13 +44,3 @@ async def get_step_page_details(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Step not valid for this study.')
 
     return page_result
-    # survey_page = page_result['current']
-    # survey_page.study_step_page_contents[0].items = survey_page.study_step_page_contents[0].db_items
-    # validated_page = StudyStepPagePresent.model_validate(survey_page)
-
-    # step_page = NavigationWrapper[StudyStepPagePresent](
-    #     data=validated_page,
-    #     next_id=page_result['next_id'],
-    #     next_path=page_result['next_path'],
-    # )
-    # return step_page

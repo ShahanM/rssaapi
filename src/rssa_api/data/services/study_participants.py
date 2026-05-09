@@ -22,7 +22,6 @@ from rssa_storage.rssadb.repositories.study_participants import (
     ParticipantStudySessionRepository,
     StudyParticipantMovieSessionRepository,
     StudyParticipantRepository,
-    StudyParticipantTypeRepository,
 )
 from rssa_storage.shared import RepoQueryOptions
 from sqlalchemy import func, select
@@ -45,12 +44,10 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
     def __init__(
         self,
         participant_repo: StudyParticipantRepository,
-        participant_type_repo: StudyParticipantTypeRepository,
         study_condition_repo: StudyConditionRepository,
     ):
         """Initialize as a participant service with access to participant type, and study conditions."""
         super().__init__(participant_repo)
-        self.participant_type_repo = participant_type_repo
         self.study_condition_repo = study_condition_repo
 
     async def enroll_participant(
@@ -65,28 +62,17 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
         Returns:
             The newly created participant.
         """
-        participant_type = await self.participant_type_repo.find_one(
-            RepoQueryOptions(filter_ilike={'type': new_participant.participant_type_key})
-        )
-        if not participant_type:
-            participant_type = await self.participant_type_repo.find_one(RepoQueryOptions(filters={'type': 'unknown'}))
-
-        if not participant_type:
-            raise ValueError('No default participant_type in the database. Please get in touch with an adult.')
-
         condition_key = None
         source_meta = new_participant.source_meta
-        if source_meta and participant_type.type == 'test':
+        if source_meta and new_participant.participant_type_key == 'test':
             if 'condition_key' in source_meta:
                 condition_key = source_meta['condition_key']
 
         condition_id = await self._pick_condition(study_id, condition_key)
 
         study_participant = StudyParticipant(
-            study_participant_type_id=participant_type.id,
             study_id=study_id,
             study_condition_id=condition_id,
-            external_id=new_participant.external_id,
             current_step_id=new_participant.current_step_id,
             current_page_id=new_participant.current_page_id,
             source_meta=json.dumps(source_meta) if source_meta else None,
@@ -106,32 +92,23 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
                 raise ValueError('There was a problem with the condition key.')
             return study_condition.id
 
-        condition_pool = await self.study_condition_repo.find_many(
-            RepoQueryOptions(filters={'study_id': study_id, 'enabled': True}, load_columns=['id'])
-        )
-
-        if not condition_pool:
-            raise ValueError(f'No study conditions found for study ID: {study_id}')
-
         # Ideally: Dynamic weighted choice so that we always have n participants for each of the k conditions
         # n%k = 0 => n_i = n_k = n/k for all i \in [1, ..., k], where n_i is the i'th condition's participant count
         # n%k != 0 => n_i = n_k = (n-(n%k))/k & m_j = m_(k-(n%k)) = 1,
         # where n_i, and m_j are the number of participants in the i'th and j'th conditions respectively and i != j
         # Shortcut: We remove the last assigned condition from the pool.
-        last_participant = await self.repo.find_one(
-            RepoQueryOptions(
-                filters={'study_id': study_id, 'discarded': False},
-                sort_by='created_at',
-                sort_desc=True,
-                load_columns=['id', 'study_condition_id'],
-            )
+        condition_counts_rows = await self.study_condition_repo.get_participant_count_by_condition(
+            study_id, enabled_only=True
         )
-        if last_participant:
-            if len(condition_pool) > 1:
-                condition_pool = [cond for cond in condition_pool if not cond.id == last_participant.study_condition_id]
-        study_condition = random.choice(condition_pool)
 
-        return study_condition.id
+        if not condition_counts_rows:
+            raise ValueError(f'No active study conditions found for study ID: {study_id}')
+
+        condition_counts = {row.study_condition_id: row.participant_count for row in condition_counts_rows}
+        min_count = min(condition_counts.values())
+        eligible_conditions = [cond_id for cond_id, count in condition_counts.items() if count == min_count]
+
+        return random.choice(eligible_conditions)
 
 
 class PagedMoviesSchema(BaseModel):
@@ -340,11 +317,7 @@ class ParticipantStudySessionService(BaseService[ParticipantStudySession, Partic
 
 EnrollmentServiceDep = Annotated[
     EnrollmentService,
-    Depends(
-        get_service(
-            EnrollmentService, StudyParticipantRepository, StudyParticipantTypeRepository, StudyConditionRepository
-        )
-    ),
+    Depends(get_service(EnrollmentService, StudyParticipantRepository, StudyConditionRepository)),
 ]
 
 ParticipantStudySessionServiceDep = Annotated[

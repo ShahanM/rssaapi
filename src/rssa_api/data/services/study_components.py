@@ -271,7 +271,7 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
         return await self.repo.find_one(
             RepoQueryOptions(
                 ids=[participant_id],
-                load_options=StudyParticipantRepository.LOAD_CONDITION_AND_TYPE,
+                load_options=StudyParticipantRepository.LOAD_ASSIGNED_CONDITION,
             )
         )
 

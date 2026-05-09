@@ -140,7 +140,9 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
             The valid API Key if it is found, otherwise None.
 
         """
-        key_record = await self.repo.find_one(RepoQueryOptions(filters={'id': api_key_id}))
+        key_record = await self.repo.find_one(
+            RepoQueryOptions(filters={'id': api_key_id}, load_columns=['id', 'key_hash', 'study_id', 'user_id'])
+        )
         if not key_record:
             return None
 

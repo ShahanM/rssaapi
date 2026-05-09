@@ -3,7 +3,7 @@
 import uuid
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, computed_field, field_serializer, field_validator
 
 from .base_schemas import AuditMixin, DBMixin, DisplayInfoMixin, DisplayNameMixin
 from .study_components import StudyConditionPresent
@@ -12,19 +12,6 @@ from .study_components import StudyConditionPresent
 class StudyParticipantBase(BaseModel):
     """Base schema for study participant."""
 
-    study_participant_type_id: uuid.UUID = Field(
-        default=uuid.UUID('149078d0-cece-4b2c-81cd-a7df4f76d15a'),
-        description="""
-		The UUID identifying the type of participant.
-		""",
-    )
-    external_id: str = Field(
-        default='Test Participant',
-        description="""
-		This is a convenient string to track participants that are redirected from a participant recruiting platform.
-		The original intention is to store the participant's id in the referring platform.
-		""",
-    )
     current_step_id: uuid.UUID
     current_page_id: uuid.UUID | None = None
 
@@ -32,8 +19,7 @@ class StudyParticipantBase(BaseModel):
 class StudyParticipantCreate(BaseModel):
     """Schema for creating a study participant."""
 
-    participant_type_key: str
-    external_id: str
+    participant_type_key: str | None
     current_step_id: uuid.UUID
     current_page_id: uuid.UUID | None = None
     source_meta: dict[str, str] | None
@@ -62,7 +48,6 @@ class StudyParticipantReadWithCondition(StudyParticipantRead):
     """Schema for reading a study participant with condition."""
 
     study_condition: StudyConditionPresent
-    study_participant_type: StudyParticipantTypeRead
 
 
 class DemographicsBase(BaseModel):
@@ -140,10 +125,9 @@ class ParticipantAttentionCheckResponseAudit(BaseModel):
 
 class ParticipantAuditRead(DBMixin, AuditMixin, DisplayNameMixin, DisplayInfoMixin):
     id: uuid.UUID
-    external_id: str | None = ''
     current_status: str | None = 'active'
 
-    _display_name_source_field: ClassVar[str] = 'external_id'
+    _display_name_source_field: ClassVar[str] = 'id'
     _display_info_source_field: ClassVar[str] = 'current_status'
 
     source_meta: str | None
