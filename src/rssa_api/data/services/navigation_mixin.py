@@ -3,14 +3,15 @@
 import uuid
 from typing import Any, Protocol, TypeVar
 
+import structlog
 from pydantic import BaseModel
-
-# Adjust these imports to match your actual module paths
 from rssa_storage.shared.base_ordered_repo import BaseOrderedRepository, OrderedRepoQueryOptions
 from rssa_storage.shared.base_repo import RepoQueryOptions
 from rssa_storage.shared.db_utils import SharedOrderedModel
 
 from rssa_api.data.utility import extract_load_strategies
+
+logger = structlog.getLogger()
 
 OrderedModelType = TypeVar('OrderedModelType', bound=SharedOrderedModel)
 OrderedRepoType = TypeVar('OrderedRepoType', bound=BaseOrderedRepository)
@@ -42,7 +43,7 @@ class NavigationMixin(ServiceProtocol[OrderedModelType, OrderedRepoType]):
         if not current_model:
             return None
 
-        next_info = await self._get_next(current_model)
+        next_info = await self._get_next(current_model, ['id', 'path'])
 
         return {
             'current': schema.model_validate(current_model),  # Validate into the requested schema
@@ -70,7 +71,7 @@ class NavigationMixin(ServiceProtocol[OrderedModelType, OrderedRepoType]):
         if not first_model:
             return None
 
-        next_info = await self._get_next(first_model)
+        next_info = await self._get_next(first_model, ['id', 'path'])
 
         return {
             'current': schema.model_validate(first_model),
@@ -78,13 +79,30 @@ class NavigationMixin(ServiceProtocol[OrderedModelType, OrderedRepoType]):
             'next_path': next_info['path'],
         }
 
-    async def _get_next(self, current_item: OrderedModelType) -> dict[str, Any]:
+    async def _get_next(self, current_item: OrderedModelType, load_cols: list[str]) -> dict[str, Any]:
         """Helper to get the next item's ID and path if available."""
-        next_model = await self.repo.get_next_ordered_instance(current_item)
+        parent_id = getattr(current_item, self.repo.parent_id_column_name)
+        required_cols = {'id', 'order_position', self.repo.parent_id_column_name}
+        top_cols = list(set(load_cols).union(required_cols))
+        options = OrderedRepoQueryOptions(
+            filters={self.repo.parent_id_column_name: parent_id},
+            load_columns=top_cols,
+            sort_by='order_position',
+            sort_desc=False,
+        )
+        ordered = await self.repo.find_many(options)
+        ordered = sorted(ordered, key=lambda x: x.order_position)
 
+        index = 0
+        for i in range(len(ordered)):
+            if ordered[i].id == current_item.id:
+                index = i + 1
+                break
         next_id = None
         next_path = None
-        if next_model:
+        if index < len(ordered):
+            next_model = ordered[index]
+            logger.warn('STEP', next=next_model.id, path=getattr(next_model, 'path', 'failed'))
             next_id = next_model.id
             next_path = getattr(next_model, 'path', None)
 

@@ -5,48 +5,33 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict
 
 from rssa_api.auth.authorization import (
     authorize_api_key_for_study,
     generate_jwt_token_for_payload,
     validate_study_participant,
 )
-from rssa_api.data.schemas.base_schemas import DBMixin
 from rssa_api.data.schemas.participant_schemas import StudyParticipantCreate, StudyParticipantRead
 from rssa_api.data.schemas.study_components import (
+    ErrorResponse,
     NavigationWrapper,
-    StudyConditionPresent,
+    ResumePayloadSchema,
+    ResumeResponseSchema,
+    StudyCompletionPayload,
+    StudyConfigSchema,
+    StudyDataSubset,
+    StudyStepConfigRead,
     StudyStepPreview,
     StudyStepRead,
 )
 from rssa_api.data.services.dependencies import (
     EnrollmentServiceDep,
     ParticipantStudySessionServiceDep,
-    StudyConditionServiceDep,
     StudyParticipantMovieSessionServiceDep,
     StudyParticipantServiceDep,
     StudyServiceDep,
     StudyStepServiceDep,
 )
-
-
-class ErrorResponse(BaseModel):
-    """Standard error response model."""
-
-    detail: str
-
-
-class StudyCompletionPayload(BaseModel):
-    """Study completion payload."""
-
-    completion_code: str
-    redirect_url: str
-
-    model_config = ConfigDict(
-        from_attributes=True,
-    )
-
 
 router = APIRouter(
     prefix='/studies',
@@ -59,54 +44,6 @@ router = APIRouter(
         }
     },
 )
-
-STEP_TYPE_TO_COMPONENT = {
-    'survey': 'SurveyStep',
-    'overview': 'StudyOverviewStep',
-    'task': 'TaskStep',
-    'preference-elicitation': 'PreferenceElicitationStep',
-    'consent': 'ConsentStep',
-    'instruction': 'InstructionStep',
-    'demographics': 'DemographicsStep',
-    'extras': 'ExtraStep',
-    'end': 'CompletionStep',
-}
-
-
-class StudyStepConfigObj(BaseModel):
-    """Configuration object for a study step."""
-
-    step_id: uuid.UUID
-    path: str
-    component_type: str
-
-
-class StudyConfigSchema(BaseModel):
-    """Schema for the full study configuration."""
-
-    study_id: uuid.UUID
-    conditions: dict[str, uuid.UUID]
-    steps: list[StudyStepConfigObj]
-
-
-class StudyDataSubset(DBMixin):
-    dataset_subset: str
-
-
-class ResumePayloadSchema(BaseModel):
-    """Payload for resuming a study session."""
-
-    resume_code: str
-
-
-class ResumeResponseSchema(BaseModel):
-    """Response schema for a resumed session."""
-
-    current_step_id: uuid.UUID
-    current_page_id: uuid.UUID | None = None
-    token: str
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 @router.get(
@@ -139,7 +76,7 @@ async def get_first_step(
     Returns:
         The first study step with navigation details.
     """
-    study_step = await step_service.get_first_with_navigation(study_id, StudyStepPreview)
+    study_step = await step_service.get_first_with_navigation(study_id, StudyStepRead)
 
     if not study_step:
         raise HTTPException(
@@ -167,34 +104,18 @@ async def get_first_step(
 async def export_study_config(
     study_id: uuid.UUID,
     step_service: StudyStepServiceDep,
-    condition_service: StudyConditionServiceDep,
 ):
     """Export the configuration for a study.
 
     Args:
         study_id: The UUID of the study.
         step_service: Service for study steps.
-        condition_service: Service for study conditions.
 
     Returns:
         The study configuration object.
     """
-    steps = await step_service.get_all(StudyStepPreview, owner_id=study_id)
-    conditions = await condition_service.get_all(StudyConditionPresent, owner_id=study_id)
-    config = {
-        'study_id': study_id,
-        'conditions': {con.name: con.id for con in conditions},
-        'steps': [
-            {
-                'step_id': step.id,
-                'path': step.path,
-                'component_type': STEP_TYPE_TO_COMPONENT[step.step_type if step.step_type else 'extras'],
-            }
-            for step in steps
-        ],
-    }
-
-    return config
+    steps = await step_service.get_all(StudyStepConfigRead, owner_id=study_id)
+    return {'study_id': study_id, 'steps': steps}
 
 
 @router.post(
