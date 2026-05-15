@@ -36,3 +36,10 @@ class UserSchema(BaseModel):
         if self.desc:
             return self.desc
         return ''
+
+
+class PaginatedUserResponse(BaseModel):
+    """Paginated response for users."""
+
+    rows: list[UserSchema]
+    page_count: int

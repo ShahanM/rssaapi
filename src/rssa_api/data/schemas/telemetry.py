@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class TrafficPayload(BaseModel):
@@ -17,8 +17,6 @@ class TelemetryEventSchema(BaseModel):
     item_id: str | None
     event_data: dict[str, Any] = Field(default_factory=dict)
     client_timestamp: datetime
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class TelemetryBatchPayload(BaseModel):

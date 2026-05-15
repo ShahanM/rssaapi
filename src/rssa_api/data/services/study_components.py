@@ -33,7 +33,7 @@ from rssa_storage.rssadb.repositories.study_participants import (
     ParticipantRecommendationContextRepository,
     StudyParticipantRepository,
 )
-from rssa_storage.shared import RepoQueryOptions
+from rssa_storage.shared import RepoQueryOptions, merge_repo_query_options
 
 from rssa_api.core.queue import BackgroundWriteCommand, background_write_queue
 from rssa_api.data.schemas.participant_schemas import DemographicsCreate, DemographicsUpdate
@@ -153,18 +153,10 @@ class StudyConditionService(BaseScopedService[StudyCondition, StudyConditionRepo
         study_id: uuid.UUID,
     ) -> list[ConditionCountSchema]:
         """Get participant counts grouped by study conditions for a specific study."""
-        condition_count_rows = await self.repo.get_participant_count_by_condition(study_id)
-
-        participants_by_condition_list = []
-        for row in condition_count_rows:
-            participants_by_condition_list.append(
-                ConditionCountSchema(
-                    condition_id=row.study_condition_id,
-                    condition_name=row.study_condition_name,
-                    participant_count=row.participant_count,
-                )
-            )
-        return participants_by_condition_list
+        condition_count_rows = await self.repo.get_participant_count_by_condition(
+            study_id, enabled_only=True, verified_participants_only=True
+        )
+        return [ConditionCountSchema(**row._mapping) for row in condition_count_rows]
 
 
 class StudyStepService(
@@ -256,6 +248,7 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
     ):
         """Initialize the study participant service."""
         super().__init__(participant_repo)
+
         self.demographics_repo = demographics_repo
         self.recommendation_context_repo = recommendation_context_repo
 
@@ -396,6 +389,17 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
 
         return RecommendationContextSchema.model_validate(rec_ctx)
 
+    async def get_study_demographic_summary(self, study_id: uuid.UUID) -> dict[str, dict[str, int]]:
+        fields_to_aggregate = ['age_range', 'gender', 'race', 'education']
+        summary = {}
+
+        for field in fields_to_aggregate:
+            rows = await self.demographics_repo.get_aggregate_distribution(study_id, field)
+
+            summary[field] = {(row.category if row.category else 'Unknown'): row.count for row in rows}
+
+        return summary
+
     async def get_recommndation_context_by_participant_context(
         self, study_id: uuid.UUID, participant_id: uuid.UUID, context_tag: str
     ) -> RecommendationContextSchema | None:
@@ -424,15 +428,22 @@ class StudyParticipantService(BaseScopedService[StudyParticipant, StudyParticipa
 
         return RecommendationContextSchema.model_validate(rec_ctx)
 
+    async def count_participants_in_study(self, study_id: uuid.UUID, options: RepoQueryOptions | None) -> int:
+        _options = RepoQueryOptions(filters={'study_id': study_id, 'discarded': False})
+        if options:
+            _options = merge_repo_query_options(options, _options)
+
+        return await self.repo.count(_options)
+
     async def get_participants_summary(
         self, schema: type[SchemaType], study_id: uuid.UUID, start_datetime: datetime, status: str
     ) -> list[SchemaType]:
 
         options = RepoQueryOptions(
-            filter_ranges=[('created_at', '>=', start_datetime)], filters={'current_status': status}
+            filter_ranges=[('created_at', '>=', start_datetime)], filters={'current_status': status, 'discarded': False}
         )
 
-        participants = await self.get_all(schema, owner_id=study_id, options=options)
+        participants = await self.get_all(schema, options=options)
         if not participants:
             return []
         return participants

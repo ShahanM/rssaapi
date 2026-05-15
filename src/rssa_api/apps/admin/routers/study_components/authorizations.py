@@ -39,7 +39,7 @@ async def get_study_authorization(
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ) -> StudyAuthorizationRead:
     """Get a study authorization by ID."""
-    auth = await service.get_one(authorization_id)
+    auth = await service.get(authorization_id)
     if not auth:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -65,7 +65,7 @@ async def delete_study_authorization(
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ) -> None:
     """Delete a study authorization."""
-    existing = await service.get_one(authorization_id)
+    existing = await service.get(authorization_id)
     if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

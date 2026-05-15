@@ -10,6 +10,7 @@ from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
 from rssa_api.data.schemas.study_components import (
+    StudyComponentCheck,
     StudyStepPageContentBase,
     StudyStepPageContentPreview,
     StudyStepPageReadAdmin,
@@ -99,17 +100,15 @@ async def update_step_page(
     Returns:
         Status message.
     """
-    page = await page_service.get(page_id)
+    page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.study_step_id)
-        if step:
-            has_access = await study_service.check_study_access(step.study_id, current_user.id)
-            if not has_access:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
+        has_access = await study_service.check_study_access(page.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     await page_service.update(page_id, updated_page)
 
@@ -144,17 +143,15 @@ async def delete_step_page(
     Returns:
         Status message.
     """
-    page = await page_service.get(page_id)
+    page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.study_step_id)
-        if step:
-            has_access = await study_service.check_study_access(step.study_id, current_user.id)
-            if not has_access:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
+        has_access = await study_service.check_study_access(page.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     await page_service.delete(page_id)
 
@@ -186,17 +183,15 @@ async def get_page_content(
     Returns:
         A list of ordered content items.
     """
-    page = await page_service.get(page_id)
+    page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.study_step_id)
-        if step:
-            has_access = await study_service.check_study_access(step.study_id, current_user.id)
-            if not has_access:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
+        has_access = await study_service.check_study_access(page.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     content = await content_service.get_all(StudyStepPageContentPreview, owner_id=page_id)
 
@@ -236,17 +231,15 @@ async def add_content_to_page(
     Returns:
         The created content.
     """
-    page = await page_service.get(page_id)
+    page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.study_step_id)
-        if step:
-            has_access = await study_service.check_study_access(step.study_id, current_user.id)
-            if not has_access:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
+        has_access = await study_service.check_study_access(page.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
     created_content = await content_service.create(new_content_payload, owner_id=page.id)
     content_preview = await content_service.get(created_content.id, StudyStepPageContentPreview)
 
@@ -283,17 +276,15 @@ async def reorder_page_contents(
     Returns:
         Empty dictionary on success.
     """
-    page = await page_service.get(page_id)
+    page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page.study_step_id)
-        if step:
-            has_access = await study_service.check_study_access(step.study_id, current_user.id)
-            if not has_access:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
+        has_access = await study_service.check_study_access(page.study_id, current_user.id)
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
     contents_map = {item.id: item.order_position for item in payload}
     await content_service.reorder_items(page_id, contents_map)

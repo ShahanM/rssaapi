@@ -2,11 +2,12 @@
 
 import math
 import uuid
-from datetime import UTC, datetime
 from functools import reduce
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.auth.security import (
     get_auth0_authenticated_user,
@@ -48,16 +49,7 @@ from rssa_api.data.services.study_components import StudyParticipantServiceDep
 
 from ...docs import ADMIN_STUDIES_TAG
 
-STEP_TYPE_TO_COMPONENT = {
-    'survey': 'SurveyStep',
-    'task': 'TaskStep',
-    'preference-elicitation': 'PreferenceElicitationStep',
-    'consent': 'ConsentStep',
-    'instruction': 'InstructionStep',
-    'demographics': 'DemographicsStep',
-    'extras': 'ExtraStep',
-    'end': 'CompletionStep',
-}
+logging = structlog.getLogger()
 
 router = APIRouter(
     prefix='/studies',
@@ -692,20 +684,53 @@ async def remove_study_authorization(
     await study_service.remove_study_authorization(study_id, user_id)
 
 
-@router.get('/{study_id}/participants', response_model=list[ParticipantAuditRead])
+@router.get('/{study_id}/participants', response_model=PaginatedResponse[ParticipantAuditRead])
 async def get_study_participants(
     study_id: uuid.UUID,
     # start_datetime: datetime,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
     participant_service: StudyParticipantServiceDep,
+    page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
+    page_size: int = Query(10, ge=1, le=100, description='The number of items per page'),
+    sort_by: str | None = Query(None, description='The field to sort by.'),
+    sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
+    search: str | None = Query(None, description='A search term to filter results by name or description'),
+    is_verified: bool | None = None,
     # status: str = Query(default='completed'),
 ):
     # 2026-05-08 23:32:02.23193+00
-    start_time = datetime(year=2026, month=5, day=8, hour=23, minute=32, second=2, microsecond=231930, tzinfo=UTC)
+    # start_time = datetime(year=2026, month=5, day=8, hour=23, minute=32, second=2, microsecond=231930, tzinfo=UTC)
     status = 'completed'
-    return await participant_service.get_participants_summary(
-        schema=ParticipantAuditRead,
-        study_id=study_id,
-        start_datetime=start_time,
-        status=status,
+    options = RepoQueryOptions(
+        # filter_ranges=[('created_at', '>=', start_time)],
+        filters={'current_status': status, 'discarded': False},
     )
+
+    if is_verified is not None:
+        options.filters['is_verified'] = is_verified
+
+    participants = await participant_service.get_all(
+        ParticipantAuditRead,
+        owner_id=study_id,
+        options=options,
+        limit=page_size,
+        offset=page_index,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        search=search,
+    )
+    options.search_text = search
+    total = await participant_service.count(owner_id=study_id, options=options)
+    page_count = math.ceil(total / page_size) if total > 0 else 1
+
+    return PaginatedResponse[ParticipantAuditRead](data=participants, page_count=page_count, total=total)
+
+
+@router.get('/{study_id}/demographics/summary')
+async def get_demographic_summary(
+    study_id: uuid.UUID,
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
+    participant_service: StudyParticipantServiceDep,
+):
+    summary = await participant_service.get_study_demographic_summary(study_id)
+    return summary

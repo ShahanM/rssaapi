@@ -30,8 +30,6 @@ class SurveyScaleLevelBase(BaseModel):
 class SurveyScaleLevelCreate(SurveyScaleLevelBase):
     """Schema for creating a survey scale level."""
 
-    pass
-
 
 class SurveyScaleLevelRead(SurveyScaleLevelBase, BaseOrderedMixin, DBMixin, DisplayNameMixin):
     """Schema for reading a survey scale level."""
@@ -41,8 +39,6 @@ class SurveyScaleLevelRead(SurveyScaleLevelBase, BaseOrderedMixin, DBMixin, Disp
 
 class SurveyScaleLevelAudit(SurveyScaleLevelRead, AuditMixin):
     """Schema for auditing a survey scale level."""
-
-    pass
 
 
 # ==============================================================================
@@ -60,8 +56,6 @@ class SurveyItemBase(BaseModel):
 class SurveyItemCreate(SurveyItemBase):
     """Schema for creating a survey item."""
 
-    pass
-
 
 class SurveyItemRead(SurveyItemBase, DBMixin, BaseOrderedMixin, DisplayNameMixin):
     """Schema for reading a survey item."""
@@ -71,8 +65,6 @@ class SurveyItemRead(SurveyItemBase, DBMixin, BaseOrderedMixin, DisplayNameMixin
 
 class SurveyItemAudit(SurveyItemRead, AuditMixin):
     """Schema for auditing a survey item."""
-
-    pass
 
 
 # ==============================================================================
@@ -90,8 +82,6 @@ class SurveyScaleBase(BaseModel):
 class SurveyScaleCreate(SurveyScaleBase):
     """Schema for creating a survey scale."""
 
-    pass
-
 
 class SurveyScalePreview(SurveyScaleBase, DBMixin, DisplayNameMixin):
     """Schema for reading a survey scale."""
@@ -105,8 +95,6 @@ class SurveyScaleRead(SurveyScalePreview):
 
 class SurveyScaleAudit(SurveyScaleRead, AuditMixin):
     """Schema for auditing a survey scale."""
-
-    pass
 
 
 # ==============================================================================
@@ -124,8 +112,6 @@ class SurveyConstructBase(BaseModel):
 class SurveyConstructCreate(SurveyConstructBase):
     """Schema for creating a survey construct."""
 
-    pass
-
 
 class SurveyConstructPreview(SurveyConstructBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
     """Schema for reading a survey construct."""
@@ -140,5 +126,3 @@ class SurveyConstructRead(SurveyConstructPreview):
 
 class SurveyConstructAudit(SurveyConstructRead, AuditMixin):
     """Schema for auditing a survey construct."""
-
-    pass

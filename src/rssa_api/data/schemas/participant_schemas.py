@@ -6,7 +6,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, ConfigDict, computed_field, field_serializer, field_validator
 
 from .base_schemas import AuditMixin, DBMixin, DisplayInfoMixin, DisplayNameMixin
-from .study_components import StudyConditionPresent
+from .study_components import StudyConditionPresent, StudyParentMixin
 
 
 class StudyParticipantBase(BaseModel):
@@ -33,15 +33,6 @@ class StudyParticipantRead(StudyParticipantBase, DBMixin):
     current_status: str
 
     model_config = ConfigDict(frozen=True)
-
-
-class StudyParticipantTypeRead(BaseModel):
-    """Schema for reading a study participant type."""
-
-    id: uuid.UUID
-    type: str
-
-    model_config = {'from_attributes': True}
 
 
 class StudyParticipantReadWithCondition(StudyParticipantRead):
@@ -118,12 +109,11 @@ class ParticipantAttentionCheckResponseAudit(BaseModel):
     @computed_field
     def passed_attention(self) -> bool:
         if not self.responded_survey_scale_level_id:
-            print('NOTHING TO REPORT')
             return False
         return self.responded_survey_scale_level_id == self.study_attention_check.expected_survey_scale_level_id
 
 
-class ParticipantAuditRead(DBMixin, AuditMixin, DisplayNameMixin, DisplayInfoMixin):
+class ParticipantAuditRead(DBMixin, StudyParentMixin, AuditMixin, DisplayNameMixin, DisplayInfoMixin):
     id: uuid.UUID
     current_status: str | None = 'active'
 
@@ -132,6 +122,8 @@ class ParticipantAuditRead(DBMixin, AuditMixin, DisplayNameMixin, DisplayInfoMix
 
     source_meta: str | None
     attention_check_responses: list[ParticipantAttentionCheckResponseAudit] = []
+    is_verified: bool
+    discarded: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -140,3 +132,26 @@ class ParticipantAuditRead(DBMixin, AuditMixin, DisplayNameMixin, DisplayInfoMix
         if not self.attention_check_responses:
             return False
         return all(check.passed_attention for check in self.attention_check_responses)
+
+
+class ParticipantFreeformResponseMinimalRead(DBMixin):
+    context_tag: str
+    response_text: str
+
+
+class ParticipantStudyInteractionResponseRead(DBMixin):
+    context_tag: str
+    payload_json: dict[str, Any]
+
+
+class ParticipantAuditDetailRead(ParticipantAuditRead):
+    freeform_responses: list[ParticipantFreeformResponseMinimalRead] | None = None
+    activity_responses: list[ParticipantStudyInteractionResponseRead] | None = None
+    study_condition: StudyConditionPresent
+
+
+class ParticipantUpdate(BaseModel):
+    is_verified: bool | None = None
+    discarded: bool | None = None
+
+    model_config = ConfigDict(extra='forbid')

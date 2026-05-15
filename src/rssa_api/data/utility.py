@@ -5,7 +5,7 @@ import types
 import uuid
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, Union, get_args, get_origin
+from typing import Annotated, Any, Union, get_args, get_origin
 
 import sqlalchemy as sa
 from pydantic import BaseModel
@@ -66,6 +66,11 @@ def _unwrap_pydantic_annotation(annotation: Any) -> Any:
         args = get_args(annotation)
         if args:
             return _unwrap_pydantic_annotation(args[0])
+
+    if origin is Annotated:
+        args = get_args(annotation)[0]
+        if args:
+            return _unwrap_pydantic_annotation(args)
 
     return annotation
 

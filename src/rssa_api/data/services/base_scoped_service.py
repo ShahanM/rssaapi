@@ -18,6 +18,10 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
 
     scope_field: str
 
+    def __init__(self, repo: RepoType):
+        """Initailize with repository and mandatory scope."""
+        super().__init__(repo)
+
     @overload
     async def get(
         self,
@@ -52,45 +56,9 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
 
         return await super().get(id, schema, options=options)
 
-    @overload
-    async def get_all(
-        self, schema: type[SchemaType], *, owner_id: uuid.UUID | None = None, options: RepoQueryOptions
-    ) -> list[SchemaType]: ...
-
-    @overload
     async def get_all(
         self,
         schema: type[SchemaType],
-        *,
-        owner_id: uuid.UUID | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
-        sort_by: str | None = None,
-        sort_dir: str | None = None,
-        search: str | None = None,
-    ) -> list[SchemaType]: ...
-
-    @overload
-    async def get_all(
-        self, schema: None = None, *, owner_id: uuid.UUID | None = None, options: RepoQueryOptions
-    ) -> list[ModelType]: ...
-
-    @overload
-    async def get_all(
-        self,
-        schema: None = None,
-        *,
-        owner_id: uuid.UUID | None = None,
-        limit: int | None = None,
-        offset: int | None = None,
-        sort_by: str | None = None,
-        sort_dir: str | None = None,
-        search: str | None = None,
-    ) -> list[ModelType]: ...
-
-    async def get_all(
-        self,
-        schema: type[SchemaType] | None = None,
         *,
         owner_id: uuid.UUID | None = None,
         options: RepoQueryOptions | None = None,
@@ -99,7 +67,7 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         sort_by: str | None = None,
         sort_dir: str | None = None,
         search: str | None = None,
-    ) -> list[Any]:
+    ) -> list[SchemaType]:
         """Shadowed get_all: automatically applies owner scope."""
         options = options or RepoQueryOptions()
 
@@ -107,6 +75,7 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
             raise ValueError('Scoped repository must specify a owner_id parameter.')
 
         options.filters[self.scope_field] = owner_id
+
         if limit is not None:
             options.limit = limit
         if offset is not None:
@@ -119,6 +88,15 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
             options.search_text = search
 
         return await super().get_all(schema, options=options)
+
+    async def count(self, *, owner_id: uuid.UUID | None = None, options: RepoQueryOptions | None = None) -> int:
+        if not owner_id:
+            raise ValueError('Scoped repository must specify a owner_id parameter.')
+
+        options = options or RepoQueryOptions()
+        options.filters[self.scope_field] = owner_id
+
+        return await super().count(options=options)
 
     async def create(self, schema: BaseModel, *, owner_id: uuid.UUID | None = None, **kwargs) -> ModelType:
         """Shadowed create: automatically injects scope."""

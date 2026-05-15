@@ -16,6 +16,7 @@ from rssa_storage.rssadb.models.participant_movie_sequence import PreShuffledMov
 from rssa_storage.rssadb.models.study_components import ApiKey, User
 from rssa_storage.rssadb.repositories.study_admin import ApiKeyRepository, PreShuffledMovieRepository, UserRepository
 from rssa_storage.shared import RepoQueryOptions
+from sqlalchemy import func, select
 
 from rssa_api.core.config import get_env_var
 from rssa_api.data.schemas import Auth0UserSchema
@@ -162,91 +163,106 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
 
     async def create_pre_shuffled_movie_list(
         self,
-        # movie_ids: list[uuid.UUID],
         movie_data: list[dict],
-        subset: str,
-        strategy: str,
-        seed: int = 144,
-        page_size: int = 18,
+        subset_desc: str,
+        seed: int,
+        config_payload: dict,
     ) -> None:
-        """Create a pre-shuffled movie list via normalized junction table."""
-        random.seed(seed)
+        """Create a pre-shuffled movie list."""
+        local_rng = random.Random(seed)
 
+        strategy = config_payload.get('strategy', 'Random')
         if strategy == 'A-Res':
-            weighted_sort_list = []
-            for item in movie_data:
-                m_id = item['id']
-                weight = max(item['weight'], 0.0001)
-                u = random.random()
-
-                # Calculate A-Res key
-                key = u ** (1.0 / weight)
-                weighted_sort_list.append((key, m_id))
-
-            weighted_sort_list.sort(key=lambda x: x[0], reverse=True)
-
-            shuffled_ids = [m_id for key, m_id in weighted_sort_list]
+            sorted_movies = self._sort_weight_with_a_res(movie_data, local_rng)
+            shuffled_ids = [m_id for _, m_id in sorted_movies]
         elif strategy == 'Stratified Chunking RC':
             sorted_movies = sorted(movie_data, key=lambda x: x['rate_count'])
-            shuffled_ids = self._shuffle_stratified_chunking(sorted_movies, page_size)
+            shuffled_ids = self._shuffle_incremental_stratified_chunking(
+                sorted_movies,
+                config_payload.get('page_size', 18),
+                config_payload.get('popular_threshold', 0.15),
+                config_payload.get('popular_per_page', 0.05),
+                config_payload.get('popular_growth_rate', 0.20),
+                config_payload.get('initial_popular_schedue', [0, 0]),
+                rng=local_rng,
+            )
         elif strategy == 'Stratified Chunking AvgRatingLD':
-            # Score = average_rating * ln(1 + rate_count)
             sorted_movies = sorted(
                 movie_data, key=lambda x: x.get('average_rating', 0) * math.log1p(x.get('rate_count', 0))
+            )  # Score = average_rating * ln(1 + rate_count)
+            shuffled_ids = self._shuffle_incremental_stratified_chunking(
+                sorted_movies,
+                config_payload.get('page_size', 18),
+                config_payload.get('popular_threshold', 0.15),
+                config_payload.get('popular_per_page', 0.05),
+                config_payload.get('popular_growth_rate', 0.20),
+                config_payload.get('initial_popular_schedue', [0, 0]),
+                rng=local_rng,
             )
-            shuffled_ids = self._shuffle_stratified_chunking(sorted_movies, page_size)
         elif strategy == 'Stratified Chunking AvgRatingBA':
-            C = sum(m.get('average_rating', 0) for m in movie_data) / len(movie_data)  # dataset prior
-            m = sum(m.get('rate_count', 0) for m in movie_data) / len(movie_data)  # stabilizing prior
-
-            def bayesian_score(movie):
-                v = movie.get('rate_count', 0)
-                R = movie.get('average_rating', 0)
-                if (v + m) == 0:
-                    return 0
-                return (v / (v + m)) * R + (m / (v + m)) * C
-
-            sorted_movies = sorted(movie_data, key=bayesian_score)
-            shuffled_ids = self._shuffle_stratified_chunking(sorted_movies, page_size)
+            sorted_movies = self._sort_with_bayesian_average(
+                movie_data,
+                temporal_discounting=config_payload.get('temporal_discounting', True),
+                base_year=config_payload.get('base_year', 1985),
+                decay_rate=config_payload.get('decay_rate', 0.90),
+            )
+            stratify_w_genre = config_payload.get('include_genre_in_stratification', True)
+            if stratify_w_genre:
+                shuffled_ids = self._shuffle_stratified_chunking_with_genres(
+                    sorted_movies,
+                    config_payload.get('page_size', 18),
+                    config_payload.get('popular_threshold', 0.15),
+                    config_payload.get('popular_per_page', 0.05),
+                    config_payload.get('genre_bucket_size', 36),
+                    config_payload.get('active_anchor_limit', 60),
+                    config_payload.get('genre_repr_per_page', 0.10),
+                    local_rng,
+                )
+            else:
+                shuffled_ids = self._shuffle_incremental_stratified_chunking(
+                    sorted_movies,
+                    config_payload.get('page_size', 18),
+                    config_payload.get('popular_threshold', 0.15),
+                    config_payload.get('popular_per_page', 0.05),
+                    config_payload.get('popular_growth_rate', 0.20),
+                    config_payload.get('initial_popular_schedue', [0, 0]),
+                    rng=local_rng,
+                )
         else:
             shuffled_ids = [datum['id'] for datum in movie_data]  # Copy to avoid mutating original
-            random.shuffle(shuffled_ids)
+            local_rng.shuffle(shuffled_ids)
 
-        # preshuffled_list = PreShuffledMovieList(subset_desc=subset, seed=seed)
-        # preshuffled_list = await self.repo.create(preshuffled_list)
-
-        # items_data = [
-        # {'shuffle_list_id': preshuffled_list.id, 'movie_id': m_id, 'position': idx}
-        # for idx, m_id in enumerate(shuffled_ids)
-        # ]
-
-        # stmt = insert(ShuffledMovieListItem)
-        # await self.repo.db.execute(stmt, items_data)
-        # await self.repo.db.flush()
         preshuffled_list = PreShuffledMovieList(
-            subset_desc=subset,
-            seed=seed,
-            movie_ids=shuffled_ids,
+            subset_desc=subset_desc, seed=seed, movie_ids=shuffled_ids, **config_payload
         )
 
         await self.repo.create(preshuffled_list)
 
-    def _shuffle_stratified_chunking(self, sorted_movies: list[dict], page_size: int) -> list[uuid.UUID]:
-        # Define the threshold (e.g., top 25% of the dataset is considered "popular")
-        split_idx = int(len(sorted_movies) * 0.75)
+    def _shuffle_incremental_stratified_chunking(
+        self,
+        sorted_movies: list[dict],
+        page_size: int,
+        popular_threshold: float,
+        popular_per_page: float,
+        popular_growth_rate: float,
+        initial_popular_schedue: list[int],
+        rng,
+    ) -> list[uuid.UUID]:
+        split_idx = int(len(sorted_movies) * (1 - popular_threshold))
 
         obscure_bucket = [m['id'] for m in sorted_movies[:split_idx]]
         popular_bucket = [m['id'] for m in sorted_movies[split_idx:]]
 
-        random.shuffle(obscure_bucket)
-        random.shuffle(popular_bucket)
+        rng.shuffle(obscure_bucket)
+        rng.shuffle(popular_bucket)
 
-        # Cap popular movies at ~65% of the page
-        max_popular_per_page = int(page_size * 0.65)
+        max_popular_per_page = int(page_size * popular_per_page)
 
-        # Increase popular movies by ~20% of the page size each step (minimum of 1)
-        step_size = max(1, int(page_size * 0.20))
+        step_size = max(1, int(page_size * popular_growth_rate))
+
         popular_schedule = [0, 0]
+        if initial_popular_schedue is not None:
+            popular_schedule = initial_popular_schedue
         current_pop = step_size
         while current_pop < max_popular_per_page:
             popular_schedule.append(current_pop)
@@ -264,7 +280,6 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
             actual_pop = min(target_pop, len(popular_bucket))
             actual_obs = min(page_size - actual_pop, len(obscure_bucket))
 
-            # If we ran out of obscure movies, fill the rest of the page with popular ones (and vice versa)
             if actual_obs < (page_size - actual_pop):
                 actual_pop = min(page_size - actual_obs, len(popular_bucket))
 
@@ -274,11 +289,198 @@ class PreShuffledMovieService(BaseService[PreShuffledMovieList, PreShuffledMovie
             for _ in range(actual_pop):
                 page_items.append(popular_bucket.pop())
 
-            random.shuffle(page_items)
+            rng.shuffle(page_items)
 
             shuffled_ids.extend(page_items)
             page_num += 1
         return shuffled_ids
+
+    def _shuffle_stratified_chunking_with_genres(
+        self,
+        sorted_movies: list[dict],
+        page_size: int,
+        popular_threshold: float,  # Top 15%
+        popular_per_page: float,
+        genre_bucket_size: int,  # this is only for the candidate pool
+        active_anchor_limit: int,
+        genre_repr_per_page: float,
+        rng,
+    ) -> list[uuid.UUID]:
+        split_idx = int(len(sorted_movies) * popular_threshold)
+
+        raw_popular = sorted_movies[split_idx:]
+        obscure_bucket = [m['id'] for m in sorted_movies[:split_idx]]
+
+        genre_anchors = {}
+        general_popular = []
+
+        for movie in reversed(raw_popular):
+            genres = movie.get('genres', ['Unknown'])
+            if isinstance(genres, str):
+                genres = genres.split('|')
+
+            rng.shuffle(genres)
+
+            is_anchor = False
+            for g in genres:
+                if g not in genre_anchors:
+                    genre_anchors[g] = []
+
+                if len(genre_anchors[g]) < genre_bucket_size:
+                    genre_anchors[g].append(movie['id'])
+                    is_anchor = True
+                    break
+
+            if not is_anchor:
+                general_popular.append(movie['id'])
+
+        anchor_bucket, unused_candidates = self._shuffle_group_members(genre_anchors, active_anchor_limit, rng)
+        general_popular.extend(unused_candidates)
+        rng.shuffle(general_popular)
+        rng.shuffle(obscure_bucket)
+
+        return self._generate_shuffled_ids_from_buckets(
+            page_size,
+            anchor_bucket,
+            general_popular,
+            obscure_bucket,
+            popular_per_page,
+            genre_repr_per_page,
+            rng,
+        )
+
+    def _shuffle_group_members(
+        self, groups: dict[str, list], active_anchor_limit: int, rng
+    ) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
+        # Shuffle collection within each group
+        active_groups = list(groups.keys())
+        rng.shuffle(active_groups)
+
+        unused_candidates = []
+        group_anchors: dict[str, list] = {}
+        for g in active_groups:
+            rng.shuffle(groups[g])
+
+            unused_anchors = groups[g][active_anchor_limit:]
+            unused_candidates.extend(unused_anchors)
+            group_anchors[g] = groups[g][:active_anchor_limit]
+
+        # Use Round-Robin to pick to interleave group representation
+        anchor_bucket = []
+        while active_groups:
+            for g in list(active_groups):
+                if group_anchors[g]:
+                    anchor_bucket.append(group_anchors[g].pop())
+                else:
+                    active_groups.remove(g)
+
+        return (anchor_bucket, unused_candidates)
+
+    def _generate_shuffled_ids_from_buckets(
+        self,
+        page_size,
+        anchor_bucket: list[uuid.UUID],
+        general_popular: list[uuid.UUID],
+        obscure_bucket: list[uuid.UUID],
+        popular_per_page: float,
+        genre_repr_per_page: float,
+        rng,
+    ) -> list[uuid.UUID]:
+        target_anchors = max(1, int(page_size * genre_repr_per_page))
+        target_general = max(1, int(page_size * popular_per_page))
+
+        shuffled_ids = []
+
+        while obscure_bucket or anchor_bucket or general_popular:
+            page_items = []
+
+            actual_anchors = min(target_anchors, len(anchor_bucket))
+            for _ in range(actual_anchors):
+                page_items.append(anchor_bucket.pop())
+
+            actual_general = min(target_general, len(general_popular))
+            for _ in range(actual_general):
+                page_items.append(general_popular.pop())
+
+            remaining_slots = page_size - len(page_items)
+            actual_obscure = min(remaining_slots, len(obscure_bucket))
+            for _ in range(actual_obscure):
+                page_items.append(obscure_bucket.pop())
+
+            backfill_slots = page_size - len(page_items)
+            while backfill_slots > 0 and general_popular:
+                page_items.append(general_popular.pop())
+                backfill_slots -= 1
+
+            rng.shuffle(page_items)
+            shuffled_ids.extend(page_items)
+
+        return shuffled_ids
+
+    def _sort_with_bayesian_average(
+        self, movie_data: list[dict], *, temporal_discounting: bool, base_year: int, decay_rate: float = 0.95
+    ) -> list[dict]:
+        C = sum(m.get('average_rating', 0) for m in movie_data) / len(movie_data)  # dataset prior
+        m = sum(m.get('rate_count', 0) for m in movie_data) / len(movie_data)  # stabilizing prior
+
+        def bayesian_score(movie):
+            v = movie.get('rate_count', 0)
+            R = movie.get('average_rating', 0)
+
+            if (v + m) == 0:
+                return 0
+
+            base_score = (v / (v + m)) * R + (m / (v + m)) * C
+
+            if temporal_discounting:
+                try:
+                    year = int(movie.get('year', base_year))
+                except (ValueError, TypeError):
+                    year = base_year
+
+                if year < base_year:
+                    years_old = base_year - year
+                    decay_factor = math.pow(decay_rate, years_old)
+                    return base_score * decay_factor
+
+            return base_score
+
+        return sorted(movie_data, key=bayesian_score)
+
+    def _sort_weight_with_a_res(self, movie_data: list[dict], rng) -> list[dict]:
+        weighted_sort_list = []
+        for item in movie_data:
+            m_id = item['id']
+            weight = max(item['weight'], 0.0001)
+            u = rng.random()
+            key = u ** (1.0 / weight)  # Calculate A-Res key
+            weighted_sort_list.append((key, m_id))
+
+        weighted_sort_list.sort(key=lambda x: x[0], reverse=True)
+        return weighted_sort_list
+
+    @alru_cache(maxsize=128)
+    async def get_movie_ids(self, list_id: uuid.UUID, offset: int, limit: int) -> tuple[list[uuid.UUID], int]:
+        pg_start = offset + 1
+        pg_end = offset + limit
+
+        # FIXME: This is a leaky abstraction. DB access belongs in the repositories
+        stmt = select(
+            PreShuffledMovieList.movie_ids[pg_start:pg_end], func.array_length(PreShuffledMovieList.movie_ids, 1)
+        ).where(PreShuffledMovieList.id == list_id)
+
+        result = await self.repo.db.execute(stmt)
+        row = result.first()
+
+        if not row:
+            return ([], 0)
+
+        movie_ids_slice, total_count = row
+
+        if not movie_ids_slice:
+            movie_ids_slice = []
+
+        return (movie_ids_slice, total_count)
 
 
 class UserService(BaseService[User, UserRepository]):

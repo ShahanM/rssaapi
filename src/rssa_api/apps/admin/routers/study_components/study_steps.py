@@ -10,6 +10,7 @@ from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
 from rssa_api.data.schemas.study_components import (
+    StudyComponentCheck,
     StudyStepPageBase,
     StudyStepPageCreate,
     StudyStepRead,
@@ -83,7 +84,7 @@ async def get_pages_for_study_step(
     Returns:
         A list of ordered pages for the step.
     """
-    step = await step_service.get(step_id)
+    step = await step_service.get(step_id, StudyComponentCheck)
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 
@@ -125,7 +126,7 @@ async def create_page_for_step(
     Returns:
         The created page details.
     """
-    step = await step_service.get(step_id)
+    step = await step_service.get(step_id, StudyComponentCheck)
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 
@@ -199,7 +200,7 @@ async def delete_study_step(
     Returns:
         Empty dictionary on success.
     """
-    step = await step_service.get(step_id)
+    step = await step_service.get(step_id, StudyComponentCheck)
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 
@@ -236,7 +237,7 @@ async def reorder_step_pages(
     Returns:
         Empty dictionary on success.
     """
-    step = await step_service.get(step_id)
+    step = await step_service.get(step_id, StudyComponentCheck)
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 

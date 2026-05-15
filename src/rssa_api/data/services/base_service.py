@@ -76,39 +76,9 @@ class BaseService(Generic[ModelType, RepoType]):
             return schema.model_validate(data_obj)
         return data_obj
 
-    @overload
-    async def get_all(self, schema: type[SchemaType], *, options: RepoQueryOptions) -> list[SchemaType]: ...
-
-    @overload
     async def get_all(
         self,
         schema: type[SchemaType],
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        sort_by: str | None = None,
-        sort_dir: str | None = None,
-        search: str | None = None,
-    ) -> list[SchemaType]: ...
-
-    @overload
-    async def get_all(self, schema: None = None, *, options: RepoQueryOptions) -> list[ModelType]: ...
-
-    @overload
-    async def get_all(
-        self,
-        schema: None = None,
-        *,
-        limit: int | None = None,
-        offset: int | None = None,
-        sort_by: str | None = None,
-        sort_dir: str | None = None,
-        search: str | None = None,
-    ) -> list[ModelType]: ...
-
-    async def get_all(
-        self,
-        schema: type[SchemaType] | None = None,
         *,
         options: RepoQueryOptions | None = None,
         limit: int | None = None,
@@ -116,7 +86,7 @@ class BaseService(Generic[ModelType, RepoType]):
         sort_by: str | None = None,
         sort_dir: str | None = None,
         search: str | None = None,
-    ) -> list[Any]:
+    ) -> list[SchemaType]:
         """Generic fetch all."""
         if options is None:
             options = RepoQueryOptions()
@@ -169,15 +139,18 @@ class BaseService(Generic[ModelType, RepoType]):
         """
         await self.repo.delete(id)
 
-    async def count(self, search: str | None = None) -> int:
+    async def count(self, *, options: RepoQueryOptions | None = None) -> int:
         """Generic count, using SEARCHABLE_COLUMNS from repo.
 
         Args:
-            search: Optional search string to filter the count.
+            options: RepoQueryOptions to filter rows to count.
 
         Returns:
             The count of items matching the criteria.
         """
-        search_cols = getattr(self.repo, 'SEARCHABLE_COLUMNS', [])
-        options = RepoQueryOptions(search_text=search, search_columns=search_cols)
+        options = options or RepoQueryOptions()
+        if options.search_text:
+            search_cols = getattr(self.repo, 'SEARCHABLE_COLUMNS', [])
+            options.search_columns = search_cols
+
         return await self.repo.count(options)

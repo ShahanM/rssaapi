@@ -2,9 +2,9 @@
 
 import uuid
 from datetime import datetime
-from typing import ClassVar, Generic, TypeVar
+from typing import ClassVar, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from .base_schemas import (
     AuditMixin,
@@ -12,6 +12,7 @@ from .base_schemas import (
     DBMixin,
     DisplayInfoMixin,
     DisplayNameMixin,
+    EmptyStringToNoneMixin,
 )
 from .survey_components import (
     SurveyConstructPreview,
@@ -25,8 +26,8 @@ from .survey_components import (
 class ConditionCountSchema(BaseModel):
     """Schema for condition counts."""
 
-    condition_id: uuid.UUID
-    condition_name: str
+    study_condition_id: uuid.UUID
+    study_condition_name: str
     participant_count: int
 
 
@@ -55,6 +56,10 @@ class StudyParentMixin(BaseModel):
     """Mixin for study parent."""
 
     study_id: uuid.UUID
+
+
+class StudyComponentCheck(DBMixin, StudyParentMixin):
+    """Helper schema to authenticate study access."""
 
 
 class StudyMetaOverrideMixin(BaseModel):
@@ -97,13 +102,10 @@ class StudyConditionRead(StudyConditionBase, DBMixin, StudyParentMixin):
 
     enabled: bool
     short_code: str
-    pass
 
 
 class StudyConditionAdminSchema(StudyConditionRead, AuditMixin):
     """Schema for admin study condition."""
-
-    pass
 
 
 # ==============================================================================
@@ -126,8 +128,6 @@ class StudyAttentionCheckBase(BaseModel):
 class StudyAttentionCheckCreate(StudyAttentionCheckBase):
     """Schema for creating a study attention check."""
 
-    pass
-
 
 class StudyAttentionCheckRead(StudyAttentionCheckBase, DBMixin, DisplayNameMixin):
     """Schema for reading a study attention check.
@@ -139,13 +139,9 @@ class StudyAttentionCheckRead(StudyAttentionCheckBase, DBMixin, DisplayNameMixin
 
     _display_name_source_field: ClassVar[str] = 'text'
 
-    pass
-
 
 class StudyAttentionCheckAudit(StudyAttentionCheckRead, AuditMixin):
     """Schema for auditing an attention check."""
-
-    pass
 
 
 # ==============================================================================
@@ -246,18 +242,9 @@ class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMix
 class StudyStepPageContentPresent(StudyStepPageContentRead):
     """Used ONLY for the final FastAPI response."""
 
-    pass
-    # items: list[SurveyItemRead | ParticipantAttentionCheckResponseRead] = Field(default_factory=list)
-    # @computed_field
-    # @property
-    # def items(self) -> list[SurveyItemRead | ParticipantAttentionCheckResponseRead]:
-    #     if self.db_items and self.
-
 
 class StudyStepPageContentAudit(StudyStepPageContentRead, AuditMixin):
     """Schema for auditing study step page content."""
-
-    pass
 
 
 # ==============================================================================
@@ -300,8 +287,6 @@ class StudyStepPageRead(
 class StudyStepPageReadAdmin(StudyStepPageRead[StudyStepPageContentPreview]):
     """Schema for the admin dashboard."""
 
-    pass
-
 
 class StudyStepPagePresent(StudyStepPageRead[StudyStepPageContentPresent]):
     study_step_page_contents: list[StudyStepPageContentPresent] | None = Field(default_factory=list)
@@ -310,14 +295,25 @@ class StudyStepPagePresent(StudyStepPageRead[StudyStepPageContentPresent]):
 class StudyStepPageAudit(StudyStepPageRead, AuditMixin):
     """Schema for auditing study step page."""
 
-    pass
-
 
 # ==============================================================================
 # Study steps
 # table: study_step
 # model: StudyStep
 # ==============================================================================
+STEP_TYPE_TO_COMPONENT = {
+    'survey': 'SurveyStep',
+    'overview': 'StudyOverviewStep',
+    'task': 'TaskStep',
+    'preference-elicitation': 'PreferenceElicitationStep',
+    'consent': 'ConsentStep',
+    'instruction': 'InstructionStep',
+    'demographics': 'DemographicsStep',
+    'extras': 'ExtraStep',
+    'end': 'CompletionStep',
+}
+
+
 class StudyStepBase(StudyComponentBase):
     """Base schema for study step."""
 
@@ -333,6 +329,23 @@ class StudyStepCreate(StudyStepBase):
 
 class StudyStepPreview(StudyStepBase, DBMixin, BaseOrderedMixin, DisplayNameMixin, DisplayInfoMixin):
     study_id: uuid.UUID
+
+
+class StudyStepConfigRead(DBMixin):
+    step_type: str | None = None
+    path: str
+
+    @computed_field
+    @property
+    def component_type(self) -> str:
+        if self.step_type:
+            return STEP_TYPE_TO_COMPONENT[self.step_type]
+        return STEP_TYPE_TO_COMPONENT['extras']
+
+    @computed_field
+    @property
+    def step_id(self) -> uuid.UUID:
+        return self.id
 
 
 class StudyStepRead(
@@ -374,8 +387,6 @@ class StudyStepPresent(
 class StudyStepAudit(StudyStepBase, AuditMixin):
     """Schema for auditing study step."""
 
-    pass
-
 
 # ==============================================================================
 # Studies
@@ -385,13 +396,9 @@ class StudyStepAudit(StudyStepBase, AuditMixin):
 class StudyBase(StudyComponentBase):
     """Base schema for study."""
 
-    pass
-
 
 class StudyCreate(StudyBase):
     """Schema for creating study."""
-
-    pass
 
 
 class StudyRead(StudyBase, DBMixin, DisplayNameMixin, DisplayInfoMixin):
@@ -473,10 +480,115 @@ class StudyAuthorizationBase(BaseModel):
 class StudyAuthorizationCreate(StudyAuthorizationBase):
     """Schema for creating study authorization."""
 
-    pass
-
 
 class StudyAuthorizationRead(StudyAuthorizationBase, DBMixin, AuditMixin):
     """Schema for reading study authorization."""
 
     study_id: uuid.UUID
+
+
+class ShufflingMovieQuerySchema(DBMixin):
+    imdb_rate_count: int | None
+    imdb_avg_rating: float | None
+
+    movielens_rate_count: int
+    movielens_avg_rating: float
+
+    @computed_field
+    def rate_count(self) -> int:
+        if self.imdb_rate_count:
+            return int(self.imdb_rate_count)
+        return self.movielens_rate_count
+
+    @computed_field
+    def avg_rating(self) -> float:
+        if self.imdb_avg_rating:
+            return float(self.imdb_avg_rating)
+        return self.movielens_avg_rating
+
+
+class ShuffledMovieListCreate(EmptyStringToNoneMixin):
+    """Payload for generating a new pre-shuffled subset of movies."""
+
+    subset_desc: str
+    seeds: list[int] = [144]
+
+    strategy: Literal[
+        'A-Res',
+        'Stratified Chunking RC',
+        'Stratified Chunking AvgRatingLD',
+        'Stratified Chunking AvgRatingBA',
+        'Random',
+    ] = 'A-Res'
+
+    year_min: int | None = None
+    year_max: int | None = None
+    genre: str | None = None
+    min_rate_count: int = 50
+
+    exclude_no_emotions: bool = False
+    exclude_no_recommendations: bool = False
+
+    page_size: int | None = None
+    temporal_discounting: bool | None = None
+    base_year: int | None = None
+    decay_rate: float | None = None
+    include_genre_in_stratification: bool
+    popular_threshold: float | None = None
+    popular_per_page: float | None = None
+    popular_growth_rate: float | None = None
+    initial_popular_schedue: list[int] | None = None
+    genre_bucket_size: int | None = None
+    genre_repr_per_page: float | None = None
+    active_anchor_limit: int | None = None
+
+
+class ShuffledMovieList(DBMixin):
+    """ShhuffledMovieList schema."""
+
+    subset_desc: str
+    seed: int
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response model."""
+
+    detail: str
+
+
+class StudyCompletionPayload(BaseModel):
+    """Study completion payload."""
+
+    completion_code: str
+    redirect_url: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+class StudyConfigSchema(BaseModel):
+    """Schema for the full study configuration."""
+
+    study_id: uuid.UUID
+    steps: list[StudyStepConfigRead]
+
+
+class StudyDataSubset(DBMixin):
+    dataset_subset: str
+
+
+class ResumePayloadSchema(BaseModel):
+    """Payload for resuming a study session."""
+
+    resume_code: str
+
+
+class ResumeResponseSchema(BaseModel):
+    """Response schema for a resumed session."""
+
+    current_step_id: uuid.UUID
+    current_page_id: uuid.UUID | None = None
+    token: str
+
+    model_config = ConfigDict(from_attributes=True)

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from rssa_api.auth.security import get_auth0_authenticated_user, get_current_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
-from rssa_api.data.schemas.study_components import StudyConditionRead
+from rssa_api.data.schemas.study_components import StudyComponentCheck, StudyConditionRead
 from rssa_api.data.services.dependencies import StudyConditionServiceDep, StudyServiceDep
 from rssa_api.services.recommendation.registry import get_registry_keys
 
@@ -56,7 +56,7 @@ async def get_item(
     Returns:
         The study condition.
     """
-    condition = await service.get(condition_id)
+    condition = await service.get(condition_id, StudyConditionRead)
     if condition is None:
         raise (HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study condition was not found.'))
 
@@ -91,7 +91,7 @@ async def update_item(
     Returns:
         Success status.
     """
-    condition = await service.get(condition_id)
+    condition = await service.get(condition_id, StudyComponentCheck)
     if condition is None:
         raise (HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study condition was not found.'))
 

@@ -184,8 +184,6 @@ class RecommendationJsonPrefCommSchema(RecommendationJsonBaseSchema):
 class PreferenceVizRecommendedItemSchema(MovieSchema, PrefVizMetricsMixin):
     """Schema for a recommended item in preference visualization."""
 
-    pass
-
 
 class RecommendationJsonPrefVizSchema(RecommendationJsonBaseSchema):
     """Schema for PrefViz recommendation JSON."""
@@ -205,5 +203,3 @@ class RecommendationContextBaseSchema(BaseModel):
 
 class RecommendationContextSchema(RecommendationContextBaseSchema, DBMixin):
     """Schema for recommendation context with DB mixin."""
-
-    pass

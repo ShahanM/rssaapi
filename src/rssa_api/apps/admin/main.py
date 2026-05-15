@@ -6,6 +6,8 @@ from datetime import datetime
 from fastapi import FastAPI
 from starlette.types import ASGIApp
 
+from rssa_api.apps.admin.routers.study_components import study_participants
+
 from .docs import admin_tags_metadata
 from .routers import local_users as local_admin_users
 from .routers import movies as movie_admin
@@ -46,6 +48,7 @@ api: ASGIApp = FastAPI(
 """
 Admin routers
 """
+# Study components
 api.include_router(study_admin.router)
 api.include_router(step_admin.router)
 api.include_router(page_admin.router)
@@ -57,6 +60,10 @@ api.include_router(admin_users.router)
 api.include_router(local_admin_users.router)
 api.include_router(movie_admin.router)
 api.include_router(shuffled_lists.router)
+
+# Study participants
+api.include_router(study_participants.router)
+api.include_router(study_participants.audit_router)
 
 # Survey construct routers
 api.include_router(survey_constructs_router)

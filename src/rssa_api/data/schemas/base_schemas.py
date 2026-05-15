@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
@@ -52,7 +52,8 @@ class DisplayNameMixin:
     @property
     def display_name(self) -> str:
         """Get the display name from the source field."""
-        return getattr(self, self._display_name_source_field)
+        _val = getattr(self, self._display_name_source_field)
+        return str(_val) if _val is not None else ''
 
 
 class DisplayInfoMixin:
@@ -69,10 +70,11 @@ class DisplayInfoMixin:
     @property
     def display_info(self) -> str:
         """Get the display info from the source field."""
-        return getattr(self, self._display_info_source_field)
+        _val = getattr(self, self._display_info_source_field)
+        return str(_val) if _val is not None else ''
 
 
-class SortDir(str, Enum):
+class SortDir(StrEnum):
     """Enumeration for sort directions."""
 
     ASC = 'asc'
@@ -97,8 +99,6 @@ class BaseOrderedMixin(BaseModel):
 
 class ReorderPayloadSchema(BaseOrderedMixin, DBMixin):
     """A schema for reordering items in a list."""
-
-    pass
 
 
 class OrderedListItem(DisplayNameMixin, ReorderPayloadSchema):

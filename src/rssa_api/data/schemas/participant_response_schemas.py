@@ -11,12 +11,9 @@ from rssa_api.data.schemas.base_schemas import DBMixin, VersionMixin
 class ParticipantResponseContextMixin:
     """Mixin for participant response context."""
 
-    __abstract__ = True
-
     study_step_id: uuid.UUID
     study_step_page_id: uuid.UUID | None = None
     context_tag: str
-    pass
 
 
 class ParticipantSurveyResponseBase(BaseModel, ParticipantResponseContextMixin):
@@ -26,20 +23,14 @@ class ParticipantSurveyResponseBase(BaseModel, ParticipantResponseContextMixin):
     survey_item_id: uuid.UUID
     survey_scale_id: uuid.UUID
     survey_scale_level_id: uuid.UUID
-    pass
 
 
 class ParticipantSurveyResponseCreate(ParticipantSurveyResponseBase):
     """Schema for creating a participant survey response."""
 
-    pass
-
 
 class ParticipantSurveyResponseRead(ParticipantSurveyResponseBase, VersionMixin, DBMixin):
     """Schema for reading a participant survey response."""
-
-    pass
-    # survey_construct_id: uuid.UUID
 
 
 class ParticipantSurveyResponseUpdate(ParticipantSurveyResponseRead):
@@ -76,13 +67,9 @@ class ParticipantFreeformResponseBase(BaseModel, ParticipantResponseContextMixin
 class ParticipantFreeformResponseCreate(ParticipantFreeformResponseBase):
     """Schema for creating a participant freeform response."""
 
-    pass
-
 
 class ParticipantFreeformResponseRead(ParticipantFreeformResponseBase, VersionMixin, DBMixin):
     """Schema for reading a participant freeform response."""
-
-    pass
 
 
 class ParticipantFreeformResponseUpdate(ParticipantFreeformResponseRead):
@@ -114,7 +101,7 @@ class MovieLensRating(BaseModel):
 class DynamicPayload(BaseModel):
     """Schema for dynamic payload with extra fields."""
 
-    experimnet_condition: str | None = None
+    experiment_condition: str | None = None
     extra: dict[str, Any] = {}
 
     model_config = {'extra': 'allow'}
@@ -131,19 +118,13 @@ class ParticipantStudyInteractionResponseCreate(
 ):
     """Schema for creating a participant study interaction response."""
 
-    pass
-
 
 class ParticipantStudyInteractionResponseRead(ParticipantStudyInteractionResponseCreate, VersionMixin, DBMixin):
     """Schema for reading a participant study interaction response."""
 
-    pass
-
 
 class ParticipantStudyInteractionResponseUpdate(ParticipantStudyInteractionResponseBase, DBMixin, VersionMixin):
     """Schema for updating a participant study interaction response."""
-
-    pass
 
 
 class ParticipantAttentionCheckResponseRead(ParticipantResponseContextMixin, DBMixin, VersionMixin):
@@ -188,13 +169,9 @@ class FeedbackBaseSchema(BaseModel, ParticipantResponseContextMixin):
 class FeedbackSchema(FeedbackBaseSchema, VersionMixin, DBMixin):
     """Schema for feedback with DB mixin."""
 
-    pass
-
 
 class ParticipantRatingRead(ParticipantRatingBase, VersionMixin, DBMixin):
     """Schema for reading a participant rating."""
-
-    pass
 
 
 class ParticipantRatingUpdate(VersionMixin, DBMixin):

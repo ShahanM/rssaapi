@@ -5,10 +5,10 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema, UserSchema
+from rssa_api.data.schemas.auth_schemas import PaginatedUserResponse
 from rssa_api.data.schemas.base_schemas import SortDir
 from rssa_api.data.services.dependencies import UserServiceDep
 
@@ -19,13 +19,6 @@ router = APIRouter(
     tags=[ADMIN_USERS_TAG],
     dependencies=[Depends(get_auth0_authenticated_user)],
 )
-
-
-class PaginatedUserResponse(BaseModel):
-    """Paginated response for users."""
-
-    rows: list[UserSchema]
-    page_count: int
 
 
 @router.get(
