@@ -98,7 +98,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
         # where n_i, and m_j are the number of participants in the i'th and j'th conditions respectively and i != j
         # Shortcut: We remove the last assigned condition from the pool.
         condition_counts_rows = await self.study_condition_repo.get_participant_count_by_condition(
-            study_id, enabled_only=True
+            study_id, enabled_only=True, verified_participants_only=True
         )
 
         if not condition_counts_rows:
@@ -132,43 +132,6 @@ class StudyParticipantMovieSessionService(
         super().__init__(movie_session_repo)
         self.shuffled_movie_repo = shuffled_movie_repo
 
-    # @alru_cache(maxsize=128)
-    # async def get_next_session_movie_ids_batch(
-    #     self, participant_id: uuid.UUID, offset: int, limit: int
-    # ) -> PagedMoviesSchema | None:
-    #     """Fetches the next set of movies from a pre shuffles list.
-
-    #     Args:
-    #         participant_id: The participant's id.
-    #         offset: offset to skip
-    #         limit: number of movies to return.
-
-    #     Returns:
-    #         A list of movies wrapped in a paging wrapper.
-    #     """
-    #     participant_session = await self.repo.get_movie_session_by_participant_id(participant_id)
-    #     if not participant_session:
-    #         return None
-
-    #     list_id = participant_session.assigned_list_id
-
-    #     stmt = (
-    #         select(ShuffledMovieListItem.movie_id)
-    #         .where(ShuffledMovieListItem.shuffle_list_id == list_id)
-    #         .order_by(ShuffledMovieListItem.position.asc())
-    #         .offset(offset)
-    #         .limit(limit)
-    #     )
-    #     result = await self.repo.db.execute(stmt)
-    #     movie_ids = list(result.scalars().all())
-
-    #     if not movie_ids:
-    #         return None
-
-    #     count_stmt = select(func.count()).where(ShuffledMovieListItem.shuffle_list_id == list_id)
-    #     total_count = await self.repo.db.scalar(count_stmt)
-
-    #     return PagedMoviesSchema(movies=movie_ids, total=total_count or 0)
     @alru_cache(maxsize=128)
     async def get_next_session_movie_ids_batch(
         self, participant_id: uuid.UUID, offset: int, limit: int
@@ -183,7 +146,11 @@ class StudyParticipantMovieSessionService(
         Returns:
             A list of movies wrapped in a paging wrapper.
         """
-        participant_session = await self.repo.get_movie_session_by_participant_id(participant_id)
+        participant_session = await self.repo.find_one(
+            options=RepoQueryOptions(
+                filters={'study_participant_id': participant_id}, load_columns=['assigned_list_id']
+            )
+        )
         if not participant_session:
             return None
 
@@ -192,6 +159,7 @@ class StudyParticipantMovieSessionService(
         pg_start = offset + 1
         pg_end = offset + limit
 
+        # FIXME: This is a leaky abstraction. DB access belongs in the repositories
         stmt = select(
             PreShuffledMovieList.movie_ids[pg_start:pg_end], func.array_length(PreShuffledMovieList.movie_ids, 1)
         ).where(PreShuffledMovieList.id == list_id)
@@ -218,7 +186,8 @@ class StudyParticipantMovieSessionService(
             participant_id: The study_participant id.
             subset: A short string to identify the subset of ids to assign.
         """
-        shuffled_lists = await self.shuffled_movie_repo.get_all_shuffled_lists_by_subset(subset)
+        options = RepoQueryOptions(filters={'subset_desc': subset}, load_columns=['id'])
+        shuffled_lists = await self.shuffled_movie_repo.find_many(options)
         if shuffled_lists:
             random_list = random.choice(shuffled_lists)
             new_participant_sess = StudyParticipantMovieSession(
@@ -270,14 +239,7 @@ class ParticipantStudySessionService(BaseService[ParticipantStudySession, Partic
     """
 
     async def create_session(self, participant_id: uuid.UUID) -> ParticipantStudySession | None:
-        """Create a new ParticipantStudySession for the given participant.
-
-        Args:
-            participant_id: The ID of the participant.
-
-        Returns:
-            The created ParticipantStudySession, or None if creation failed after retries.
-        """
+        """Create a new ParticipantStudySession for the given participant."""
         for _ in range(MAX_RETRIES):
             resume_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
             expires_at = datetime.now(UTC) + timedelta(hours=24)
@@ -294,14 +256,7 @@ class ParticipantStudySessionService(BaseService[ParticipantStudySession, Partic
             return None
 
     async def get_session_by_resume_code(self, resume_code: str) -> ParticipantStudySession | None:
-        """Retrieve a ParticipantStudySession by its resume code.
-
-        Args:
-            resume_code: The resume code of the session.
-
-        Returns:
-            The ParticipantStudySession if found and valid, else None.
-        """
+        """Retrieve a ParticipantStudySession by its resume code."""
         session = await self.repo.find_one(RepoQueryOptions(filters={'resume_code': resume_code}))
         if not session:
             return None
