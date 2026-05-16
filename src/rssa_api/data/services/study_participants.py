@@ -1,6 +1,5 @@
 """Services related to the study participants."""
 
-import json
 import random
 import string
 import uuid
@@ -75,7 +74,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
             study_condition_id=condition_id,
             current_step_id=new_participant.current_step_id,
             current_page_id=new_participant.current_page_id,
-            source_meta=json.dumps(source_meta) if source_meta else None,
+            source_meta=source_meta,
             updated_at=func.now(),
         )
 
