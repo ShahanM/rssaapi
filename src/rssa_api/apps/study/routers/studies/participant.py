@@ -90,7 +90,8 @@ async def get_participant_demographic_info(
 ):
     dem_data = await service.get_demographic_info(id_token['sub'], DemographicsCreate)
     if not dem_data:
-        raise HTTPException(status_code=404, detail='Demographics not found.')
+        # raise HTTPException(status_code=404, detail='Demographics not found.')
+        return {}  # This is not an exception. We simply do not have the data to pre-populate the form.
 
     return dem_data
 

@@ -3,6 +3,7 @@
 import uuid
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, get_current_user, require_permissions
@@ -13,6 +14,7 @@ from rssa_api.data.schemas.study_components import StudyComponentCheck
 from rssa_api.data.services.dependencies import StudyServiceDep
 from rssa_api.data.services.study_components import StudyParticipantServiceDep
 
+logger = structlog.getLogger()
 router = APIRouter(
     prefix='/participants',
     dependencies=[Depends(get_auth0_authenticated_user)],
@@ -72,7 +74,12 @@ async def get_participant_audit_detail(
         has_access = await study_service.check_study_access(participant.study_id, current_user.id, min_role='editor')
         if not has_access:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Not authorized to view this study.')
-
+    logger.warn(
+        'PARTICIPANT',
+        id=participant.id,
+        freeform=participant.freeform_responses,
+        interaction=participant.activity_responses,
+    )
     return participant
 
 

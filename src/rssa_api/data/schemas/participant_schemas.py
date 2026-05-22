@@ -117,10 +117,11 @@ class ParticipantAuditRead(DBMixin, StudyParentMixin, AuditMixin, DisplayNameMix
     id: uuid.UUID
     current_status: str | None = 'active'
 
+    study_id: uuid.UUID
     _display_name_source_field: ClassVar[str] = 'id'
     _display_info_source_field: ClassVar[str] = 'current_status'
 
-    source_meta: str | None
+    source_meta: dict | None = None
     attention_check_responses: list[ParticipantAttentionCheckResponseAudit] = []
     is_verified: bool
     discarded: bool

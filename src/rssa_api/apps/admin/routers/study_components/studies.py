@@ -1,5 +1,7 @@
 """Router for managing study components in the admin API."""
 
+import csv
+import io
 import math
 import uuid
 from functools import reduce
@@ -8,6 +10,7 @@ from typing import Annotated
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from rssa_storage.shared import RepoQueryOptions
+from starlette.responses import StreamingResponse
 
 from rssa_api.auth.security import (
     get_auth0_authenticated_user,
@@ -23,6 +26,7 @@ from rssa_api.data.schemas.base_schemas import (
     ReorderPayloadSchema,
     SortDir,
 )
+from rssa_api.data.schemas.export_schemas import ExportStudy, ParticipantExportSchema, flatten_participant_for_csv
 from rssa_api.data.schemas.participant_schemas import ParticipantAuditRead
 from rssa_api.data.schemas.study_components import (
     ApiKeyBase,
@@ -46,6 +50,7 @@ from rssa_api.data.services.dependencies import (
     StudyStepServiceDep,
 )
 from rssa_api.data.services.study_components import StudyParticipantServiceDep
+from rssa_api.data.utility import generate_code_from_uuid
 
 from ...docs import ADMIN_STUDIES_TAG
 
@@ -108,8 +113,9 @@ async def get_studies(
     offset = page_index * page_size
     studies_from_db = []
     total_items = 0
+    options = RepoQueryOptions(search_text=search)
     if is_super_admin:
-        total_items = await study_service.count(search)
+        total_items = await study_service.count(options=options)
         studies_from_db = await study_service.get_all(
             PreviewSchema,
             limit=page_size,
@@ -698,28 +704,32 @@ async def get_study_participants(
     is_verified: bool | None = None,
     # status: str = Query(default='completed'),
 ):
-    # 2026-05-08 23:32:02.23193+00
-    # start_time = datetime(year=2026, month=5, day=8, hour=23, minute=32, second=2, microsecond=231930, tzinfo=UTC)
-    status = 'completed'
+    # status = 'completed'
+    # status = 'active'
+    status = ['completed', 'active']
     options = RepoQueryOptions(
-        # filter_ranges=[('created_at', '>=', start_time)],
         filters={'current_status': status, 'discarded': False},
     )
-
+    offset = page_index * page_size
     if is_verified is not None:
         options.filters['is_verified'] = is_verified
 
+    if not sort_by:
+        sort_by = 'created_at'
+    sorting = sort_dir.value if sort_dir else None
+    options.search_text = search
+    if sorting is None:
+        sorting = 'desc'
     participants = await participant_service.get_all(
         ParticipantAuditRead,
         owner_id=study_id,
         options=options,
         limit=page_size,
-        offset=page_index,
+        offset=offset,
         sort_by=sort_by,
-        sort_dir=sort_dir,
+        sort_dir=sorting,
         search=search,
     )
-    options.search_text = search
     total = await participant_service.count(owner_id=study_id, options=options)
     page_count = math.ceil(total / page_size) if total > 0 else 1
 
@@ -734,3 +744,63 @@ async def get_demographic_summary(
 ):
     summary = await participant_service.get_study_demographic_summary(study_id)
     return summary
+
+
+@router.get('/{study_id}/export', tags=['Admin'])
+async def export_study_data(
+    study_id: uuid.UUID,
+    participant_service: StudyParticipantServiceDep,
+    study_service: StudyServiceDep,
+):
+    study = await study_service.get(study_id, ExportStudy)
+    options = RepoQueryOptions(filters={'current_status': 'completed', 'discarded': False, 'is_verified': True})
+    participants: list[ParticipantExportSchema] = await participant_service.get_all(
+        schema=ParticipantExportSchema,
+        owner_id=study_id,
+        options=options,
+    )
+
+    if not participants:
+        raise HTTPException(status_code=404, detail='No data found for this study.')
+
+    header_mapping: dict[str, str] = {}
+    flat_data = [flatten_participant_for_csv(p, header_mapping) for p in participants]
+    base_headers = ['Participant_ID', 'Status', 'Condition']
+    final_fieldnames = base_headers + list(header_mapping.values())
+
+    label_row = {
+        'Participant_ID': 'De-identified Hash',
+        'Status': 'Participant Status',
+        'Condition': 'Assigned Study Condition',
+    }
+    for full_text, short_code in header_mapping.items():
+        label_row[short_code] = full_text
+
+    def iter_csv():
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=final_fieldnames)
+
+        writer.writeheader()
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate(0)
+
+        writer.writerow(label_row)
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate(0)
+
+        for row in flat_data:
+            writer.writerow(row)
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+
+    study_name = generate_code_from_uuid(study_id, 4)
+    if study:
+        study_name = study.name.replace(' ', '_')
+    return StreamingResponse(
+        iter_csv(),
+        media_type='text/csv',
+        headers={'Content-Disposition': f'attachment; filename=study_{study_name}_export.csv'},
+    )

@@ -24,3 +24,4 @@ rssa_db = RSSADatabase()
 deps = DependencyFactory(db_provider=rssa_db)
 get_repository = deps.get_repository
 get_service = deps.get_service
+get_scoped_service = deps.get_scoped_service

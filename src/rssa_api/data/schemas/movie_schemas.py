@@ -46,27 +46,27 @@ class MovieBase(DBMixin):
 class MovieSchema(DBMixin):
     """Base schema for a Movie."""
 
-    imdb_id: str | None
-    tmdb_id: str | None
+    # imdb_id: str | None
+    # tmdb_id: str | None
     movielens_id: str
 
     title: str
     year: int
-    ave_rating: float
+    # ave_rating: float
 
-    imdb_avg_rating: float | None
-    imdb_rate_count: int | None
+    # imdb_avg_rating: float | None
+    # imdb_rate_count: int | None
 
-    tmdb_avg_rating: float | None
-    tmdb_rate_count: int | None
+    # tmdb_avg_rating: float | None
+    # tmdb_rate_count: int | None
 
     genre: str
     director: str | None
     cast: str
     description: str
-    poster: str
+    # poster: str
     tmdb_poster: str | None = ''
-    poster_identifier: str | None = ''
+    # poster_identifier: str | None = ''
 
 
 class MovieUpdateSchema(BaseModel):

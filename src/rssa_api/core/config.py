@@ -91,3 +91,53 @@ CORS_ORIGINS = [
     'http://localhost:3370',
     'http://localhost:3360',
 ]
+
+STEP_TYPE_TO_COMPONENT = {
+    'survey': 'SurveyStep',
+    'overview': 'StudyOverviewStep',
+    'task': 'TaskStep',
+    'preference-elicitation': 'PreferenceElicitationStep',
+    'consent': 'ConsentStep',
+    'instruction': 'InstructionStep',
+    'demographics': 'DemographicsStep',
+    'extras': 'ExtraStep',
+    'end': 'CompletionStep',
+}
+
+AVATARS = {
+    'cow': {
+        'src': 'cow',
+        'alt': 'An image of a cow representing Anonymous Cow',
+        'name': 'Anonymous Cow',
+    },
+    'duck': {
+        'src': 'duck',
+        'alt': 'An image of a duck representing Anonymous Duck',
+        'name': 'Anonymous Duck',
+    },
+    'elephant': {
+        'src': 'elephant',
+        'alt': 'An image of an elephant representing Anonymous Elephant',
+        'name': 'Anonymous Elephant',
+    },
+    'zebra': {
+        'src': 'zebra',
+        'alt': 'An image of a zebra representing Anonymous Zebra',
+        'name': 'Anonymous Zebra',
+    },
+    'llama': {
+        'src': 'llama',
+        'alt': 'An image of a llama representing Anonymous Llama',
+        'name': 'Anonymous Llama',
+    },
+    'fox': {
+        'src': 'fox',
+        'alt': 'An image of a fox representing Anonymous Fox',
+        'name': 'Anonymous Fox',
+    },
+    'tiger': {
+        'src': 'tiger',
+        'alt': 'An image of a tiger representing Anonymous Tiger',
+        'name': 'Anonymous Tiger',
+    },
+}

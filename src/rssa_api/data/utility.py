@@ -1,5 +1,6 @@
 """Utility file to help with data modeling."""
 
+import hashlib
 import inspect
 import types
 import uuid
@@ -91,3 +92,9 @@ def extract_load_strategies(schema_cls: type[BaseModel]) -> tuple[list[str], dic
             top_level_cols.append(field_name)
 
     return top_level_cols, relationships
+
+
+def generate_code_from_uuid(entity_id: uuid.UUID, length=8) -> str:
+    """Creates a consistent, non-reversible 8-char shortcode from a UUID."""
+    # Using SHA-256 ensures it's mathematically impossible to guess the UUID
+    return hashlib.sha256(entity_id.bytes).hexdigest()[:8].upper()

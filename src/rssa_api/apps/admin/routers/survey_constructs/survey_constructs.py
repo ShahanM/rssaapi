@@ -5,6 +5,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
@@ -68,7 +69,8 @@ async def get_survey_constructs(
         Paginated list of constructs.
     """
     offset = page_index * page_size
-    total_items = await service.count(search=search)
+    options = RepoQueryOptions(search_text=search)
+    total_items = await service.count(options=options)
     constructs_from_db = await service.get_all(
         SurveyConstructPreview,
         limit=page_size,

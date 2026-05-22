@@ -5,6 +5,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic_core import ValidationError
 
 from rssa_api.auth.authorization import (
     authorize_api_key_for_study,
@@ -253,7 +254,14 @@ async def finalize_study(
 ):
     """Final step confirmation to retreive completion code and redirect url."""
     await participant_service.update(id_token['sub'], {'current_status': 'completed'})
-    completion_data = await service.get(id_token['sty'], StudyCompletionPayload)
+    try:
+        completion_data = await service.get(id_token['sty'], StudyCompletionPayload)
+    except ValidationError:
+        return {
+            'completion_code': 'No completion code found',
+            'redirect_url': 'Invalid or missing redirect url',
+            'message': 'Completion step is malformed, please contact the study administrator.',
+        }
     if completion_data is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail='Something went wrong, could not find a completion code.'

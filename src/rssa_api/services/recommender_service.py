@@ -1,11 +1,13 @@
 """Service for handling recommendation logic."""
 
 import asyncio
-import logging
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, cast
+from typing import Any, TypeVar
 
+import structlog
+from pydantic import BaseModel, TypeAdapter
 from rssa_storage.moviedb.repositories import MovieRepository
 from rssa_storage.rssadb.models.study_participants import ParticipantRecommendationContext
 from rssa_storage.rssadb.repositories.participant_responses import (
@@ -19,64 +21,31 @@ from rssa_storage.rssadb.repositories.study_participants import (
 )
 from rssa_storage.shared import RepoQueryOptions
 
+from rssa_api.core.config import AVATARS
 from rssa_api.core.queue import BackgroundWriteCommand, background_write_queue
-from rssa_api.data.schemas.movie_schemas import MovieDetailSchema
 from rssa_api.data.schemas.participant_response_schemas import (
     DynamicPayload,
     MovieLensRating,
 )
 from rssa_api.data.schemas.recommendations import (
-    AdvisorRecItem,
+    AdvisorEnrichedResponse,
+    AdvisorResponse,
     Avatar,
-    CommunityScoreRecItem,
+    ComparisonEnrichedResponse,
+    ComparisonResponse,
     EnrichedAdvisorRecItem,
     EnrichedCommunityScoreItem,
-    EnrichedRecUnionType,
     EnrichedResponseWrapper,
     ResponseWrapper,
+    StandardEnrichedResponse,
 )
+from rssa_api.data.utility import extract_load_strategies
 
 from .recommendation.registry import REGISTRY
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
-AVATARS = {
-    'cow': {
-        'src': 'cow',
-        'alt': 'An image of a cow representing Anonymous Cow',
-        'name': 'Anonymous Cow',
-    },
-    'duck': {
-        'src': 'duck',
-        'alt': 'An image of a duck representing Anonymous Duck',
-        'name': 'Anonymous Duck',
-    },
-    'elephant': {
-        'src': 'elephant',
-        'alt': 'An image of an elephant representing Anonymous Elephant',
-        'name': 'Anonymous Elephant',
-    },
-    'zebra': {
-        'src': 'zebra',
-        'alt': 'An image of a zebra representing Anonymous Zebra',
-        'name': 'Anonymous Zebra',
-    },
-    'llama': {
-        'src': 'llama',
-        'alt': 'An image of a llama representing Anonymous Llama',
-        'name': 'Anonymous Llama',
-    },
-    'fox': {
-        'src': 'fox',
-        'alt': 'An image of a fox representing Anonymous Fox',
-        'name': 'Anonymous Fox',
-    },
-    'tiger': {
-        'src': 'tiger',
-        'alt': 'An image of a tiger representing Anonymous Tiger',
-        'name': 'Anonymous Tiger',
-    },
-}
+T = TypeVar('T', bound=BaseModel)
 
 
 class RecommenderService:
@@ -109,28 +78,38 @@ class RecommenderService:
         """Get recommendations based on ratings."""
         if not context_data:
             # TODO: This will return the implicit top N.
-            return EnrichedResponseWrapper(response_type='standard', items=[])
+            return StandardEnrichedResponse(response_type='standard', items=[])
         # TODO: This should be a generic call to the recommender without needing participant context. The idea is for
         # this method to service the demo endpoints.
-        return EnrichedResponseWrapper(response_type='standard', items=[])
+        return StandardEnrichedResponse(response_type='standard', items=[])
+
+    async def get_participant_algorithm_key(self, study_participant_id: uuid.UUID) -> str:
+        """Exposes just the algorithm key for router schema negotiation."""
+        key, _ = await self._get_participant_algorithm_config(study_participant_id)
+        return key
 
     async def get_recommendations_for_study_participant(
-        self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict[str, Any]
+        self,
+        item_schema: type[T],
+        id_field: str,
+        study_id: uuid.UUID,
+        study_participant_id: uuid.UUID,
+        context_data: dict[str, Any],
     ) -> EnrichedResponseWrapper:
         """Get recommendations for a study participant."""
         step_id, context_tag, step_page_id = self._parse_recommendation_context(context_data)
-
         existing_result = await self._get_existing_recommendations(study_id, study_participant_id, context_tag)
         if existing_result:
-            return await self._process_recommendation_result(existing_result)
+            return await self._process_recommendation_result(item_schema, id_field, existing_result)
 
         dedup_key = f'{study_participant_id}_{context_tag}'
         if dedup_key in self._in_flight:
             log.info(f'Intercepted concurrent request. Joining in-flight generation for {dedup_key}')
             return await self._in_flight[dedup_key]
+
         gen_task = asyncio.create_task(
             self._generate_and_background_save(
-                study_id, step_id, step_page_id, study_participant_id, context_tag, context_data
+                item_schema, id_field, study_id, step_id, step_page_id, study_participant_id, context_tag, context_data
             )
         )
         self._in_flight[dedup_key] = gen_task
@@ -151,23 +130,32 @@ class RecommenderService:
             log.error(f'Background queue full! Dropped command: {task_name}')
 
     async def _generate_and_background_save(
-        self, study_id, step_id, step_page_id, study_participant_id, context_tag, context_data
+        self,
+        item_schema: type[T],
+        id_field: str,
+        study_id,
+        step_id,
+        step_page_id,
+        study_participant_id,
+        context_tag,
+        context_data,
     ):
         algorithm_key, limit = await self._get_participant_algorithm_config(study_participant_id)
         ratings = await self._get_translated_participant_ratings(study_participant_id)
-
         if context_data.get('emotion_input'):
             self._enqueue_command(
                 'upsert_interaction',
                 {'study_id': study_id, 'study_participant_id': study_participant_id, 'context_data': context_data},
             )
-
-        strategy = REGISTRY.get(algorithm_key)
-        if not strategy:
+        manifest = REGISTRY.get(algorithm_key)
+        if not manifest:
             raise ValueError(f'No strategy found for key: {algorithm_key}')
+        # strategy = REGISTRY.get(algorithm_key)
+        # if not strategy:
+        #     raise ValueError(f'No strategy found for key: {algorithm_key}')
 
         try:
-            result = await strategy.recommend(
+            result = await manifest.strategy.recommend(
                 user_id=str(study_participant_id), ratings=ratings, limit=limit, run_config=context_data
             )
         except Exception as e:
@@ -186,7 +174,7 @@ class RecommenderService:
             },
         )
 
-        return await self._process_recommendation_result(result)
+        return await self._process_recommendation_result(item_schema, id_field, result)
 
     def _parse_recommendation_context(self, context_data: dict[str, Any]) -> tuple[uuid.UUID, str, uuid.UUID | None]:
         """Extracts and validates required context fields."""
@@ -214,7 +202,8 @@ class RecommenderService:
         )
         if existing_ctx:
             log.info(f'Found existing context for {study_id} {study_participant_id} {context_tag}')
-            return ResponseWrapper.model_validate(existing_ctx.recommendations_json)
+            adapter = TypeAdapter(ResponseWrapper)
+            return adapter.validate_python(existing_ctx.recommendations_json)
 
         log.info(f'No existing context found for {study_id} {study_participant_id} {context_tag}')
         return None
@@ -276,72 +265,96 @@ class RecommenderService:
         )
         await self.recommendation_context_repository.create(rec_ctx)
 
-    async def _process_recommendation_result(self, result: ResponseWrapper) -> EnrichedResponseWrapper:
-        response_items: EnrichedRecUnionType
+    async def _process_recommendation_result(
+        self, item_schema: type[T], id_field: str, result: ResponseWrapper
+    ) -> EnrichedResponseWrapper:
+        # response_items: Sequence[EnrichedAdvisorRecItem[T] | EnrichedCommunityScoreItem[T] | T]
         if result.response_type == 'standard':
             # TODO: Check if we should use OrderedDict here or does dict in Python3 maintain order?
-            movies = await self._enrich_with_moviedata([str(rec_item) for rec_item in result.items])
-            response_items = {int(movie.movielens_id): movie for movie in movies}
-
+            items = await self._enrich_with_moviedata(
+                schema=item_schema, id_field=id_field, item_ids=[str(rec_item) for rec_item in result.items]
+            )
+            # response_items = {int(getattr(item, id_field)): item for item in items}
+            # response_items = list(items)
+            return StandardEnrichedResponse[T](response_type='standard', items=list(items))
         elif result.response_type == 'community_advisors':
-            response_items = await self._enrich_advisor_response(result)
+            items = await self._enrich_advisor_response(item_schema, id_field, result)
+            return AdvisorEnrichedResponse[T](response_type='community_advisors', items=list(items))
 
         elif result.response_type == 'community_comparison':
-            response_items = await self._enrich_pref_viz_response(result)
-        else:
-            raise KeyError('Result response_type key did not match any known types.')
+            items = await self._enrich_pref_viz_response(item_schema, id_field, result)
+            return ComparisonEnrichedResponse[T](response_type='community_comparison', items=list(items))
+        # else:
+        # raise KeyError('Result response_type key did not match any known types.')
 
-        return EnrichedResponseWrapper(response_type=result.response_type, items=response_items)
+        # return EnrichedResponseWrapper[T](response_type=result.response_type, items=list(response_items))
 
-    async def _enrich_advisor_response(self, response: ResponseWrapper) -> EnrichedRecUnionType:
+    async def _enrich_advisor_response(
+        self, schema: type[T], id_field: str, response: AdvisorResponse
+    ) -> list[EnrichedAdvisorRecItem[T]]:
         """Helper to hydrate Advisor responses with movie data."""
-        advisor_dict = {}
-        all_movie_ids = set()
-        advisors = []
-        for advisor in response.items:
-            advisor = cast(AdvisorRecItem, advisor)
-            advisors.append(advisor)
-            all_movie_ids.update([str(mid) for mid in advisor.profile_top_n])
-            all_movie_ids.add(str(advisor.recommendation))
-
-        all_movies = await self._enrich_with_moviedata(list(all_movie_ids))
-        movie_dict = {str(m.movielens_id): m for m in all_movies}
+        # advisors = []
         avatar_keys = list(AVATARS.keys())
-        for i, advisor in enumerate(advisors):
-            advisor_dict[advisor.id] = EnrichedAdvisorRecItem(
-                id=advisor.id,
-                recommendation=movie_dict[str(advisor.recommendation)],
-                avatar=Avatar.model_validate(AVATARS[avatar_keys[i % len(avatar_keys)]]),
-                profile_top_n=[movie_dict[str(rec)] for rec in advisor.profile_top_n],
-            )
-        return advisor_dict
+        all_item_ids: set[str] = set()
+        _advisors = []
+        for advisor in response.items:
+            # advisor = cast(AdvisorRecItem, advisor)
+            _advisors.append(advisor)
+            all_item_ids.update([str(mid) for mid in advisor.profile_top_n])
+            all_item_ids.add(str(advisor.recommendation))
 
-    async def _enrich_pref_viz_response(self, response: ResponseWrapper) -> EnrichedRecUnionType:
+        all_items = await self._enrich_with_moviedata(schema, id_field, list(all_item_ids))
+        movie_dict = {str(getattr(item, id_field)): item for item in all_items}
+
+        advisors = []
+        for i, advisor in enumerate(_advisors):
+            # advisor_dict[advisor.id] =
+            advisors.append(
+                EnrichedAdvisorRecItem[T](
+                    id=advisor.id,
+                    recommendation=movie_dict[str(advisor.recommendation)],
+                    avatar=Avatar.model_validate(AVATARS[avatar_keys[i % len(avatar_keys)]]),
+                    profile_top_n=[movie_dict[str(rec)] for rec in advisor.profile_top_n],
+                )
+            )
+        return advisors
+
+    async def _enrich_pref_viz_response(
+        self, schema: type[T], id_field: str, response: ComparisonResponse
+    ) -> list[EnrichedCommunityScoreItem[T]]:
         """Helper to hydrate Preference Visualization responses with movie data."""
         all_rec_ids = set()
         comm_scores = []
         for score_item in response.items:
-            score_item = cast(CommunityScoreRecItem, score_item)
+            # score_item = cast(CommunityScoreRecItem, score_item)
             comm_scores.append(score_item)
             all_rec_ids.add(score_item.item)
 
-        movies = await self._enrich_with_moviedata([str(mid) for mid in all_rec_ids])
-        movies_dict = {int(m.movielens_id): m for m in movies}
-        return {
-            score_item.item: EnrichedCommunityScoreItem(
-                item=movies_dict[int(score_item.item)], **score_item.model_dump(exclude={'item'})
+        items = await self._enrich_with_moviedata(schema, id_field, [str(mid) for mid in all_rec_ids])
+        items_dict = {int(getattr(item, id_field)): item for item in items}
+        return [
+            EnrichedCommunityScoreItem[T](
+                item=items_dict[int(score_item.item)], **score_item.model_dump(exclude={'item'})
             )
             for score_item in comm_scores
-        }
+        ]
 
-    async def _enrich_with_moviedata(self, movielens_ids: list[str]) -> list[MovieDetailSchema]:
+    async def _enrich_with_moviedata(self, schema: type[T], id_field: str, item_ids: Sequence[str]) -> list[T]:
         """Helper to enrich recommendations with movie data."""
-        movielens_ids = [str(mid) for mid in movielens_ids]
-        options = RepoQueryOptions(filters={'movielens_id': movielens_ids}, load_options=MovieRepository.LOAD_ALL)
-        movies = await self.movie_repository.find_many(options)
-        movie_map = {movie.movielens_id: MovieDetailSchema.model_validate(movie) for movie in movies}
+        top_cols, rel_map = extract_load_strategies(schema) if schema else (None, None)
 
-        return [movie_map[mid] for mid in movielens_ids]  # we must preserve original order, since they are ranked
+        item_ids = [str(mid) for mid in item_ids]
+
+        options = RepoQueryOptions(filters={id_field: item_ids})
+        if top_cols:
+            options.load_columns = top_cols
+        if rel_map:
+            options.load_relationships = rel_map
+
+        items = await self.movie_repository.find_many(options)  # FIXME the repository should be dynamic
+        item_map = {getattr(item, id_field): schema.model_validate(item) for item in items}
+
+        return [item_map[mid] for mid in item_ids]  # we must preserve original order, since they are ranked
 
     async def _upsert_interaction(self, study_id: uuid.UUID, study_participant_id: uuid.UUID, context_data: dict):
         """Helper to upsert participant interactions."""

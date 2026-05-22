@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from functools import singledispatchmethod
 from typing import Annotated, Any
 
@@ -58,7 +58,7 @@ ResponseSchemaType = (
 )
 
 
-class ResponseType(str, Enum):
+class ResponseType(StrEnum):
     """Enumeration of participant response types."""
 
     SURVEY_ITEM = 'survey_item'

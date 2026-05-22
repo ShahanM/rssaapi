@@ -1,10 +1,11 @@
 """Schemas for recommendations."""
 
-from typing import Literal
+import uuid
+from typing import Annotated, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from rssa_api.data.schemas.movie_schemas import MovieDetailSchema, MovieSchema
+T = TypeVar('T')
 
 
 class Avatar(BaseModel):
@@ -23,13 +24,13 @@ class AdvisorRecItem(BaseModel):
     profile_top_n: list[int | str]
 
 
-class EnrichedAdvisorRecItem(BaseModel):
+class EnrichedAdvisorRecItem(BaseModel, Generic[T]):
     """Schema for an enriched advisor recommendation item."""
 
     id: int
-    recommendation: MovieDetailSchema
+    recommendation: T
     avatar: Avatar | None
-    profile_top_n: list[MovieSchema]
+    profile_top_n: list[T]
 
 
 class CommunityScoreRecItem(BaseModel):
@@ -43,10 +44,10 @@ class CommunityScoreRecItem(BaseModel):
     cluster: int = 0
 
 
-class EnrichedCommunityScoreItem(BaseModel):
+class EnrichedCommunityScoreItem(BaseModel, Generic[T]):
     """Schema for enriched community score recommendation item."""
 
-    item: MovieSchema
+    item: T
     community_score: float
     score: float
     community_label: int
@@ -54,31 +55,109 @@ class EnrichedCommunityScoreItem(BaseModel):
     cluster: int = 0
 
 
-RecUnionType = AdvisorRecItem | CommunityScoreRecItem | int | str
+class StandardResponse(BaseModel):
+    response_type: Literal['standard']
+    items: list[int | str]
 
 
-class ResponseWrapper(BaseModel):
-    """Wrapper for raw recommendation responses from the algorithm."""
-
-    response_type: Literal['standard', 'community_advisors', 'community_comparison']
-    items: list[RecUnionType]
+class AdvisorResponse(BaseModel):
+    response_type: Literal['community_advisors']
+    items: list[AdvisorRecItem]
 
 
-EnrichedRecUnionType = (
-    dict[int, EnrichedAdvisorRecItem | EnrichedCommunityScoreItem | MovieDetailSchema] | list[MovieDetailSchema]
-)
+class ComparisonResponse(BaseModel):
+    response_type: Literal['community_comparison']
+    items: list[CommunityScoreRecItem]
 
 
-class EnrichedResponseWrapper(BaseModel):
-    """Wrapper for enriched recommendation responses sent to the frontend."""
+ResponseWrapper = Annotated[
+    StandardResponse | AdvisorResponse | ComparisonResponse, Field(discriminator='response_type')
+]
 
-    # Renamed from 'rec_type' to 'response_type' for consistency!
-    response_type: Literal['standard', 'community_advisors', 'community_comparison']
-    items: EnrichedRecUnionType
+
+class StandardEnrichedResponse(BaseModel, Generic[T]):
+    response_type: Literal['standard']
+    items: list[T]
+
+
+class AdvisorEnrichedResponse(BaseModel, Generic[T]):
+    response_type: Literal['community_advisors']
+    items: list[EnrichedAdvisorRecItem[T]]
+
+
+class ComparisonEnrichedResponse(BaseModel, Generic[T]):
+    response_type: Literal['community_comparison']
+    items: list[EnrichedCommunityScoreItem[T]]
+
+
+EnrichedResponseWrapper = Annotated[
+    StandardEnrichedResponse[T] | AdvisorEnrichedResponse[T] | ComparisonEnrichedResponse[T],
+    Field(discriminator='response_type'),
+]
 
 
 class TuningPayload(BaseModel):
-    """Payload for tuning recommendations."""
-
     sliders: dict[str, float] = Field(default_factory=dict)
     filters: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class RecommendationContextBase(BaseModel):
+    step_id: uuid.UUID
+    context_tag: str
+    step_page_id: uuid.UUID | None = None
+
+    model_config = ConfigDict(extra='allow')
+
+
+class StandardRecContext(RecommendationContextBase):
+    # Fixed the 'standard_emotions' typo here so it doesn't conflict with EmotionRecContext
+    schema_type: Literal['standard', 'standard_emotion', 'community_comparison', 'community_advisors']
+
+
+class EmotionRecContext(RecommendationContextBase):
+    schema_type: Literal['standard_emotion']
+    emotion_input: dict[str, float | str] = Field(..., description='Map of emotion keys to intensity values.')
+
+
+RecommendationRequestPayload = Annotated[StandardRecContext | EmotionRecContext, Field(discriminator='schema_type')]
+# RecUnionType = AdvisorRecItem | CommunityScoreRecItem | int | str
+
+
+# class ResponseWrapper(BaseModel):
+#     """Wrapper for raw recommendation responses from the algorithm."""
+
+#     response_type: Literal['standard', 'community_advisors', 'community_comparison']
+#     items: list[RecUnionType]
+
+
+# class EnrichedResponseWrapper(BaseModel, Generic[T]):
+#     """Wrapper for enriched recommendation responses sent to the frontend."""
+
+#     # Renamed from 'rec_type' to 'response_type' for consistency!
+#     response_type: Literal['standard', 'community_advisors', 'community_comparison']
+#     items: list[EnrichedAdvisorRecItem[T] | EnrichedCommunityScoreItem[T] | T]
+
+
+# class TuningPayload(BaseModel):
+#     """Payload for tuning recommendations."""
+
+#     sliders: dict[str, float] = Field(default_factory=dict)
+#     filters: dict[str, list[str]] = Field(default_factory=dict)
+
+
+# class RecommendationContextBase(BaseModel):
+#     step_id: uuid.UUID
+#     context_tag: str
+#     step_page_id: uuid.UUID | None = None
+
+
+# class StandardRecContext(RecommendationContextBase):
+#     schema_type: Literal['standard', 'standard_emotions', 'community_advisors', 'community_comparison']
+
+
+# class EmotionRecContext(RecommendationContextBase):
+#     schema_type: Literal['standard_emotion']
+#     emotion_input: dict[str, float] = Field(..., description='Map of emotion keys to intensity values.')
+
+
+# RecommendationRequestPayload = Annotated[StandardRecContext | EmotionRecContext, Field(discriminator='schema_type')]

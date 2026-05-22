@@ -1,9 +1,10 @@
 """Dependency Factory for Database Sessions."""
 
+import uuid
 from collections.abc import AsyncGenerator, Callable
 from typing import TYPE_CHECKING, Annotated, TypeVar
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Request
 from rssa_storage.shared import BaseRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,3 +39,38 @@ class DependencyFactory:
             return service_constructor(*repos)
 
         return _get_service
+
+    def get_scoped_service(
+        self,
+        service_constructor: Callable[..., S],
+        scope_param_name: str,
+        *repo_constructors: Callable[[AsyncSession], R],
+    ) -> Callable:
+        """Composite Factory for Scoped Services.
+
+        Dynamically extracts the owner ID from the request path.
+        """
+
+        def _get_scoped_service(
+            request: Request,
+            db: Annotated[AsyncSession, Depends(self.db_provider)],
+        ) -> S:
+            raw_id = request.path_params.get(scope_param_name) or request.query_params.get(scope_param_name)
+
+            if not raw_id:
+                raise ValueError(
+                    f"Scope parameter '{scope_param_name}' missing. "
+                    f'Must be provided in the URL path or as a query parameter.'
+                )
+
+            try:
+                owner_uuid = uuid.UUID(raw_id)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400, detail=f'Invalid UUID for {scope_param_name}: {raw_id}'
+                ) from ValueError
+
+            repos = [repo_cls(db) for repo_cls in repo_constructors]
+            return service_constructor(*repos, owner_id=owner_uuid)
+
+        return _get_scoped_service
