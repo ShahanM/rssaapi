@@ -112,9 +112,7 @@ class BaseService(Generic[ModelType, RepoType]):
 
         data_objs = await self.repo.find_many(options)
 
-        if schema:
-            return [schema.model_validate(obj) for obj in data_objs]
-        return list(data_objs)
+        return [schema.model_validate(obj) for obj in data_objs]
 
     async def update(self, id: uuid.UUID, update_dict: dict[str, Any]) -> None:
         """Generic update method.

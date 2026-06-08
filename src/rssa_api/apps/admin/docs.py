@@ -1,16 +1,17 @@
 """Documentation metadata for the Admin API."""
 
-ADMIN_USERS_TAG = 'Users [Admin]'
-ADMIN_MOVIES_TAG = 'Movies [Admin]'
-ADMIN_STUDIES_TAG = 'Studies [Admin]'
-ADMIN_STUDY_CONDITIONS_TAG = 'Study Conditions [Admin]'
-ADMIN_STUDY_STEPS_TAG = 'Study Steps [Admin]'
-ADMIN_STEP_PAGES_TAG = 'Step Pages [Admin]'
-ADMIN_SURVEY_CONSTRUCTS_TAG = 'Survey Constructs [Admin]'
-ADMIN_CONSTRUCT_ITEMS_TAG = 'Construct Items [Admin]'
-ADMIN_CONSTRUCT_SCALES_TAG = 'Construct Scales [Admin]'
-ADMIN_SCALE_LEVELS_TAG = 'Scale Levels [Admin]'
-ADMIN_SURVEY_PAGES_TAG = 'Survey Page Content [Admin]'
+ADMIN_USERS_TAG = 'Users'
+ADMIN_MOVIES_TAG = 'Movies'
+ADMIN_STUDIES_TAG = 'Studies'
+ADMIN_STUDY_CONDITIONS_TAG = 'Study Conditions'
+ADMIN_STUDY_STEPS_TAG = 'Study Steps'
+ADMIN_STEP_PAGES_TAG = 'Step Pages'
+ADMIN_SURVEY_CONSTRUCTS_TAG = 'Survey Constructs'
+ADMIN_CONSTRUCT_ITEMS_TAG = 'Construct Items'
+ADMIN_CONSTRUCT_SCALES_TAG = 'Construct Scales'
+ADMIN_SCALE_LEVELS_TAG = 'Scale Levels'
+ADMIN_SURVEY_PAGES_TAG = 'Survey Page Content'
+ADMIN_STUDY_PARTICIPANTS_TAG = 'Study Participants'
 
 admin_tags_metadata = [
     {

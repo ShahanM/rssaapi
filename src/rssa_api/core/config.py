@@ -22,9 +22,7 @@ def find_project_root() -> Path:
 try:
     PROJECT_ROOT = find_project_root()
 except RuntimeError as e:
-    # Handle the case where root isn't found during import time
     print(f'CRITICAL PATH ERROR: {e}', file=sys.stderr)
-    # Define a blank path so imports don't crash, but functions that use it will fail later
     PROJECT_ROOT = Path('/')
 
 # Runtime Directories
@@ -78,19 +76,6 @@ REQUIRED_AUTH0_VARS = [
 if any(not var for var in REQUIRED_AUTH0_VARS):
     logging.critical('One or more required Auth0 environment variables are not set.')
 
-
-CORS_ORIGINS = [
-    'http://localhost:3330',
-    'http://localhost:3330/*',
-    'http://localhost:3339',
-    'http://localhost:3339/*',
-    'http://localhost:3331',
-    'http://localhost:3340',
-    'http://localhost:3350',
-    'http://localhost:3000',
-    'http://localhost:3370',
-    'http://localhost:3360',
-]
 
 STEP_TYPE_TO_COMPONENT = {
     'survey': 'SurveyStep',

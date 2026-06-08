@@ -53,6 +53,7 @@ dependencies = [
     "aiobotocore>=3.1.1",
     "pre-commit>=4.5.1",
     "pandas>=3.0.2",
+    "horadric-lib[logging-extras]",
 ]
 
 [dependency-groups]
@@ -76,3 +77,4 @@ asyncio_mode = "auto"
 
 [tool.uv.sources]
 rssa-storage = { git = "https://github.com/ShahanM/rssa-storage" }
+horadric-lib = { git = "https://github.com/ShahanM/horadric-lib" }

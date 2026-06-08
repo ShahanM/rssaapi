@@ -3,10 +3,17 @@
 
 *logs/
 assets/models/
+runtime/
 
-__pycache__
+__pycache__/
 .~lock.*
 *.pyc
 *.pyo
 *.pyd
 
+.env
+build/
+.ruff_cache/
+.pytest_cache/
+.venv/
+venv/

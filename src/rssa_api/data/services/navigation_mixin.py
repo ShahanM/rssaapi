@@ -102,7 +102,6 @@ class NavigationMixin(ServiceProtocol[OrderedModelType, OrderedRepoType]):
         next_path = None
         if index < len(ordered):
             next_model = ordered[index]
-            logger.warn('STEP', next=next_model.id, path=getattr(next_model, 'path', 'failed'))
             next_id = next_model.id
             next_path = getattr(next_model, 'path', None)
 

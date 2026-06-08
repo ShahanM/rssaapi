@@ -6,15 +6,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import structlog
+from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from horadric_lib.logging import configure_logging
 from pydantic import ValidationError
 
 from rssa_api.apps import admin_api, demo_api, study_api
-from rssa_api.core.config import CORS_ORIGINS, PROJECT_ROOT, ROOT_PATH
-from rssa_api.core.logging import configure_structlog
+from rssa_api.core.config import PROJECT_ROOT, ROOT_PATH
 from rssa_api.core.middleware import StructlogAccessMiddleware
 from rssa_api.data.workers import db_writer_worker
 
@@ -24,7 +25,7 @@ logger = structlog.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
-    configure_structlog()
+    configure_logging('runtime/logs')
     logger.info('Starting up RSSA API...')
     worker_task = asyncio.create_task(db_writer_worker())
     yield
@@ -45,6 +46,7 @@ app = FastAPI(
     lifespan=lifespan,
     state={'CACHE': {}, 'CACHE_LIMIT': 100, 'queue': []},
     security=[{'Study ID': []}],
+    redirect_slashes=False,
     json_encoders={
         uuid.UUID: lambda obj: str(obj),
         datetime: lambda dt: dt.isoformat(),
@@ -80,14 +82,14 @@ app.mount('/demo', demo_api)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_origin_regex=r'^https://rssa-.*(\.recsys\.dev|-recsys-dev\.pages\.dev)$',
+    allow_origin_regex=r'^(https?://localhost:3\d{3}|https://rssa-.*(\.recsys\.dev|-recsys-dev\.pages\.dev))$',
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
 )
 
 app.add_middleware(StructlogAccessMiddleware)
+app.add_middleware(CorrelationIdMiddleware)
 
 
 @app.get('/')
