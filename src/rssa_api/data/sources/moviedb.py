@@ -5,7 +5,6 @@ from rssa_api.data.factory import DependencyFactory
 
 async_engine, AsyncSessionLocal = create_db_components(
     'MOVIE_DB_NAME',
-    # env_prefix='NEON',
     use_neon_params=False,
     echo=True,
 )

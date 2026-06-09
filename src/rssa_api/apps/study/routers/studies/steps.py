@@ -30,17 +30,7 @@ async def get_study_step(
     page_service: StudyStepPageServiceDep,
     token_content: Annotated[dict, Depends(decode_jwt)],
 ):
-    """Retrieves a step from the database via the StudyStepService.
-
-    Args:
-        step_id: The UUID of the study step to retrieve.
-        step_service: The dependency-injected study step service.
-        page_service: The dependency-injected study step page service.
-        token_content: The decoded jwt contaning the registered study_id, and current participant_id.
-
-    Returns:
-        StudyStepSchema: The study step object if found.
-    """
+    """Retrieves a step from the database via the StudyStepService."""
     step_result = await step_service.get_with_navigation(step_id, StudyStepPresent)
     if not step_result:
         raise HTTPException(status_code=404, detail='Study step not found.')

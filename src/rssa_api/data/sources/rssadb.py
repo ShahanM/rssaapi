@@ -1,13 +1,14 @@
 """Asynchronous database session management for the RSSA Database."""
 
+import rssa_api.core.config as cfg
 from rssa_api.data.db_base import BaseDatabaseContext, create_db_components
 from rssa_api.data.factory import DependencyFactory
 
-# Initialize components specifically for the RSSA DB
+is_development = cfg.get_env_var('ENV', 'production') == 'development'
 async_engine, AsyncSessionLocal = create_db_components(
     'RSSA_DB_NAME',
-    env_prefix='NEON',
-    use_neon_params=True,
+    env_prefix='DB' if is_development else 'NEON',
+    use_neon_params=not is_development,
     echo=True,
 )
 
