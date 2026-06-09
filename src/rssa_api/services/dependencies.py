@@ -1,4 +1,4 @@
-"""Dependency factory for router injection."""
+"""Recommender service definition for router dependecy injection."""
 
 from typing import Annotated
 

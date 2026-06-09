@@ -1,10 +1,10 @@
-"""Service for handling recommendation logic."""
+"""Recommender service logic for routing recommendation requests."""
 
 import asyncio
 import uuid
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import structlog
 from pydantic import BaseModel, TypeAdapter
@@ -46,6 +46,7 @@ from .recommendation.registry import REGISTRY
 log = structlog.getLogger(__name__)
 
 T = TypeVar('T', bound=BaseModel)
+U = TypeVar('U', bound=BaseModel)
 
 
 class RecommenderService:
@@ -90,7 +91,7 @@ class RecommenderService:
 
     async def get_recommendations_for_study_participant(
         self,
-        item_schema: type[T],
+        item_schema: tuple[type[T], type[U] | None],
         id_field: str,
         study_id: uuid.UUID,
         study_participant_id: uuid.UUID,
@@ -131,7 +132,7 @@ class RecommenderService:
 
     async def _generate_and_background_save(
         self,
-        item_schema: type[T],
+        item_schema: tuple[type[T], type[U] | None],
         id_field: str,
         study_id,
         step_id,
@@ -150,9 +151,6 @@ class RecommenderService:
         manifest = REGISTRY.get(algorithm_key)
         if not manifest:
             raise ValueError(f'No strategy found for key: {algorithm_key}')
-        # strategy = REGISTRY.get(algorithm_key)
-        # if not strategy:
-        #     raise ValueError(f'No strategy found for key: {algorithm_key}')
 
         try:
             result = await manifest.strategy.recommend(
@@ -266,55 +264,58 @@ class RecommenderService:
         await self.recommendation_context_repository.create(rec_ctx)
 
     async def _process_recommendation_result(
-        self, item_schema: type[T], id_field: str, result: ResponseWrapper
+        self,
+        item_schema: tuple[type[T], type[U] | None],
+        id_field: str,
+        result: ResponseWrapper,
     ) -> EnrichedResponseWrapper:
-        # response_items: Sequence[EnrichedAdvisorRecItem[T] | EnrichedCommunityScoreItem[T] | T]
         if result.response_type == 'standard':
-            # TODO: Check if we should use OrderedDict here or does dict in Python3 maintain order?
+            _schema = item_schema[0]  # We only want a single schema here, so we pick the first.
             items = await self._enrich_with_moviedata(
-                schema=item_schema, id_field=id_field, item_ids=[str(rec_item) for rec_item in result.items]
+                schema=_schema, id_field=id_field, item_ids=[str(rec_item) for rec_item in result.items]
             )
-            # response_items = {int(getattr(item, id_field)): item for item in items}
-            # response_items = list(items)
             return StandardEnrichedResponse[T](response_type='standard', items=list(items))
         elif result.response_type == 'community_advisors':
             items = await self._enrich_advisor_response(item_schema, id_field, result)
-            return AdvisorEnrichedResponse[T](response_type='community_advisors', items=list(items))
+            return AdvisorEnrichedResponse[T, U](response_type='community_advisors', items=cast(Any, list(items)))
 
         elif result.response_type == 'community_comparison':
-            items = await self._enrich_pref_viz_response(item_schema, id_field, result)
+            _schema = item_schema[0]  # We only want a single schema here, so we pick the first.
+            items = await self._enrich_pref_viz_response(_schema, id_field, result)
             return ComparisonEnrichedResponse[T](response_type='community_comparison', items=list(items))
-        # else:
-        # raise KeyError('Result response_type key did not match any known types.')
-
-        # return EnrichedResponseWrapper[T](response_type=result.response_type, items=list(response_items))
 
     async def _enrich_advisor_response(
-        self, schema: type[T], id_field: str, response: AdvisorResponse
-    ) -> list[EnrichedAdvisorRecItem[T]]:
+        self,
+        schemas: tuple[type[T], type[U] | None],
+        id_field: str,
+        response: AdvisorResponse,
+    ) -> list[EnrichedAdvisorRecItem[T, T | U]]:
         """Helper to hydrate Advisor responses with movie data."""
-        # advisors = []
         avatar_keys = list(AVATARS.keys())
-        all_item_ids: set[str] = set()
+        all_profile_item_ids: set[str] = set()
+        all_rec_item_ids: set[str] = set()
         _advisors = []
         for advisor in response.items:
-            # advisor = cast(AdvisorRecItem, advisor)
             _advisors.append(advisor)
-            all_item_ids.update([str(mid) for mid in advisor.profile_top_n])
-            all_item_ids.add(str(advisor.recommendation))
+            all_profile_item_ids.update([str(mid) for mid in advisor.profile_top_n])
+            all_rec_item_ids.add(str(advisor.recommendation))
 
-        all_items = await self._enrich_with_moviedata(schema, id_field, list(all_item_ids))
-        movie_dict = {str(getattr(item, id_field)): item for item in all_items}
+        advisor_schema, items_schema = schemas  # the first is always advisor because that is the recommendation
+        if items_schema is None:
+            items_schema = schemas[0]
+        all_profiles_items = await self._enrich_with_moviedata(items_schema, id_field, list(all_profile_item_ids))
+        all_rec_items = await self._enrich_with_moviedata(advisor_schema, id_field, list(all_rec_item_ids))
+        item_dict = {str(getattr(item, id_field)): item for item in all_profiles_items}
+        advisor_dict = {str(getattr(item, id_field)): item for item in all_rec_items}
 
         advisors = []
         for i, advisor in enumerate(_advisors):
-            # advisor_dict[advisor.id] =
             advisors.append(
-                EnrichedAdvisorRecItem[T](
+                EnrichedAdvisorRecItem(
                     id=advisor.id,
-                    recommendation=movie_dict[str(advisor.recommendation)],
+                    recommendation=advisor_dict[str(advisor.recommendation)],
                     avatar=Avatar.model_validate(AVATARS[avatar_keys[i % len(avatar_keys)]]),
-                    profile_top_n=[movie_dict[str(rec)] for rec in advisor.profile_top_n],
+                    profile_top_n=[item_dict[str(rec)] for rec in advisor.profile_top_n],
                 )
             )
         return advisors
@@ -326,7 +327,6 @@ class RecommenderService:
         all_rec_ids = set()
         comm_scores = []
         for score_item in response.items:
-            # score_item = cast(CommunityScoreRecItem, score_item)
             comm_scores.append(score_item)
             all_rec_ids.add(score_item.item)
 
@@ -351,7 +351,9 @@ class RecommenderService:
         if rel_map:
             options.load_relationships = rel_map
 
-        items = await self.movie_repository.find_many(options)  # FIXME the repository should be dynamic
+        # FIXME the repository should be dynamic
+        # OR we might consider refactoring the enrichment logic to respective domain dependent services.
+        items = await self.movie_repository.find_many(options)
         item_map = {getattr(item, id_field): schema.model_validate(item) for item in items}
 
         return [item_map[mid] for mid in item_ids]  # we must preserve original order, since they are ranked
@@ -363,8 +365,6 @@ class RecommenderService:
             if step_id_str:
                 step_id = uuid.UUID(str(step_id_str))
                 context_tag = context_data.get('tuning_tag', 'emotion_tuning')
-
-                # Check for existing interaction
                 existing_interaction = await self.participant_interaction_repository.find_one(
                     RepoQueryOptions(
                         filters={
