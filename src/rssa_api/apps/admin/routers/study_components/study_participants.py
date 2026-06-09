@@ -6,6 +6,7 @@ from typing import Annotated
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from rssa_api.apps.admin.docs import ADMIN_STUDY_PARTICIPANTS_TAG
 from rssa_api.auth.security import get_auth0_authenticated_user, get_current_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
@@ -17,11 +18,12 @@ from rssa_api.data.services.study_components import StudyParticipantServiceDep
 logger = structlog.getLogger()
 router = APIRouter(
     prefix='/participants',
+    tags=[ADMIN_STUDY_PARTICIPANTS_TAG],
     dependencies=[Depends(get_auth0_authenticated_user)],
 )
 
 
-@router.patch('/{participant_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.patch('/{participant_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_participant(
     participant_id: uuid.UUID,
     payload: ParticipantUpdate,
@@ -53,11 +55,12 @@ async def update_participant(
 
 audit_router = APIRouter(
     prefix='/participant-audits',
+    tags=[ADMIN_STUDY_PARTICIPANTS_TAG],
     dependencies=[Depends(get_auth0_authenticated_user)],
 )
 
 
-@audit_router.get('/{participant_id}', response_model=ParticipantAuditDetailRead)
+@audit_router.get('/{participant_id}/', response_model=ParticipantAuditDetailRead)
 async def get_participant_audit_detail(
     participant_id: uuid.UUID,
     service: StudyParticipantServiceDep,
@@ -83,7 +86,7 @@ async def get_participant_audit_detail(
     return participant
 
 
-@audit_router.patch('/{participant_id}', status_code=status.HTTP_204_NO_CONTENT)
+@audit_router.patch('/{participant_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_participant_audit(
     participant_id: uuid.UUID,
     payload: ParticipantUpdate,

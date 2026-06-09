@@ -23,7 +23,7 @@ router = APIRouter(
 
 
 @router.get(
-    '/authorizations/{authorization_id}',
+    '/authorizations/{authorization_id}/',
     response_model=StudyAuthorizationRead,
     summary='Get a study authorization by ID.',
     description="""
@@ -49,7 +49,7 @@ async def get_study_authorization(
 
 
 @router.delete(
-    '/authorizations/{authorization_id}',
+    '/authorizations/{authorization_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Delete a study authorization.',
     description="""

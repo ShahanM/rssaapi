@@ -54,20 +54,7 @@ async def get_survey_constructs(
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results by name or dscription'),
 ) -> PaginatedResponse[SurveyConstructPreview]:
-    """Get a paginated list of survey constructs.
-
-    Args:
-        service: The survey construct service.
-        _: Auth check.
-        page_index: The page number (0-indexed).
-        page_size: Items per page.
-        sort_by: Field to sort by.
-        sort_dir: Sort direction.
-        search: Search term.
-
-    Returns:
-        Paginated list of constructs.
-    """
+    """Get a paginated list of survey constructs."""
     offset = page_index * page_size
     options = RepoQueryOptions(search_text=search)
     total_items = await service.count(options=options)
@@ -85,7 +72,7 @@ async def get_survey_constructs(
 
 
 @router.get(
-    '/{construct_id}',
+    '/{construct_id}/',
     response_model=SurveyConstructRead,
     summary='Get a single instance of a survey construct',
     description="""
@@ -101,37 +88,20 @@ async def get_construct_detail(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
 ) -> SurveyConstructRead:
-    """Get details of a survey construct.
-
-    Args:
-        construct_id: The UUID of the construct.
-        service: The survey construct service.
-        _: Auth check.
-
-    Raises:
-        HTTPException: If construct is not found.
-
-    Returns:
-        The construct details.
-    """
+    """Get details of a survey construct."""
     construct = await service.get(construct_id, SurveyConstructRead)
-
     if not construct:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f'Survey construct with ID {construct_id} not found.'
         )
-
-    # logger.info(f'Retrieved construct details for ID {construct_id}: {construct}')
-
     return construct
 
 
 @router.get(
-    '/{construct_id}/summary',
+    '/{construct_id}/summary/',
     response_model=SurveyConstructRead,
     summary='Get a construct instance with its top level fields.',
-    description="""
-    """,
+    description="""""",
     response_description='',
 )
 async def get_construct_summary(
@@ -139,25 +109,11 @@ async def get_construct_summary(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
 ) -> SurveyConstructPreview:
-    """Get a summary of a survey construct.
-
-    Args:
-        construct_id: The UUID of the construct.
-        service: The survey construct service.
-        _: Auth check.
-
-    Raises:
-        HTTPException: If construct is not found.
-
-    Returns:
-        The construct summary.
-    """
+    """Get a summary of a survey construct."""
     construct_summary = await service.get(construct_id, SurveyConstructPreview)
 
     if not construct_summary:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Survey construct not found.')
-
-    # logger.info(f'Retrieved construct summary for ID {construct_id}: {construct_summary}')
 
     return construct_summary
 
@@ -166,8 +122,7 @@ async def get_construct_summary(
     '/',
     status_code=status.HTTP_201_CREATED,
     summary='Create a survey construct instance.',
-    description="""
-    """,
+    description="""""",
     response_description='HTTP 201 CREATED, or an appropriate HTTP',
 )
 async def create_survey_construct(
@@ -175,28 +130,17 @@ async def create_survey_construct(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('create:constructs', 'admin:all'))],
 ) -> dict[str, str]:
-    """Create a new survey construct.
-
-    Args:
-        new_construct: Data for the new construct.
-        service: The survey construct service.
-        _: Auth check.
-
-    Returns:
-        A success message.
-    """
+    """Create a new survey construct."""
     await service.create(new_construct)
 
     return {'message': 'Survey construct created.'}
 
 
 @router.patch(
-    '/{construct_id}',
+    '/{construct_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Update a survey construct instance.',
-    description="""
-    Updates an existing survey construct with the provided fields.
-    """,
+    description="""Updates an existing survey construct with the provided fields.""",
     response_description='HTTP 204 NO CONTENT on success.',
 )
 async def update_survey_construct(
@@ -205,27 +149,15 @@ async def update_survey_construct(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:constructs', 'admin:all'))],
 ) -> None:
-    """Update a survey construct.
-
-    Args:
-        construct_id: The UUID of the construct.
-        payload: Fields to update.
-        service: The survey construct service.
-        _: Auth check.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Update a survey construct."""
     await service.update(construct_id, payload)
 
 
 @router.delete(
-    '/{construct_id}',
+    '/{construct_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Delete a survey construct instance.',
-    description="""
-    Deletes a survey construct by its ID.
-    """,
+    description="""Deletes a survey construct by its ID.""",
     response_description='HTTP 204 NO CONTENT on success.',
 )
 async def delete_construct(
@@ -233,58 +165,30 @@ async def delete_construct(
     service: SurveyConstructServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:constructs', 'admin:all'))],
 ) -> None:
-    """Delete a survey construct.
-
-    Args:
-        construct_id: The UUID of the construct.
-        service: The survey construct service.
-        _: Auth check.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Delete a survey construct."""
     await service.delete(construct_id)
 
 
-@router.get('/{construct_id}/items', response_model=list[OrderedTextListItem])
+@router.get('/{construct_id}/items/', response_model=list[OrderedTextListItem])
 async def get_construct_items(
     construct_id: uuid.UUID,
     item_service: SurveyItemServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
 ) -> list[OrderedTextListItem]:
-    """Get items for a survey construct.
-
-    Args:
-        construct_id: The UUID of the construct.
-        item_service: The survey item service.
-        user: Auth check.
-
-    Returns:
-        A list of ordered items.
-    """
+    """Get items for a survey construct."""
     items = await item_service.get_all(OrderedTextListItem, owner_id=construct_id)
 
     return items
 
 
-@router.post('/{construct_id}/items', status_code=status.HTTP_201_CREATED)
+@router.post('/{construct_id}/items/', status_code=status.HTTP_201_CREATED)
 async def create_construct_item(
     construct_id: uuid.UUID,
     new_item: SurveyItemCreate,
     item_service: SurveyItemServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('create:items', 'admin:all'))],
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('create:items', 'admin:all'))],
 ) -> dict[str, str]:
-    """Create a new item for a survey construct.
-
-    Args:
-        construct_id: The UUID of the construct.
-        new_item: The data for the new item.
-        item_service: The survey item service.
-        user: Auth check.
-
-    Returns:
-        A success message.
-    """
+    """Create a new item for a survey construct."""
     await item_service.create(new_item, owner_id=construct_id)
 
     return {'message': 'Construct item created.'}
@@ -295,18 +199,8 @@ async def update_scale_levels_order(
     construct_id: uuid.UUID,
     service: SurveyItemServiceDep,
     payload: list[ReorderPayloadSchema],
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
 ) -> None:
-    """Update the order of items within a construct.
-
-    Args:
-        construct_id: The UUID of the construct.
-        service: The survey item service.
-        payload: List of item IDs and their new positions.
-        user: Auth check.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Update the order of items within a construct."""
     levels_map = {item.id: item.order_position for item in payload}
     await service.reorder_items(construct_id, levels_map)

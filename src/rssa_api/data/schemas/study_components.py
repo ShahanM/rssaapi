@@ -124,6 +124,11 @@ class StudyAttentionCheckBase(BaseModel):
     survey_scale_id: uuid.UUID
     expected_survey_scale_level_id: uuid.UUID
 
+    @computed_field
+    @property
+    def order_position(self) -> int:
+        return self.assigned_position
+
 
 class StudyAttentionCheckCreate(StudyAttentionCheckBase):
     """Schema for creating a study attention check."""
@@ -207,12 +212,15 @@ class StudyStepPageContentRead(StudyStepPageContentBase, DBMixin, BaseOrderedMix
 
     @computed_field
     @property
-    def items(self) -> list[SurveyItemRead]:
+    def items(self) -> list[SurveyItemRead | StudyAttentionCheckRead]:
         """Raw DB items only. Ignored by extract_load_strategies because it's a computed field."""
-        item_list: list = []
-        if self.survey_construct:
-            item_list = self.survey_construct.survey_items
+        # item_list: list = []
+        item_list: list = list(self.survey_construct.survey_items) if self.survey_construct else []
+        # if self.survey_construct:
+        # item_list = self.survey_construct.survey_items
         if self.study_attention_check:
+            # if self.study_attention_check in self.items:
+            # return item_list
             item_list.insert(self.study_attention_check.assigned_position, self.study_attention_check)
 
         return item_list

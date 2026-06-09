@@ -101,7 +101,7 @@ async def create_construct_scale(
     return {'message': 'Construct Scale created'}
 
 
-@router.get('/{scale_id}', response_model=SurveyScaleRead)
+@router.get('/{scale_id}/', response_model=SurveyScaleRead)
 async def get_construct_scale_detail(
     service: SurveyScaleServiceDep,
     scale_id: uuid.UUID,
@@ -125,7 +125,7 @@ async def get_construct_scale_detail(
     return SurveyScaleRead.model_validate(scale_in_db)
 
 
-@router.get('/{scale_id}/summary', response_model=SurveyScaleRead)
+@router.get('/{scale_id}/summary/', response_model=SurveyScaleRead)
 async def get_construct_scale(
     service: SurveyScaleServiceDep,
     scale_id: uuid.UUID,
@@ -149,7 +149,7 @@ async def get_construct_scale(
     return SurveyScaleRead.model_validate(scale_in_db)
 
 
-@router.patch('/{scale_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.patch('/{scale_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_survey_scale(
     scale_id: uuid.UUID,
     payload: dict[str, str],
@@ -170,7 +170,7 @@ async def update_survey_scale(
     await service.update(scale_id, payload)
 
 
-@router.delete('/{scale_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.delete('/{scale_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_construct_scale(
     service: SurveyScaleServiceDep,
     scale_id: uuid.UUID,
@@ -189,20 +189,12 @@ async def delete_construct_scale(
     await service.repo.delete(scale_id)
 
 
-@router.get('/{scale_id}/levels', response_model=list[SurveyScaleLevelRead])
+@router.get('/{scale_id}/levels/', response_model=list[SurveyScaleLevelRead])
 async def get_scale_levels(
     scale_id: uuid.UUID,
     service: SurveyScaleLevelServiceDep,
 ) -> list[SurveyScaleLevelRead]:
-    """Get levels associated with a survey scale.
-
-    Args:
-        scale_id: The UUID of the scale.
-        service: The scale level service.
-
-    Returns:
-        A list of ordered scale levels.
-    """
+    """Get levels associated with a survey scale."""
     levels_in_db = await service.get_all(SurveyScaleLevelRead, owner_id=scale_id)
     if not levels_in_db:
         return []
@@ -211,27 +203,14 @@ async def get_scale_levels(
     return converted
 
 
-@router.post('/{scale_id}/levels', response_model=SurveyScaleLevelRead)
+@router.post('/{scale_id}/levels/', response_model=SurveyScaleLevelRead)
 async def create_scale_level(
     scale_id: uuid.UUID,
     new_level: SurveyScaleLevelCreate,
     service: SurveyScaleLevelServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'create:levels'))],
 ) -> SurveyScaleLevelRead:
-    """Create a new level for a survey scale.
-
-    Args:
-        scale_id: The UUID of the scale.
-        new_level: Data for the new level.
-        service: The scale level service.
-        _: Authorization check.
-
-    Raises:
-        HTTPException: If scale_id in URL does not match payload.
-
-    Returns:
-        The created scale level.
-    """
+    """Create a new level for a survey scale."""
     if scale_id != new_level.survey_scale_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='There was an error due to scale mismatch.')
     new_scale_in_db = await service.create(new_level, owner_id=scale_id)
@@ -239,21 +218,12 @@ async def create_scale_level(
     return SurveyScaleLevelRead.model_validate(new_scale_in_db)
 
 
-@router.put('/{scale_id}/levels/order', status_code=status.HTTP_204_NO_CONTENT)
+@router.patch('/{scale_id}/levels/order/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_scale_levels_order(
     scale_id: uuid.UUID,
     service: SurveyScaleLevelServiceDep,
     payload: list[ReorderPayloadSchema],
 ) -> None:
-    """Reorder levels within a survey scale.
-
-    Args:
-        scale_id: The UUID of the scale.
-        service: The scale level service.
-        payload: List of level IDs and new positions.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Reorder levels within a survey scale."""
     levels_map = {level.id: level.order_position for level in payload}
     await service.reorder_items(scale_id, levels_map)

@@ -29,7 +29,7 @@ router = APIRouter(
 )
 
 
-@router.delete('/{content_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.delete('/{content_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def remove_survey_construct_from_page(
     content_id: uuid.UUID,
     service: StudyStepPageContentServiceDep,
@@ -39,20 +39,7 @@ async def remove_survey_construct_from_page(
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:content', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Remove a survey construct from a page.
-
-    Args:
-        content_id: The UUID of the content to remove.
-        service: The page content service.
-        page_service: The page service.
-        step_service: The step service.
-        study_service: The study service.
-        user: Auth check.
-        current_user: The current user.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Remove a survey construct from a page."""
     content = await service.get(content_id)
     if not content:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Content not found.')
@@ -74,7 +61,7 @@ async def remove_survey_construct_from_page(
     await service.delete(content_id)
 
 
-@router.patch('/{content_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.patch('/{content_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_page_content(
     content_id: uuid.UUID,
     payload: StudyStepPageContentUpdate,
@@ -85,21 +72,7 @@ async def update_page_content(
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:content', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Update page content (e.g., preamble).
-
-    Args:
-        content_id: The UUID of the content.
-        payload: Fields to update.
-        service: The page content service.
-        page_service: The page service.
-        step_service: The step service.
-        study_service: The study service.
-        user: Auth check.
-        current_user: The current user.
-
-    Returns:
-        Status message.
-    """
+    """Update page content (e.g., preamble)."""
     content = await service.get(content_id)
     if not content:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Content not found.')

@@ -70,7 +70,7 @@ router = APIRouter(
     description="""
     Get a paginated and sortable list of studies accessible to the current user.
 
-    This returns all studies where the user is either an owner or has specific
+    Returns all studies where the user is either an owner or has specific
     visibility privileges. Super Admins will see all studies in the system.
     """,
 )
@@ -94,19 +94,6 @@ async def get_studies(
 
     ## Permissions
     Requires one of: `read:studies`, `admin:all`, `read:authorized_studies`
-
-    Args:
-        study_service: The study service.
-        user: The authenticated user.
-        current_user: The current user details.
-        page_index: The page number to retrieve (0-indexed).
-        page_size: The number of items per page.
-        sort_by: The field to sort by.
-        sort_dir: The direction to sort (asc or desc).
-        search: A search term used to filter results.
-
-    Returns:
-        A paginated list of studies.
     """
     is_super_admin = 'admin:all' in user.permissions
 
@@ -141,7 +128,7 @@ async def get_studies(
 
 
 @router.get(
-    '/{study_id}',
+    '/{study_id}/',
     response_model=StudyAudit,
     responses={404: {'description': 'Study not found or user lacks permission'}},
     summary='Get a study details.',
@@ -179,15 +166,6 @@ async def get_study_detail(
     If the study does not exist or the user does not have permission,
     a generic `404 Not Found` is returned to prevent ID enumeration.
 
-    Args:
-        study_id: The UUID of the study.
-        study_service: The study service.
-        study_condition_service: The condition service.
-        user: The authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        The study details.
     """
     study = await study_service.get(study_id, StudyAudit)
 
@@ -226,15 +204,6 @@ async def create_study(
 
     ## Permissions
     Requires one of: `create:studies`, `admin:all`
-
-    Args:
-        new_study: The study data to create.
-        study_service: The service to handle study operations.
-        current_user: The currently authenticated user.
-        _: Auth check.
-
-    Returns:
-        The created study instance.
     """
     created_study = await study_service.create(new_study, owner_id=current_user.id)
 
@@ -242,7 +211,7 @@ async def create_study(
 
 
 @router.get(
-    '/{study_id}/steps',
+    '/{study_id}/steps/',
     status_code=status.HTTP_200_OK,
     response_model=list[OrderedListItem],
     summary='Get a list of steps.',
@@ -256,21 +225,13 @@ async def get_study_steps(
     """Get a list of steps for a study.
 
     Returns all steps associated with the given study ID, ordered by their position.
-
-    Args:
-        study_id: The UUID of the study.
-        step_service: The service to handle study step operations.
-        user: The currently authenticated user.
-
-    Returns:
-        A list of ordered study steps.
     """
     study_steps = await step_service.get_all(OrderedListItem, owner_id=study_id)
     return study_steps
 
 
 @router.post(
-    '/{study_id}/steps',
+    '/{study_id}/steps/',
     status_code=status.HTTP_201_CREATED,
     response_model=OrderedListItem,
     summary='Create a new study step.',
@@ -285,19 +246,7 @@ async def create_study_step(
     user: Annotated[Auth0UserSchema, Depends(require_permissions('create:steps', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> OrderedListItem:
-    """Create a new study step.
-
-    Args:
-        study_id: The UUID of the study to add the step to.
-        new_step_payload: The step data to create.
-        step_service: The service to handle study step operations.
-        study_service: The study service.
-        user: The currently authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        The created study step.
-    """
+    """Create a new study step."""
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='editor')
@@ -311,7 +260,7 @@ async def create_study_step(
 
 
 @router.get(
-    '/{study_id}/conditions',
+    '/{study_id}/conditions/',
     response_model=list[StudyConditionRead],
     summary='Get a list of conditions assigned to a study.',
     description="""Get a paginated list of conditions associated with a study.""",
@@ -324,18 +273,7 @@ async def get_study_conditions(
     page_index: int = Query(0, ge=0, description='The page number to retrieve (0-indexed)'),
     page_size: int = Query(10, ge=1, le=100, description='The number of items per page'),
 ) -> list[StudyConditionRead]:
-    """Get a list of conditions assigned to a study.
-
-    Args:
-        study_id: The UUID of the study.
-        condition_service: The service to handle condition operations.
-        user: The currently authenticated user.
-        page_index: The page number to retrieve (0-indexed).
-        page_size: The number of items per page.
-
-    Returns:
-        A list of study conditions.
-    """
+    """Get a list of conditions assigned to a study."""
     study_conditions = await condition_service.get_all(
         StudyConditionRead,
         owner_id=study_id,
@@ -346,7 +284,7 @@ async def get_study_conditions(
 
 
 @router.post(
-    '/{study_id}/conditions',
+    '/{study_id}/conditions/',
     status_code=status.HTTP_201_CREATED,
     summary='Create a study condition for a study.',
     description="""Create a new condition for the specified study.""",
@@ -360,19 +298,7 @@ async def create_study_condition(
     current_user: Annotated[UserSchema, Depends(get_current_user)],
     user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'create:conditions'))],
 ) -> StudyConditionRead:
-    """Create a study condition for a study.
-
-    Args:
-        study_id: The UUID of the study.
-        new_condition_payload: The condition data to create.
-        condition_service: The service to handle condition operations.
-        study_service: The study service.
-        current_user: The currently authenticated user.
-        user: The user with permissions.
-
-    Returns:
-        The created study condition.
-    """
+    """Create a study condition for a study."""
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='editor')
@@ -386,7 +312,7 @@ async def create_study_condition(
 
 
 @router.patch(
-    '/{study_id}',
+    '/{study_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Update a study.',
     description="""Updates an existing study with the provided fields.""",
@@ -398,18 +324,7 @@ async def update_study(
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:studies', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Update a study.
-
-    Args:
-        study_id: The UUID of the study to update.
-        payload: A dictionary of fields to update.
-        study_service: The service to handle study operations.
-        user: The currently authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        An empty dictionary on success.
-    """
+    """Update a study."""
     is_super_admin = 'admin:all' in user.permissions or 'update:studies' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='editor')
@@ -420,7 +335,7 @@ async def update_study(
 
 
 @router.delete(
-    '/{study_id}',
+    '/{study_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Delete a study.',
     description="""Deletes a study by its ID.""",
@@ -431,17 +346,7 @@ async def delete_study(
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:studies', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Delete a study.
-
-    Args:
-        study_id: The UUID of the study to delete.
-        study_service: The service to handle study operations.
-        user: The currently authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        An empty dictionary on success.
-    """
+    """Delete a study."""
     is_super_admin = 'admin:all' in user.permissions or 'delete:studies' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
@@ -451,7 +356,7 @@ async def delete_study(
     await study_service.delete(study_id)
 
 
-@router.patch('/{study_id}/steps/reorder', status_code=204)
+@router.patch('/{study_id}/steps/reorder/', status_code=204)
 async def reorder_study_steps(
     study_id: uuid.UUID,
     payload: list[ReorderPayloadSchema],
@@ -460,21 +365,7 @@ async def reorder_study_steps(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Reorder study steps.
-
-    Updates the order position of multiple steps within a study.
-
-    Args:
-        study_id: The UUID of the study.
-        payload: A list of objects containing step ID and new order position.
-        step_service: The service to handle study step operations.
-        study_service: The study service.
-        user: The currently authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        A success message.
-    """
+    """Reorder study steps."""
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='editor')
@@ -486,7 +377,7 @@ async def reorder_study_steps(
 
 
 @router.get(
-    '/{study_id}/steps/validate',
+    '/{study_id}/steps/validate/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Check if a step path is unique within a study',
     description="""Verifies that a proposed path for a study step is unique within the study.""",
@@ -498,20 +389,7 @@ async def validate_step_path_uniqueness(
     step_service: StudyStepServiceDep,
     exclude_step_id: uuid.UUID | None = None,
 ) -> None:
-    """Check if a step path is unique within a study.
-
-    Args:
-        study_id: The UUID of the study.
-        path: The path string to validate.
-        step_service: The service to handle study step operations.
-        exclude_step_id: Optional UUID of a step to exclude from the check (useful for updates).
-
-    Raises:
-        HTTPException: If the path is already in use (409 Conflict).
-
-    Returns:
-        An empty dictionary if valid.
-    """
+    """Check if a step path is unique within a study."""
     validated = await step_service.validate_step_path_uniqueness(study_id, path, exclude_step_id)
 
     if not validated:
@@ -522,7 +400,7 @@ async def validate_step_path_uniqueness(
 
 
 @router.post(
-    '/{study_id}/apikeys',
+    '/{study_id}/apikeys/',
     status_code=status.HTTP_201_CREATED,
     response_model=ApiKeyRead,
     summary='Generate a new API key for the study.',
@@ -536,19 +414,7 @@ async def generate_study_api_key(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> ApiKeyRead:
-    """Generate a new API key for a study.
-
-    Args:
-        study_id: The UUID of the study.
-        new_api_key_payload: The API key data (description).
-        key_service: The service to handle API key operations.
-        study_service: The study service.
-        user: The currently authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        The newly created API key details.
-    """
+    """Generate a new API key for a study."""
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
@@ -561,7 +427,7 @@ async def generate_study_api_key(
 
 
 @router.get(
-    '/{study_id}/apikeys',
+    '/{study_id}/apikeys/',
     status_code=status.HTTP_200_OK,
     response_model=list[ApiKeyRead],
     summary='Get a list of API keys.',
@@ -572,23 +438,14 @@ async def get_api_keys(
     service: ApiKeyServiceDep,
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> list[ApiKeyRead]:
-    """Get all API keys for a study.
-
-    Args:
-        study_id: The UUID of the study.
-        service: The service to handle API key operations.
-        current_user: The currently authenticated user.
-
-    Returns:
-        A list of API keys associated with the study.
-    """
+    """Get all API keys for a study."""
     keys = await service.get_api_keys_for_study(study_id, current_user.id)
 
     return keys
 
 
 @router.get(
-    '/{study_id}/authorizations',
+    '/{study_id}/authorizations/',
     response_model=list[StudyAuthorizationRead],
     summary='Get list of authorized users for a study.',
     description="""Get a list of users who are authorized to access this study.""",
@@ -599,17 +456,7 @@ async def get_study_authorizations(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> list[StudyAuthorizationRead]:
-    """Get list of authorized users for a study.
-
-    Args:
-        study_id: The UUID of the study.
-        study_service: The study service.
-        user: The authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        List of authorized users.
-    """
+    """Get list of authorized users for a study."""
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
@@ -621,7 +468,7 @@ async def get_study_authorizations(
 
 
 @router.post(
-    '/{study_id}/authorizations',
+    '/{study_id}/authorizations/',
     status_code=status.HTTP_201_CREATED,
     response_model=StudyAuthorizationRead,
     summary='Add an authorized user to a study.',
@@ -634,18 +481,7 @@ async def add_study_authorization(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> StudyAuthorizationRead:
-    """Add an authorized user to a study.
-
-    Args:
-        study_id: The UUID of the study.
-        payload: Authorization details.
-        study_service: The study service.
-        user: The authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        The created authorization.
-    """
+    """Add an authorized user to a study."""
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
@@ -657,7 +493,7 @@ async def add_study_authorization(
 
 
 @router.delete(
-    '/{study_id}/authorizations/{user_id}',
+    '/{study_id}/authorizations/{user_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Remove an authorized user from a study.',
     description="""Revoke access for a user to a study.""",
@@ -669,18 +505,7 @@ async def remove_study_authorization(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Remove an authorized user from a study.
-
-    Args:
-        study_id: The UUID of the study.
-        user_id: The UUID of the user to remove.
-        study_service: The study service.
-        user: The authenticated user.
-        current_user: The current user details.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Remove an authorized user from a study."""
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
         has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
@@ -690,7 +515,7 @@ async def remove_study_authorization(
     await study_service.remove_study_authorization(study_id, user_id)
 
 
-@router.get('/{study_id}/participants', response_model=PaginatedResponse[ParticipantAuditRead])
+@router.get('/{study_id}/participants/', response_model=PaginatedResponse[ParticipantAuditRead])
 async def get_study_participants(
     study_id: uuid.UUID,
     # start_datetime: datetime,
@@ -736,7 +561,7 @@ async def get_study_participants(
     return PaginatedResponse[ParticipantAuditRead](data=participants, page_count=page_count, total=total)
 
 
-@router.get('/{study_id}/demographics/summary')
+@router.get('/{study_id}/demographics/summary/')
 async def get_demographic_summary(
     study_id: uuid.UUID,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
@@ -746,7 +571,7 @@ async def get_demographic_summary(
     return summary
 
 
-@router.get('/{study_id}/export', tags=['Admin'])
+@router.get('/{study_id}/export/')
 async def export_study_data(
     study_id: uuid.UUID,
     participant_service: StudyParticipantServiceDep,

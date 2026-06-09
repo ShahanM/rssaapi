@@ -137,7 +137,7 @@ async def create_new_shuffled_list(
 
 
 @router.get(
-    '/{list_id}/movies',
+    '/{list_id}/movies/',
     response_model=PaginatedResponse[MovieGalleryPreview],
     summary='Get paginated movies for a specific shuffled list',
 )
@@ -161,7 +161,7 @@ async def get_shuffled_list_movies(
     return PaginatedResponse[MovieGalleryPreview](data=movies, page_count=page_count, total=total)
 
 
-@router.delete('/{list_id}', status_code=status.HTTP_204_NO_CONTENT, summary='Delete a pre-shuffled movie list')
+@router.delete('/{list_id}/', status_code=status.HTTP_204_NO_CONTENT, summary='Delete a pre-shuffled movie list')
 async def delete_shuffled_list(
     list_id: uuid.UUID,
     shuffled_list_service: PreShuffledMovieServiceDep,

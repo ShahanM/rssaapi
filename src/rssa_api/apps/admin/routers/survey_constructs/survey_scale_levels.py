@@ -18,7 +18,7 @@ router = APIRouter(
 )
 
 
-@router.delete('/{level_id}', status_code=204)
+@router.delete('/{level_id}/', status_code=204)
 async def delete_scale_level(
     service: SurveyScaleLevelServiceDep,
     level_id: uuid.UUID,
@@ -47,7 +47,7 @@ async def delete_scale_level(
     await service.delete(level_id)
 
 
-@router.patch('/{level_id}', status_code=204)
+@router.patch('/{level_id}/', status_code=204)
 async def update_scale_level(
     level_id: uuid.UUID,
     updated_level: dict[str, str | int],

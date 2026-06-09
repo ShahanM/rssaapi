@@ -22,7 +22,7 @@ router = APIRouter(
 )
 
 
-@router.get('/{item_id}', response_model=SurveyItemRead)
+@router.get('/{item_id}/', response_model=SurveyItemRead)
 async def get_item(
     item_id: uuid.UUID,
     service: SurveyItemServiceDep,
@@ -43,7 +43,7 @@ async def get_item(
 
 
 @router.patch(
-    '/{item_id}',
+    '/{item_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Update a survey item.',
     description="""

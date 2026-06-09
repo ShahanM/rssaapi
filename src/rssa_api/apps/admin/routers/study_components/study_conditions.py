@@ -21,22 +21,15 @@ router = APIRouter(
 )
 
 
-@router.get('/recommender-keys', response_model=list[dict[str, str]])
+@router.get('/recommender-keys/', response_model=list[dict[str, str]])
 async def get_recommender_keys(
     user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'read:conditions'))],
 ) -> list[dict[str, str]]:
-    """Get the available recommender registry keys.
-
-    Args:
-        user: The authenticated user.
-
-    Returns:
-        List of registry keys.
-    """
+    """Get the available recommender registry keys."""
     return get_registry_keys()
 
 
-@router.get('/{condition_id}', response_model=StudyConditionRead)
+@router.get('/{condition_id}/', response_model=StudyConditionRead)
 async def get_item(
     condition_id: uuid.UUID,
     service: StudyConditionServiceDep,
@@ -44,18 +37,7 @@ async def get_item(
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> StudyConditionRead:
-    """Get a study condition by ID.
-
-    Args:
-        condition_id: The UUID of the condition.
-        service: The study condition service.
-        study_service: The study service.
-        user: The authenticated user.
-        current_user: The current user.
-
-    Returns:
-        The study condition.
-    """
+    """Get a study condition by ID."""
     condition = await service.get(condition_id, StudyConditionRead)
     if condition is None:
         raise (HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study condition was not found.'))
@@ -69,7 +51,7 @@ async def get_item(
     return StudyConditionRead.model_validate(condition)
 
 
-@router.patch('/{condition_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router.patch('/{condition_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_item(
     condition_id: uuid.UUID,
     service: StudyConditionServiceDep,
@@ -78,19 +60,7 @@ async def update_item(
     current_user: Annotated[UserSchema, Depends(get_current_user)],
     payload: dict[str, Any],
 ) -> None:
-    """Update a study condition.
-
-    Args:
-        condition_id: The UUID of the condition.
-        service: The study condition service.
-        study_service: The study service.
-        user: The authenticated user.
-        current_user: The current user.
-        payload: The payload to update.
-
-    Returns:
-        Success status.
-    """
+    """Update a study condition."""
     condition = await service.get(condition_id, StudyComponentCheck)
     if condition is None:
         raise (HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study condition was not found.'))

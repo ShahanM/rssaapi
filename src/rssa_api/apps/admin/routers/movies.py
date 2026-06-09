@@ -30,12 +30,10 @@ router = APIRouter(
 
 
 @router.get(
-    '/summary',
+    '/summary/',
     response_model=list[MovieSchema],
     summary='Get movie summaries.',
-    description="""
-    Get a list of movies with summary details.
-    """,
+    description="""Get a list of movies with summary details.""",
 )
 async def get_movies(
     movie_service: MovieServiceDep,
@@ -49,23 +47,7 @@ async def get_movies(
     exclude_no_emotions: bool = Query(False, description='Exclude movies without emotions'),
     exclude_no_recommendations: bool = Query(False, description='Exclude movies without LLM recommendations'),
 ) -> list[MovieSchema]:
-    """Get movie summaries.
-
-    Args:
-        movie_service: The movie service.
-        offset: Start index.
-        limit: Max items to return.
-        title: Title filter.
-        year_min: Min release year.
-        year_max: Max release year.
-        genre: Genre filter.
-        sort_by: Sort field.
-        exclude_no_emotions: Exclude missing emotions.
-        exclude_no_recommendations: Exclude missing recommendations.
-
-    Returns:
-        List of movie summaries.
-    """
+    """Get movie summaries."""
     movies = await movie_service.get_all_cached(
         MovieSchema,
         limit,
@@ -103,23 +85,7 @@ async def get_movies_with_details(
     exclude_no_emotions: bool = Query(False, description='Exclude movies without emotions'),
     exclude_no_recommendations: bool = Query(False, description='Exclude movies without LLM recommendations'),
 ) -> PaginatedResponse[MovieGalleryPreview]:
-    """Get movies with details.
-
-    Args:
-        movie_service: The movie service.
-        offset: Start index.
-        limit: Max items to return.
-        title: Title filter.
-        year_min: Min release year.
-        year_max: Max release year.
-        genre: Genre filter.
-        sort_by: Sort field.
-        exclude_no_emotions: Exclude missing emotions.
-        exclude_no_recommendations: Exclude missing recommendations.
-
-    Returns:
-        Paginated list of movies.
-    """
+    """Get movies with details."""
     movies = await movie_service.get_all_cached(
         MovieGalleryPreview,
         limit=limit,
@@ -148,7 +114,7 @@ async def get_movies_with_details(
 
 
 @router.post(
-    '/reviews',
+    '/reviews/',
     status_code=status.HTTP_201_CREATED,
     summary='Add reviews to a movie',
     description='Adds a list of IMDB reviews to a specific movie identified by its IMDB ID.',
@@ -157,16 +123,7 @@ async def create_movie_reviews(
     payload: ImdbReviewsPayloadSchema,
     movie_service: MovieServiceDep,
 ) -> dict[str, str]:
-    """Add reviews to a movie.
-
-    Args:
-        payload: Review data.
-        movie_service: The movie service.
-
-    Returns:
-        A success message.
-    """
-    # movie = await movie_service.get_movie_by_imdb_id(payload.imdb_id)
+    """Add reviews to a movie."""
     movies = await movie_service.get_movie_by_imdb_id(MovieDetailSchema, payload.imdb_id)
     if not movies:
         pass
@@ -175,29 +132,18 @@ async def create_movie_reviews(
 
 
 @router.get(
-    '/{movie_id}',
+    '/{movie_id}/',
     status_code=status.HTTP_200_OK,
     response_model=MovieDetailSchema,
     summary='Get a specific movie details.',
-    description="""
-    Get a movie detail.
-    """,
+    description="""Get a movie detail.""",
 )
 async def get_movie_details(
     movie_id: uuid.UUID,
     movie_service: MovieServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:movies', 'admin:all'))],
 ):
-    """Update a movie.
-
-    Args:
-        movie_id: The UUID of the movie to update.
-        movie_service: The movie service.
-        user: The authenticated user.
-
-    Returns:
-        A success message.
-    """
+    """Update a movie."""
     movie = await movie_service.get(movie_id, MovieDetailSchema)
 
     if not movie:
@@ -209,12 +155,10 @@ async def get_movie_details(
 
 
 @router.patch(
-    '/{movie_id}',
+    '/{movie_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Update movie details.',
-    description="""
-    Update movie details. Only provided fields will be updated.
-    """,
+    description="""Update movie details. Only provided fields will be updated.""",
 )
 async def update_movie(
     movie_id: str,
@@ -222,17 +166,7 @@ async def update_movie(
     movie_service: MovieServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:movies', 'admin:all'))],
 ):
-    """Update a movie.
-
-    Args:
-        movie_id: The UUID of the movie to update.
-        payload: The movie data to update.
-        movie_service: The movie service.
-        user: The authenticated user.
-
-    Returns:
-        A success message.
-    """
+    """Update a movie."""
     try:
         movie_uuid = uuid.UUID(movie_id)
     except ValueError as e:

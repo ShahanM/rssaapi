@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, computed_field, model_validator
 
 from rssa_api.data.schemas.base_schemas import DBMixin
 
@@ -104,6 +104,42 @@ class ERSMovieSchema(MovieSchema):
     """Movie schema including emotions."""
 
     emotions: EmotionsSchema
+
+
+class RecommendationTextRead(DBMixin):
+    movie_id: uuid.UUID
+    formal: str | None = None
+    informal: str | None = None
+
+
+class RecommendationTextFormalRead(DBMixin):
+    formal: str | None = None
+
+
+class RecommendationTextInformalRead(DBMixin):
+    informal: str | None = None
+
+
+class AdvisorMovieRead(MovieSchema):
+    recommendations_text: RecommendationTextRead | None = None
+
+
+class AdvisorMovieFormalRead(MovieSchema):
+    recommendations_text: RecommendationTextFormalRead
+
+    @computed_field
+    @property
+    def advisor_suggestion(self) -> str:
+        return self.recommendations_text.formal or ''
+
+
+class AdvisorMovieInformalRead(MovieSchema):
+    recommendations_text: RecommendationTextInformalRead
+
+    @computed_field
+    @property
+    def advisor_suggestion(self) -> str:
+        return self.recommendations_text.informal or ''
 
 
 class MovieSearchRequest(BaseModel):

@@ -70,7 +70,7 @@ async def get_local_users(
 
 
 @router.get(
-    '/{user_id}',
+    '/{user_id}/',
     response_model=UserSchema,
     summary='Get a single instance of a user',
     description="""

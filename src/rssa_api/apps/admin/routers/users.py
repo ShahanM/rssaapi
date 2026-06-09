@@ -20,7 +20,7 @@ router = APIRouter(
 
 
 @router.get(
-    '/me',
+    '/me/',
     summary='Get current user.',
     response_model=UserSchema,
 )
@@ -32,7 +32,7 @@ async def get_current_user_endpoint(
 
 
 @router.get(
-    '/search',
+    '/search/',
     response_model=list[UserSchema],
     summary='Search local users.',
     description="""
@@ -50,7 +50,7 @@ async def search_local_users(
     return [UserSchema.model_validate(u) for u in await user_service.search_users(q)]
 
 
-@router.get('/{user_id}/profile')
+@router.get('/{user_id}/profile/')
 async def get_user_profile_endpoint(
     user_id: str,
     user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
@@ -81,7 +81,6 @@ async def get_user_profile_endpoint(
     if not profile:
         raise HTTPException(status_code=404, detail='User profile not found.')
 
-    # We sync the Auth0 profile to the local DB for some granualar permissions.
     try:
         db_target_user = await user_service.get_user_by_auth0_sub(target_auth0_id)
         if db_target_user:
@@ -104,11 +103,10 @@ async def get_user_profile_endpoint(
     return profile
 
 
-@router.get('/{user_id}/permissions')
+@router.get('/{user_id}/permissions/')
 async def get_user_permissions(
     user_id: str,
-    user: Annotated[Auth0UserSchema, Depends(get_auth0_authenticated_user)],
-    admin: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ) -> dict[str, str | list[str] | None]:
     """API endpoint to fetch a user's permissions."""
     profile = await get_user_profile_by_id(user_id)
@@ -125,10 +123,10 @@ async def get_user_permissions(
     """,
 )
 async def search_users_endpoint(
+    _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
     q: str | None = None,
     page: int = 0,
     per_page: int = 20,
-    user: Auth0UserSchema = Depends(require_permissions('read:users')),
 ) -> list[dict[str, Any]]:
     """Search for users in Auth0.
 

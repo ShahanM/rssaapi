@@ -31,7 +31,7 @@ router = APIRouter(
 )
 
 
-@router.get('/{page_id}', response_model=StudyStepPageReadAdmin)
+@router.get('/{page_id}/', response_model=StudyStepPageReadAdmin)
 async def get_step_page_details(
     page_id: uuid.UUID,
     page_service: StudyStepPageServiceDep,
@@ -40,19 +40,7 @@ async def get_step_page_details(
     user: Annotated[Auth0UserSchema, Depends(require_permissions('read:pages', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> StudyStepPageReadAdmin:
-    """Get details of a specific study step page.
-
-    Args:
-        page_id: The UUID of the page.
-        page_service: The page service.
-        step_service: The step service.
-        study_service: The study service.
-        user: Auth check.
-        current_user: The current user.
-
-    Returns:
-        The study step page details.
-    """
+    """Get details of a specific study step page."""
     page_from_db = await page_service.get(page_id, StudyStepPageReadAdmin)
     if not page_from_db:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
@@ -69,7 +57,7 @@ async def get_step_page_details(
 
 
 @router.patch(
-    '/{page_id}',
+    '/{page_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Update a study step page.',
     description="""
@@ -81,25 +69,11 @@ async def update_step_page(
     page_id: uuid.UUID,
     updated_page: dict[str, str],
     page_service: StudyStepPageServiceDep,
-    step_service: StudyStepServiceDep,
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:pages', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Update a study step page.
-
-    Args:
-        page_id: The UUID of the page to update.
-        updated_page: Dictionary of fields to update.
-        page_service: The page service.
-        step_service: The step service.
-        study_service: The study service.
-        user: Auth check.
-        current_user: The current user.
-
-    Returns:
-        Status message.
-    """
+    """Update a study step page."""
     page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
@@ -114,7 +88,7 @@ async def update_step_page(
 
 
 @router.delete(
-    '/{page_id}',
+    '/{page_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Delete a study step page.',
     description="""
@@ -125,24 +99,11 @@ async def update_step_page(
 async def delete_step_page(
     page_id: uuid.UUID,
     page_service: StudyStepPageServiceDep,
-    step_service: StudyStepServiceDep,
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:pages', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Delete a study step page.
-
-    Args:
-        page_id: The UUID of the page to delete.
-        page_service: The page service.
-        step_service: The step service.
-        study_service: The study service.
-        user: Auth check.
-        current_user: The current user.
-
-    Returns:
-        Status message.
-    """
+    """Delete a study step page."""
     page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
@@ -156,12 +117,11 @@ async def delete_step_page(
     await page_service.delete(page_id)
 
 
-@router.get('/{page_id}/contents', response_model=list[OrderedListItem])
+@router.get('/{page_id}/contents/', response_model=list[OrderedListItem])
 async def get_page_content(
     page_id: uuid.UUID,
     content_service: StudyStepPageContentServiceDep,
     page_service: StudyStepPageServiceDep,
-    step_service: StudyStepServiceDep,
     study_service: StudyServiceDep,
     user: Annotated[
         Auth0UserSchema,
@@ -169,20 +129,7 @@ async def get_page_content(
     ],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> list[OrderedListItem]:
-    """Get content items associated with a page.
-
-    Args:
-        page_id: The UUID of the page.
-        content_service: The page content service.
-        page_service: The page service.
-        step_service: The step service.
-        study_service: The study service.
-        user: Auth check.
-        current_user: The current user.
-
-    Returns:
-        A list of ordered content items.
-    """
+    """Get content items associated with a page."""
     page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
@@ -199,7 +146,7 @@ async def get_page_content(
 
 
 @router.post(
-    '/{page_id}/contents',
+    '/{page_id}/contents/',
     status_code=status.HTTP_201_CREATED,
     response_model=StudyStepPageContentPreview,
 )
@@ -208,7 +155,6 @@ async def add_content_to_page(
     new_content_payload: StudyStepPageContentBase,
     content_service: StudyStepPageContentServiceDep,
     page_service: StudyStepPageServiceDep,
-    step_service: StudyStepServiceDep,
     study_service: StudyServiceDep,
     user: Annotated[
         Auth0UserSchema,
@@ -216,21 +162,7 @@ async def add_content_to_page(
     ],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> StudyStepPageContentPreview:
-    """Add content to a study step page.
-
-    Args:
-        page_id: The UUID of the page.
-        new_content_payload: The content to add.
-        content_service: The content service.
-        page_service: The page service.
-        step_service: The step service.
-        study_service: The study service.
-        user: Auth check.
-        current_user: The current user details.
-
-    Returns:
-        The created content.
-    """
+    """Add content to a study step page."""
     page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
@@ -247,35 +179,19 @@ async def add_content_to_page(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Something went wrong.')
 
     return content_preview
-    # return StudyStepPageContentPreview.model_validate(created_content)
 
 
-@router.patch('/{page_id}/contents/reorder', status_code=status.HTTP_204_NO_CONTENT)
+@router.patch('/{page_id}/contents/reorder/', status_code=status.HTTP_204_NO_CONTENT)
 async def reorder_page_contents(
     page_id: uuid.UUID,
     payload: list[ReorderPayloadSchema],
     content_service: StudyStepPageContentServiceDep,
     page_service: StudyStepPageServiceDep,
-    step_service: StudyStepServiceDep,
     study_service: StudyServiceDep,
     user: Annotated[Auth0UserSchema, Depends(require_permissions('update:content', 'admin:all'))],
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
-    """Reorder contents within a study step page.
-
-    Args:
-        page_id: The UUID of the page.
-        payload: List of content IDs and new positions.
-        content_service: The content service.
-        page_service: The page service.
-        step_service: The step service.
-        study_service: The study service.
-        user: Auth check.
-        current_user: The current user details.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Reorder contents within a study step page."""
     page = await page_service.get(page_id, StudyComponentCheck)
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
