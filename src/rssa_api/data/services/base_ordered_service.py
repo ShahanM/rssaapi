@@ -29,7 +29,7 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
 
     async def get_all(
         self,
-        schema: type[SchemaType] | None = None,
+        schema: type[SchemaType],
         *,
         owner_id: uuid.UUID | None = None,
         options: RepoQueryOptions | None = None,
@@ -62,7 +62,8 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
         if not owner_id:
             raise ValueError('owner_id is required to create an ordered item.')
 
-        last_item = await self.repo.get_last_ordered_instance(owner_id)
+        options = OrderedRepoQueryOptions()  # FIXME: We likely do not need to specify options for create!!!
+        last_item = await self.repo.get_last_ordered_instance(owner_id, options)
         kwargs['order_position'] = last_item.order_position + 1 if last_item else 1
 
         return await super().create(schema, owner_id=owner_id, **kwargs)

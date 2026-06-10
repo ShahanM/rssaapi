@@ -1,7 +1,7 @@
 """Base service providing common CRUD operations."""
 
 import uuid
-from typing import Any, Generic, TypeVar, overload
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 from rssa_storage.shared import BaseRepository, RepoQueryOptions, merge_repo_query_options
@@ -21,49 +21,20 @@ class BaseService(Generic[ModelType, RepoType]):
         self.repo = repo
 
     async def create(self, schema: BaseModel, **extra_fields) -> ModelType:
-        """Generic create method.
-
-        Args:
-            schema: Pydantic schema to create the model from.
-            **extra_fields: Additional fields to set on the model.
-
-        Returns:
-            The created model instance.
-        """
+        """Generic create method."""
         model_data = schema.model_dump(exclude_unset=True)
         model_data.update(extra_fields)
         model_instance = self.repo.model(**model_data)
         return await self.repo.create(model_instance)
 
-    @overload
-    async def get(
-        self, id: uuid.UUID, schema: type[SchemaType], *, options: RepoQueryOptions | None = None
-    ) -> SchemaType | None: ...
-
-    @overload
-    async def get(
-        self, id: uuid.UUID, schema: None = None, *, options: RepoQueryOptions | None = None
-    ) -> ModelType | None: ...
-
-    async def get(
-        self, id: uuid.UUID, schema: type[SchemaType] | None = None, *, options: RepoQueryOptions | None = None
-    ) -> Any:
-        """Basic get by ID.
-
-        Args:
-            id: The unique identifier of the model instance.
-            schema: Optional Pydantic schema to validate the result against.
-            options: Optional query options for additional criteria.
-
-        Returns:
-            The model instance or validated schema, or None if not found.
-        """
+    async def get(self, id: uuid.UUID, schema: type[SchemaType], *, options: RepoQueryOptions | None = None) -> Any:
+        """Basic get by ID."""
         filter_option = RepoQueryOptions(filters={'id': id})
         if options:
             options = merge_repo_query_options(options, filter_option)
         else:
             options = filter_option
-        top_cols, rel_map = extract_load_strategies(schema) if schema else (None, None)
+        top_cols, rel_map = extract_load_strategies(schema)
         options.load_columns = top_cols
         options.load_relationships = rel_map
 

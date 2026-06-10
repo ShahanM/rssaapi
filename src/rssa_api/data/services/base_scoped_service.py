@@ -1,7 +1,7 @@
 """Base class for services that are scoped to a specific owner/parent ID."""
 
 import uuid
-from typing import Any, TypeVar, overload
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 from rssa_storage.shared import BaseRepository, RepoQueryOptions
@@ -22,37 +22,20 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
         """Initailize with repository and mandatory scope."""
         super().__init__(repo)
 
-    @overload
     async def get(
         self,
         id: uuid.UUID,
         schema: type[SchemaType],
-        *,
-        owner_id: uuid.UUID | None = None,
-        options: RepoQueryOptions | None = None,
-    ) -> SchemaType | None: ...
-
-    @overload
-    async def get(
-        self,
-        id: uuid.UUID,
-        schema: None = None,
-        *,
-        owner_id: uuid.UUID | None = None,
-        options: RepoQueryOptions | None = None,
-    ) -> ModelType | None: ...
-    async def get(
-        self,
-        id: uuid.UUID,
-        schema: type[SchemaType] | None = None,
         *,
         owner_id: uuid.UUID | None = None,  # Keyword-only scope enforcement
         options: RepoQueryOptions | None = None,
     ) -> Any | None:
         """Shadowed get: automatically applies owner scope."""
         options = options or RepoQueryOptions()
-        if owner_id:
-            options.filters[self.scope_field] = owner_id
+        if not owner_id:
+            raise ValueError('Scoped repository must specify a owner_id parameter.')
+
+        options.filters[self.scope_field] = owner_id
 
         return await super().get(id, schema, options=options)
 
