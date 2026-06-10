@@ -1,0 +1,61 @@
+services:
+    api:
+        build:
+            context: ..
+            dockerfile: rssa-api/Dockerfile.dev
+        container_name: rssa_api
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/app
+            - /app/.venv
+            - ../rssa-storage:/rssa-storage
+            - ../rssa-recommender/assets/models:/app/models
+        environment:
+            - ENV=development
+            - PYTHONPATH=/app/src
+
+            # SECRETS
+            - RSSA_JWT_SECRET_KEY=0dac82765f3d48bc03f325c18f38230c89ccd003bea56604e3014e0a35921425
+            - RSSA_MASTER_ENCRYPTION_KEY=7Mc7_vT8ryeJ3lsfhJDgylsBb-gEAJH852UVTRm4VZo=
+
+            # DATABASES
+            - DB_PORT=5432
+            - DB_HOST=postgres
+            - DB_PASSWORD=devpassword
+            - DB_USER=rssa_dev
+
+            - RSSA_DB_NAME=rssadb
+            - MOVIE_DB_NAME=moviedb
+            - TELEMETRY_DB_NAME=telemetrydb
+        networks:
+            - rssa_dev_network
+        depends_on:
+            - recommender
+        command: uv run uvicorn rssa_api.main:app --host 0.0.0.0 --port 8000 --reload
+
+    recommender:
+        build:
+            context: ../rssa-recommender
+            dockerfile: Dockerfile.dev
+        container_name: rssa_recommender
+        ports:
+            - "5000:5000"
+        volumes:
+            - ../rssa-recommender:/app
+            - /app/.venv
+            - ../rssa-storage/data/seed_data:/rssa-storage/data/seed_data
+        environment:
+            - ENV=development
+            - PYTHONPATH=/app/src
+            - MODEL_FOLDER_PATH=/app/assets/models/biased_als_ml32m/
+            - IMPLICIT_MODEL_FOLDER_PATH=/app/assets/models/implicit_als_ers_ml32m/
+            - S3_BUCKET=
+        networks:
+            - rssa_dev_network
+        entrypoint:
+            ["uv", "run", "uvicorn", "scripts.local_dev_server:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
+
+networks:
+    rssa_dev_network:
+        external: true
