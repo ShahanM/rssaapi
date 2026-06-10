@@ -3,11 +3,15 @@
 import uuid
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import validate_api_key
 from rssa_api.data.schemas.study_components import NavigationWrapper, StudyStepPagePresent
 from rssa_api.data.services.dependencies import StudyStepPageServiceDep
+
+log = structlog.getLogger()
+
 
 router = APIRouter(
     prefix='/pages',
