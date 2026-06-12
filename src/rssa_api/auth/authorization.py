@@ -134,7 +134,8 @@ async def get_current_participant(
     )
 
     participant_id = uuid.UUID(token_content['sub'])
-    participant = await participant_service.get(participant_id, StudyParticipantRead)
+    study_id = uuid.UUID(token_content['sty'])
+    participant = await participant_service.get(participant_id, StudyParticipantRead, owner_id=study_id)
 
     if participant is None:
         raise credentials_exception
