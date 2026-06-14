@@ -37,17 +37,7 @@ async def create_survey_item_response(
     item_service: SurveyItemServiceDep,
     id_token: Annotated[dict[str, uuid.UUID], Depends(validate_study_participant)],
 ):
-    """Create a survey item response.
-
-    Args:
-        unified_payload: Protocol schema.
-        service: Service for response operations.
-        item_service: Service for the survey items.
-        id_token: Validated participant token.
-
-    Returns:
-        Created response.
-    """
+    """Create a survey item response."""
     standard_item = await item_service.get(unified_payload.item_id, DBMixin)
 
     if standard_item:
