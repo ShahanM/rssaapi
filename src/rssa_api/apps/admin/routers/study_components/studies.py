@@ -63,6 +63,7 @@ router = APIRouter(
 )
 
 
+@router.get('')
 @router.get(
     '/',
     response_model=PaginatedResponse[PreviewSchema],
@@ -127,6 +128,7 @@ async def get_studies(
     return PaginatedResponse[PreviewSchema](data=studies_from_db, page_count=page_count, total=total_items)
 
 
+@router.get('/{study_id}')
 @router.get(
     '/{study_id}/',
     response_model=StudyAudit,
@@ -187,6 +189,7 @@ async def get_study_detail(
     return study_detail
 
 
+@router.post('')
 @router.post(
     '/',
     status_code=status.HTTP_201_CREATED,
@@ -210,6 +213,7 @@ async def create_study(
     return StudyRead.model_validate(created_study)
 
 
+@router.get('/{study_id}/steps')
 @router.get(
     '/{study_id}/steps/',
     status_code=status.HTTP_200_OK,
