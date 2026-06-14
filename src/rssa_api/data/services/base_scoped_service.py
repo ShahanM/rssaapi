@@ -32,8 +32,8 @@ class BaseScopedService(BaseService[ModelType, RepoType]):
     ) -> Any | None:
         """Shadowed get: automatically applies owner scope."""
         options = options or RepoQueryOptions()
-        if not owner_id:
-            raise ValueError('Scoped repository must specify a owner_id parameter.')
+        # if not owner_id:
+        # raise ValueError('Scoped repository must specify a owner_id parameter.')
 
         options.filters[self.scope_field] = owner_id
 
