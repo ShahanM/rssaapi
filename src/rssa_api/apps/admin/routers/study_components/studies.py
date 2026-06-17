@@ -213,6 +213,53 @@ async def create_study(
     return StudyRead.model_validate(created_study)
 
 
+@router.patch('/{study_id}')
+@router.patch(
+    '/{study_id}/',
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Update a study.',
+    description="""Updates an existing study with the provided fields.""",
+)
+async def update_study(
+    study_id: uuid.UUID,
+    payload: dict[str, str],
+    study_service: StudyServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('update:studies', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
+) -> None:
+    """Update a study."""
+    is_super_admin = 'admin:all' in user.permissions or 'update:studies' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(study_id, current_user.id, min_role='editor')
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
+
+    await study_service.update(study_id, payload)
+
+
+@router.delete('/{study_id}')
+@router.delete(
+    '/{study_id}/',
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary='Delete a study.',
+    description="""Deletes a study by its ID.""",
+)
+async def delete_study(
+    study_id: uuid.UUID,
+    study_service: StudyServiceDep,
+    user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:studies', 'admin:all'))],
+    current_user: Annotated[UserSchema, Depends(get_current_user)],
+) -> None:
+    """Delete a study."""
+    is_super_admin = 'admin:all' in user.permissions or 'delete:studies' in user.permissions
+    if not is_super_admin:
+        has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
+
+    await study_service.delete(study_id)
+
+
 @router.get('/{study_id}/steps')
 @router.get(
     '/{study_id}/steps/',
@@ -234,6 +281,7 @@ async def get_study_steps(
     return study_steps
 
 
+@router.post('/{study_id}/steps')
 @router.post(
     '/{study_id}/steps/',
     status_code=status.HTTP_201_CREATED,
@@ -263,6 +311,7 @@ async def create_study_step(
     return OrderedListItem.model_validate(step_in_db)
 
 
+@router.get('/{study_id}/conditions')
 @router.get(
     '/{study_id}/conditions/',
     response_model=list[StudyConditionRead],
@@ -287,6 +336,7 @@ async def get_study_conditions(
     return study_conditions
 
 
+@router.post('/{study_id}/conditions')
 @router.post(
     '/{study_id}/conditions/',
     status_code=status.HTTP_201_CREATED,
@@ -315,51 +365,7 @@ async def create_study_condition(
     return StudyConditionRead.model_validate(condition)
 
 
-@router.patch(
-    '/{study_id}/',
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary='Update a study.',
-    description="""Updates an existing study with the provided fields.""",
-)
-async def update_study(
-    study_id: uuid.UUID,
-    payload: dict[str, str],
-    study_service: StudyServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('update:studies', 'admin:all'))],
-    current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> None:
-    """Update a study."""
-    is_super_admin = 'admin:all' in user.permissions or 'update:studies' in user.permissions
-    if not is_super_admin:
-        has_access = await study_service.check_study_access(study_id, current_user.id, min_role='editor')
-        if not has_access:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
-
-    await study_service.update(study_id, payload)
-
-
-@router.delete(
-    '/{study_id}/',
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary='Delete a study.',
-    description="""Deletes a study by its ID.""",
-)
-async def delete_study(
-    study_id: uuid.UUID,
-    study_service: StudyServiceDep,
-    user: Annotated[Auth0UserSchema, Depends(require_permissions('delete:studies', 'admin:all'))],
-    current_user: Annotated[UserSchema, Depends(get_current_user)],
-) -> None:
-    """Delete a study."""
-    is_super_admin = 'admin:all' in user.permissions or 'delete:studies' in user.permissions
-    if not is_super_admin:
-        has_access = await study_service.check_study_access(study_id, current_user.id, min_role='admin')
-        if not has_access:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study not found.')
-
-    await study_service.delete(study_id)
-
-
+@router.patch('/{study_id}/steps/reorder')
 @router.patch('/{study_id}/steps/reorder/', status_code=204)
 async def reorder_study_steps(
     study_id: uuid.UUID,
@@ -380,6 +386,7 @@ async def reorder_study_steps(
     await step_service.reorder_items(study_id, steps_map)
 
 
+@router.get('/{study_id}/steps/validate')
 @router.get(
     '/{study_id}/steps/validate/',
     status_code=status.HTTP_204_NO_CONTENT,
@@ -403,6 +410,7 @@ async def validate_step_path_uniqueness(
         )
 
 
+@router.post('/{study_id}/apikeys')
 @router.post(
     '/{study_id}/apikeys/',
     status_code=status.HTTP_201_CREATED,
@@ -430,6 +438,7 @@ async def generate_study_api_key(
     return api_key
 
 
+@router.get('/{study_id}/apikeys')
 @router.get(
     '/{study_id}/apikeys/',
     status_code=status.HTTP_200_OK,
@@ -448,6 +457,7 @@ async def get_api_keys(
     return keys
 
 
+@router.get('/{study_id}/authorizations')
 @router.get(
     '/{study_id}/authorizations/',
     response_model=list[StudyAuthorizationRead],
@@ -471,6 +481,7 @@ async def get_study_authorizations(
     return [StudyAuthorizationRead.model_validate(study_auth) for study_auth in study_auths]
 
 
+@router.post('/{study_id}/authorizations')
 @router.post(
     '/{study_id}/authorizations/',
     status_code=status.HTTP_201_CREATED,
@@ -496,6 +507,7 @@ async def add_study_authorization(
     return StudyAuthorizationRead.model_validate(study_auth)
 
 
+@router.delete('/{study_id}/authorizations/{user_id}')
 @router.delete(
     '/{study_id}/authorizations/{user_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
@@ -519,6 +531,7 @@ async def remove_study_authorization(
     await study_service.remove_study_authorization(study_id, user_id)
 
 
+@router.get('/{study_id}/participants')
 @router.get('/{study_id}/participants/', response_model=PaginatedResponse[ParticipantAuditRead])
 async def get_study_participants(
     study_id: uuid.UUID,
@@ -565,6 +578,7 @@ async def get_study_participants(
     return PaginatedResponse[ParticipantAuditRead](data=participants, page_count=page_count, total=total)
 
 
+@router.get('/{study_id}/demographics/summary')
 @router.get('/{study_id}/demographics/summary/')
 async def get_demographic_summary(
     study_id: uuid.UUID,

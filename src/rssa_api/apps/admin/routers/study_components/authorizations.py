@@ -22,6 +22,7 @@ router = APIRouter(
 )
 
 
+@router.get('/authorizations/{authorization_id}')
 @router.get(
     '/authorizations/{authorization_id}/',
     response_model=StudyAuthorizationRead,
@@ -39,15 +40,13 @@ async def get_study_authorization(
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ) -> StudyAuthorizationRead:
     """Get a study authorization by ID."""
-    auth = await service.get(authorization_id)
+    auth = await service.get(authorization_id, StudyAuthorizationRead)
     if not auth:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Authorization not found',
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Authorization not found')
     return StudyAuthorizationRead.model_validate(auth)
 
 
+@router.delete('/authorizations/{authorization_id}')
 @router.delete(
     '/authorizations/{authorization_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
@@ -65,10 +64,7 @@ async def delete_study_authorization(
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ) -> None:
     """Delete a study authorization."""
-    existing = await service.get(authorization_id)
+    existing = await service.get(authorization_id, StudyAuthorizationRead)
     if not existing:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail='Authorization not found',
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Authorization not found')
     await service.delete(authorization_id)
