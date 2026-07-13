@@ -503,6 +503,7 @@ class ShufflingMovieQuerySchema(DBMixin):
     movielens_avg_rating: float
 
     @computed_field
+    @property
     def rate_count(self) -> int:
         if self.imdb_rate_count:
             return int(self.imdb_rate_count)

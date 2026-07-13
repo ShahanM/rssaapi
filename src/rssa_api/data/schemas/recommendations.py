@@ -107,6 +107,8 @@ class RecommendationContextBase(BaseModel):
     context_tag: str
     step_page_id: uuid.UUID | None = None
 
+    algorithm_key: str | None = None
+
     model_config = ConfigDict(extra='allow')
 
 

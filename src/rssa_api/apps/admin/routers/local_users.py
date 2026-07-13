@@ -5,6 +5,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from rssa_storage.shared import RepoQueryOptions
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema, UserSchema
@@ -40,22 +41,10 @@ async def get_local_users(
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results'),
 ) -> PaginatedUserResponse:
-    """Get a paginated list of local users.
-
-    Args:
-        service: The user service.
-        _: Auth check.
-        page_index: The page number (0-indexed).
-        page_size: Items per page.
-        sort_by: Field to sort by.
-        sort_dir: Sort direction.
-        search: Search term.
-
-    Returns:
-        Paginated list of users.
-    """
+    """Get a paginated list of local users."""
     offset = page_index * page_size
-    total_items = await service.count(search=search)
+    options = RepoQueryOptions(search_text=search)
+    total_items = await service.count(options=options)
     users_from_db = await service.get_all(
         UserSchema,
         limit=page_size,
@@ -73,9 +62,7 @@ async def get_local_users(
     '/{user_id}/',
     response_model=UserSchema,
     summary='Get a single instance of a user',
-    description="""
-    Retrieves a single instance of a user from the local database.
-    """,
+    description='Retrieves a single instance of a user from the local database.',
     response_description='A detailed user instance, or a HTTP 404 NOT FOUND.',
 )
 async def get_user_detail(
@@ -83,19 +70,7 @@ async def get_user_detail(
     service: UserServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
 ) -> UserSchema:
-    """Get details of a user.
-
-    Args:
-        user_id: The UUID of the user.
-        service: The user service.
-        _: Auth check.
-
-    Raises:
-        HTTPException: If user is not found.
-
-    Returns:
-        The user details.
-    """
+    """Get details of a user."""
     user = await service.get(user_id, UserSchema)
 
     if not user:

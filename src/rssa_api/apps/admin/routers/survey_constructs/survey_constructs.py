@@ -10,7 +10,6 @@ from rssa_storage.shared import RepoQueryOptions
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
 from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.base_schemas import (
-    OrderedTextListItem,
     PaginatedResponse,
     ReorderPayloadSchema,
     SortDir,
@@ -20,6 +19,7 @@ from rssa_api.data.schemas.survey_components import (
     SurveyConstructPreview,
     SurveyConstructRead,
     SurveyItemCreate,
+    SurveyItemRead,
 )
 from rssa_api.data.services.dependencies import SurveyConstructServiceDep, SurveyItemServiceDep
 
@@ -169,14 +169,14 @@ async def delete_construct(
     await service.delete(construct_id)
 
 
-@router.get('/{construct_id}/items/', response_model=list[OrderedTextListItem])
+@router.get('/{construct_id}/items/', response_model=list[SurveyItemRead])
 async def get_construct_items(
     construct_id: uuid.UUID,
     item_service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:constructs', 'admin:all'))],
-) -> list[OrderedTextListItem]:
+) -> list[SurveyItemRead]:
     """Get items for a survey construct."""
-    items = await item_service.get_all(OrderedTextListItem, owner_id=construct_id)
+    items = await item_service.get_all(SurveyItemRead, owner_id=construct_id)
 
     return items
 

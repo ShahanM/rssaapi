@@ -1,7 +1,7 @@
 """Admin router for survey construct items."""
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
 
@@ -28,46 +28,27 @@ async def get_item(
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('read:items', 'admin:all'))],
 ) -> SurveyItemRead:
-    """Retrieve a survey construct item by its ID.
-
-    Args:
-        item_id: The UUID of the construct item to retrieve.
-        service: The SurveyItemService dependency.
-
-    Returns:
-        The SurveyItemRead representing the requested item.
-    """
-    item_in_db = await service.get(item_id)
+    """Retrieve a survey construct item by its ID."""
+    item_in_db = await service.get(item_id, SurveyItemRead)
 
     return SurveyItemRead.model_validate(item_in_db)
 
 
+@router.patch('/{item_id}')
 @router.patch(
     '/{item_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Update a survey item.',
-    description="""
-    Updates an existing survey item with the provided fields.
-    """,
+    description="""Updates an existing survey item with the provided fields.""",
     response_description='HTTP 204 NO CONTENT on success.',
 )
 async def update_item(
     item_id: uuid.UUID,
-    payload: dict[str, str],
+    payload: dict[str, Any],
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('update:items', 'admin:all'))],
 ) -> None:
-    """Update a survey item.
-
-    Args:
-        item_id: The UUID of the item to update.
-        payload: Fields to update.
-        service: The survey item service.
-        _: Auth check.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Update a survey item."""
     await service.update(item_id, payload)
 
 
@@ -75,9 +56,7 @@ async def update_item(
     '/{item_id}',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Delete a survey item.',
-    description="""
-    Deletes a survey item by its ID.
-    """,
+    description="""Deletes a survey item by its ID.""",
     response_description='HTTP 204 NO CONTENT on success.',
 )
 async def delete_construct_item(
@@ -85,14 +64,5 @@ async def delete_construct_item(
     service: SurveyItemServiceDep,
     _: Annotated[Auth0UserSchema, Depends(require_permissions('delete:items', 'admin:all'))],
 ) -> None:
-    """Delete a survey item.
-
-    Args:
-        item_id: The UUID of the item to delete.
-        service: The survey item service.
-        _: Auth check.
-
-    Returns:
-        Empty dictionary on success.
-    """
+    """Delete a survey item."""
     await service.delete(item_id)

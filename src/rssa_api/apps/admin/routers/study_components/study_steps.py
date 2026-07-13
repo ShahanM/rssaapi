@@ -11,6 +11,7 @@ from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.base_schemas import OrderedListItem, ReorderPayloadSchema
 from rssa_api.data.schemas.study_components import (
     StudyComponentCheck,
+    StudyParentMixin,
     StudyStepPageBase,
     StudyStepPageCreate,
     StudyStepRead,
@@ -112,7 +113,7 @@ async def update_study_step(
     current_user: Annotated[UserSchema, Depends(get_current_user)],
 ) -> None:
     """Update a study step."""
-    step = await step_service.get(step_id)
+    step = await step_service.get(step_id, StudyParentMixin)
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Study step not found.')
 

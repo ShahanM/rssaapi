@@ -10,7 +10,7 @@ from rssa_api.data.schemas import Auth0UserSchema
 from rssa_api.data.schemas.auth_schemas import UserSchema
 from rssa_api.data.schemas.study_components import StudyComponentCheck, StudyConditionRead
 from rssa_api.data.services.dependencies import StudyConditionServiceDep, StudyServiceDep
-from rssa_api.services.recommendation.registry import get_registry_keys
+from rssa_api.recommenders.registry import get_registry_keys
 
 from ...docs import ADMIN_STUDY_CONDITIONS_TAG
 

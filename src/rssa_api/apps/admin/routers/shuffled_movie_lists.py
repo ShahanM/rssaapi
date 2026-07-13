@@ -6,6 +6,7 @@ from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
+from rssa_storage.shared import RepoQueryOptions
 from starlette import status
 
 from rssa_api.auth.security import get_auth0_authenticated_user, require_permissions
@@ -46,22 +47,10 @@ async def get_shuffled_lists(
     sort_dir: SortDir | None = Query(None, description='The direction to sort (asc or desc)'),
     search: str | None = Query(None, description='A search term to filter results'),
 ) -> PaginatedResponse[ShuffledMovieList]:
-    """Get a paginated list of local users.
-
-    Args:
-        service: The user service.
-        _: Auth check.
-        page_index: The page number (0-indexed).
-        page_size: Items per page.
-        sort_by: Field to sort by.
-        sort_dir: Sort direction.
-        search: Search term.
-
-    Returns:
-        Paginated list of users.
-    """
+    """Get a paginated list of local users."""
     offset = page_index * page_size
-    total_items = await service.count(search=search)
+    options = RepoQueryOptions(search_text=search)
+    total_items = await service.count(options=options)
     lists_from_db = await service.get_all(
         ShuffledMovieList,
         limit=page_size,

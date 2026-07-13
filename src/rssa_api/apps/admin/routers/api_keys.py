@@ -21,25 +21,14 @@ router = APIRouter(
     '/',
     response_model=list[ApiKeyRead],
     summary='Get API keys.',
-    description="""
-    Retrieve all API keys for a given study and the current user.
-    """,
+    description='Retrieve all API keys for a given study and the current user.',
 )
 async def get_api_keys(
     service: ApiKeyServiceDep,
     current_user: Annotated[UserSchema, Depends(get_current_user)],
     study_id: uuid.UUID = Query(),
 ) -> list[ApiKeyRead]:
-    """Get API keys.
-
-    Args:
-        service: The API key service.
-        current_user: The authenticated user.
-        study_id: The study ID.
-
-    Returns:
-        List of API keys.
-    """
+    """Get API keys."""
     keys = await service.get_api_keys_for_study(study_id, current_user.id)
 
     return keys

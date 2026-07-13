@@ -27,6 +27,7 @@ from rssa_api.data.schemas.participant_response_schemas import (
     DynamicPayload,
     MovieLensRating,
 )
+from rssa_api.data.schemas.participant_schemas import StudyParticipantRead
 from rssa_api.data.schemas.recommendations import (
     AdvisorEnrichedResponse,
     AdvisorResponse,
@@ -40,8 +41,7 @@ from rssa_api.data.schemas.recommendations import (
     StandardEnrichedResponse,
 )
 from rssa_api.data.utility import extract_load_strategies
-
-from .recommendation.registry import REGISTRY
+from rssa_api.recommenders.registry import REGISTRY
 
 log = structlog.getLogger(__name__)
 
@@ -74,15 +74,28 @@ class RecommenderService:
         self.ttl = ttl_seconds
 
     async def get_recommendations(
-        self, ratings: list[MovieLensRating], limit: int, context_data: dict[str, Any] | None = None
+        self,
+        item_schema: tuple[type[T], type[U] | None],
+        id_field: str,
+        ratings: list[MovieLensRating],
+        limit: int,
+        context_data: dict[str, Any] | None = None,
     ) -> EnrichedResponseWrapper:
         """Get recommendations based on ratings."""
-        if not context_data:
+        if context_data:
+            algorithm_key = context_data.get('algorithm_key', 'implicit_recs_top_n')
+            result = await self._dispatch_recommender_call(algorithm_key, 'unk', ratings, limit, context_data)
             # TODO: This will return the implicit top N.
-            return StandardEnrichedResponse(response_type='standard', items=[])
+            # return StandardEnrichedResponse(response_type='standard', items=[])
+            return await self._process_recommendation_result(item_schema, id_field, result)
+
+        algorithm_key = 'implicit_recs_top_n'
+        result = await self._dispatch_recommender_call(algorithm_key, 'unk', ratings, limit, {})
+
         # TODO: This should be a generic call to the recommender without needing participant context. The idea is for
         # this method to service the demo endpoints.
-        return StandardEnrichedResponse(response_type='standard', items=[])
+        # return StandardEnrichedResponse(response_type='standard', items=[])
+        return await self._process_recommendation_result(item_schema, id_field, result)
 
     async def get_participant_algorithm_key(self, study_participant_id: uuid.UUID) -> str:
         """Exposes just the algorithm key for router schema negotiation."""
@@ -134,10 +147,10 @@ class RecommenderService:
         self,
         item_schema: tuple[type[T], type[U] | None],
         id_field: str,
-        study_id,
-        step_id,
-        step_page_id,
-        study_participant_id,
+        study_id: uuid.UUID,
+        step_id: uuid.UUID,
+        step_page_id: uuid.UUID | None,
+        study_participant_id: uuid.UUID,
         context_tag,
         context_data,
     ):
@@ -148,17 +161,21 @@ class RecommenderService:
                 'upsert_interaction',
                 {'study_id': study_id, 'study_participant_id': study_participant_id, 'context_data': context_data},
             )
-        manifest = REGISTRY.get(algorithm_key)
-        if not manifest:
-            raise ValueError(f'No strategy found for key: {algorithm_key}')
+        # manifest = REGISTRY.get(algorithm_key)
+        # if not manifest:
+        #     raise ValueError(f'No strategy found for key: {algorithm_key}')
 
-        try:
-            result = await manifest.strategy.recommend(
-                user_id=str(study_participant_id), ratings=ratings, limit=limit, run_config=context_data
-            )
-        except Exception as e:
-            log.error(f'Error for {study_participant_id} [{algorithm_key}]: {e}')
-            raise
+        # try:
+        #     result = await manifest.strategy.recommend(
+        #         user_id=str(study_participant_id), ratings=ratings, limit=limit, run_config=context_data
+        #     )
+        # except Exception as e:
+        #     log.error(f'Error for {study_participant_id} [{algorithm_key}]: {e}')
+        #     raise
+
+        result = await self._dispatch_recommender_call(
+            algorithm_key, str(study_participant_id), ratings, limit, context_data
+        )
 
         self._enqueue_command(
             'save_rec_context',
@@ -173,6 +190,23 @@ class RecommenderService:
         )
 
         return await self._process_recommendation_result(item_schema, id_field, result)
+
+    async def _dispatch_recommender_call(
+        self, algorithm_key: str, user_id: str, ratings: list[MovieLensRating], limit: int, context_data
+    ):
+        manifest = REGISTRY.get(algorithm_key)
+        if not manifest:
+            raise ValueError(f'No strategy found for key: {algorithm_key}')
+
+        try:
+            result = await manifest.strategy.recommend(
+                user_id=user_id, ratings=ratings, limit=limit, run_config=context_data
+            )
+        except Exception as e:
+            log.error(f'Error for {user_id} [{algorithm_key}]: {e}')
+            raise
+
+        return result
 
     def _parse_recommendation_context(self, context_data: dict[str, Any]) -> tuple[uuid.UUID, str, uuid.UUID | None]:
         """Extracts and validates required context fields."""
@@ -208,11 +242,11 @@ class RecommenderService:
 
     async def _get_participant_algorithm_config(self, study_participant_id: uuid.UUID) -> tuple[str, int]:
         """Retrieves the assigned recommendation algorithm and limit for a participant."""
-        participant = await self.study_participant_repository.find_one(
-            RepoQueryOptions(
-                ids=[study_participant_id], load_options=StudyParticipantRepository.LOAD_ASSIGNED_CONDITION
-            )
-        )
+        top_cols, rel_map = extract_load_strategies(StudyParticipantRead)
+        options = RepoQueryOptions(ids=[study_participant_id])
+        options.load_columns = top_cols
+        options.load_relationships = rel_map
+        participant = await self.study_participant_repository.find_one(options=options)
         if not participant or not participant.study_condition:
             raise ValueError('Participant or Condition not found')
 

@@ -19,6 +19,7 @@ router = APIRouter(
 )
 
 
+@router.get('/me')
 @router.get(
     '/me/',
     summary='Get current user.',
@@ -31,6 +32,7 @@ async def get_current_user_endpoint(
     return db_user
 
 
+@router.get('/search')
 @router.get(
     '/search/',
     response_model=list[UserSchema],
@@ -50,6 +52,7 @@ async def search_local_users(
     return [UserSchema.model_validate(u) for u in await user_service.search_users(q)]
 
 
+@router.get('/{user_id}/profile')
 @router.get('/{user_id}/profile/')
 async def get_user_profile_endpoint(
     user_id: str,
@@ -103,6 +106,7 @@ async def get_user_profile_endpoint(
     return profile
 
 
+@router.get('/{user_id}/permissions')
 @router.get('/{user_id}/permissions/')
 async def get_user_permissions(
     user_id: str,
@@ -115,12 +119,11 @@ async def get_user_permissions(
     return {'permissions': profile.get('permissions', [])}
 
 
+@router.get('')
 @router.get(
     '/',
     summary='Search users.',
-    description="""
-    API endpoint for searching users to assign permissions or roles.
-    """,
+    description='API endpoint for searching users to assign permissions or roles.',
 )
 async def search_users_endpoint(
     _: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all'))],
@@ -128,16 +131,6 @@ async def search_users_endpoint(
     page: int = 0,
     per_page: int = 20,
 ) -> list[dict[str, Any]]:
-    """Search for users in Auth0.
-
-    Args:
-        q: The search query string.
-        page: The page number (0-indexed).
-        per_page: The number of results per page.
-        user: Auth check.
-
-    Returns:
-        A dictionary containing the search results.
-    """
+    """Search for users in Auth0."""
     users = await search_users(search_query=q, page=page, per_page=per_page)
     return users

@@ -31,18 +31,7 @@ async def get_movies_with_emotions(
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):
-    """Get movies for the emotion rating study step.
-
-    Args:
-        movie_service: Service for movie operations.
-        session_service: Service for session operations.
-        current_participant: The current authenticated study participant.
-        offset: The starting index of the movies to return.
-        limit: The maximum number of movies to return.
-
-    Returns:
-        List of movies.
-    """
+    """Get movies for the emotion rating study step."""
     movies_to_fetch = await session_service.get_next_session_movie_ids_batch(current_participant.id, offset, limit)
     if movies_to_fetch:
         return await movie_service.get_all_cached(MovieSchema, limit=limit, offset=offset, exclude_no_emotions=True)
@@ -58,18 +47,7 @@ async def get_movies(
     offset: int = Query(0, get=0, description='The starting index of the movies to return'),
     limit: int = Query(10, ge=1, le=100, description='The maximum number of movies to return'),
 ):
-    """Get a paginated list of movies.
-
-    Args:
-        movie_service: Service for movie operations.
-        session_service: Service for session operations.
-        id_token: The validated ID token containing participant information.
-        offset: The starting index of the movies to return.
-        limit: The maximum number of movies to return.
-
-    Returns:
-        Paginated list of movies.
-    """
+    """Get a paginated list of movies."""
     movies_to_fetch = await session_service.get_next_session_movie_ids_batch(id_token['sub'], offset, limit)
     if movies_to_fetch is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Could not find a valid session.')
@@ -86,15 +64,7 @@ async def search_movie(
     request: MovieSearchRequest,
     movie_service: MovieServiceDep,
 ):
-    """Search for movies.
-
-    Args:
-        request: Search request object.
-        movie_service: Service for movie operations.
-
-    Returns:
-        List of matching movies.
-    """
+    """Search for movies."""
     query = request.query.strip().lower()
     exact_match = []
     near_matches: list[MovieSchema] = []

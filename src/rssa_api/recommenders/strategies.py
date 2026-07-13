@@ -49,6 +49,7 @@ class LambdaStrategy:
         try:
             async with self._session.create_client('lambda', region_name=self.region_name) as client:
                 lambda_client = cast(LambdaClient, client)
+                logger.info('Recommendation request', payload=payload)
                 response = await lambda_client.invoke(
                     FunctionName=self.logical_function_name,
                     InvocationType='RequestResponse',
@@ -62,6 +63,10 @@ class LambdaStrategy:
                     error_msg = response_data.get('errorMessage', 'Unknown Lambda Error')
                     logger.error(f'Lambda {self.logical_function_name} failed: {error_msg}')
                     raise RuntimeError(f'Recommendation Engine Error: {error_msg}')
+
+                if response_data.get('statusCode') != 200:
+                    logger.error(f'Lambda returned error status: {response_data.get("body")}')
+                    raise RuntimeError(f'Lambda Error: {response_data.get("body")}')
 
                 logger.info(f'Lambda Raw Response: {response_data}')
 

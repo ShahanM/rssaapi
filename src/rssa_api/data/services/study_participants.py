@@ -52,15 +52,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
     async def enroll_participant(
         self, study_id: uuid.UUID, new_participant: StudyParticipantCreate
     ) -> StudyParticipant:
-        """Enroll a newly created study participant to a study condition.
-
-        Args:
-            study_id: The ID of the study.
-            new_participant: The new participant schema.
-
-        Returns:
-            The newly created participant.
-        """
+        """Enroll a newly created study participant to a study condition."""
         condition_key = None
         source_meta = new_participant.source_meta
         if source_meta and new_participant.participant_type_key == 'test':
@@ -135,16 +127,7 @@ class StudyParticipantMovieSessionService(
     async def get_next_session_movie_ids_batch(
         self, participant_id: uuid.UUID, offset: int, limit: int
     ) -> PagedMoviesSchema | None:
-        """Fetches the next set of movies from a pre-shuffled list.
-
-        Args:
-            participant_id: The participant's id.
-            offset: offset to skip
-            limit: number of movies to return.
-
-        Returns:
-            A list of movies wrapped in a paging wrapper.
-        """
+        """Fetches the next set of movies from a pre-shuffled list."""
         participant_session = await self.repo.find_one(
             options=RepoQueryOptions(
                 filters={'study_participant_id': participant_id}, load_columns=['assigned_list_id']
@@ -179,12 +162,7 @@ class StudyParticipantMovieSessionService(
         return PagedMoviesSchema(movies=movie_ids_slice, total=total_count or 0)
 
     async def assign_pre_shuffled_list_participant(self, participant_id: uuid.UUID, subset: str):
-        """Assigned a pre-shuffled list of movies to a study_participant.
-
-        Args:
-            participant_id: The study_participant id.
-            subset: A short string to identify the subset of ids to assign.
-        """
+        """Assigned a pre-shuffled list of movies to a study_participant."""
         options = RepoQueryOptions(filters={'subset_desc': subset}, load_columns=['id'])
         shuffled_lists = await self.shuffled_movie_repo.find_many(options)
         if shuffled_lists:
@@ -201,16 +179,7 @@ class FeedbackService(BaseService[Feedback, FeedbackRepository]):
     async def create_feedback(
         self, study_id: uuid.UUID, participant_id: uuid.UUID, feedback_data: FeedbackBaseSchema
     ) -> Feedback:
-        """Creates a new feedback entry for a participant in a study.
-
-        Args:
-            study_id: The ID of the study.
-            participant_id: The ID of the participant providing feedback.
-            feedback_data: The feedback data to be stored.
-
-        Returns:
-            The created Feedback object.
-        """
+        """Creates a new feedback entry for a participant in a study."""
         feedback_obj = Feedback(
             study_id=study_id,
             study_step_id=feedback_data.study_step_id,
@@ -231,11 +200,7 @@ MAX_RETRIES = 5
 
 
 class ParticipantStudySessionService(BaseService[ParticipantStudySession, ParticipantStudySessionRepository]):
-    """Service for managing ParticipantStudySession operations.
-
-    Attributes:
-        repo: The ParticipantStudySession repository.
-    """
+    """Service for managing ParticipantStudySession operations."""
 
     async def create_session(self, participant_id: uuid.UUID) -> ParticipantStudySession | None:
         """Create a new ParticipantStudySession for the given participant."""

@@ -86,37 +86,15 @@ class BaseService(Generic[ModelType, RepoType]):
         return [schema.model_validate(obj) for obj in data_objs]
 
     async def update(self, id: uuid.UUID, update_dict: dict[str, Any]) -> None:
-        """Generic update method.
-
-        Args:
-            id: The unique identifier of the model instance to update.
-            update_dict: A dictionary of fields to update.
-
-        Returns:1
-            None
-        """
+        """Generic update method."""
         await self.repo.update(id, update_dict)
 
     async def delete(self, id: uuid.UUID) -> None:
-        """Generic delete method.
-
-        Args:
-            id: The unique identifier of the model instance to delete.
-
-        Returns:
-            None
-        """
+        """Generic delete method."""
         await self.repo.delete(id)
 
     async def count(self, *, options: RepoQueryOptions | None = None) -> int:
-        """Generic count, using SEARCHABLE_COLUMNS from repo.
-
-        Args:
-            options: RepoQueryOptions to filter rows to count.
-
-        Returns:
-            The count of items matching the criteria.
-        """
+        """Generic count, using SEARCHABLE_COLUMNS from repo."""
         options = options or RepoQueryOptions()
         if options.search_text:
             search_cols = getattr(self.repo, 'SEARCHABLE_COLUMNS', [])

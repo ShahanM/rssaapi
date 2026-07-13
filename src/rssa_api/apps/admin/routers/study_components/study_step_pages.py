@@ -47,13 +47,11 @@ async def get_step_page_details(
 
     is_super_admin = 'admin:all' in user.permissions
     if not is_super_admin:
-        step = await step_service.get(page_from_db.study_step_id)
-        if step:
-            has_access = await study_service.check_study_access(step.study_id, current_user.id, min_role='viewer')
-            if not has_access:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
+        has_access = await study_service.check_study_access(page_from_db.study_id, current_user.id, min_role='viewer')
+        if not has_access:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Page not found.')
 
-    return StudyStepPageReadAdmin.model_validate(page_from_db)
+    return page_from_db
 
 
 @router.patch(

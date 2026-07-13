@@ -6,17 +6,10 @@ import structlog
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from rssa_api.auth.authorization import validate_study_participant
-from rssa_api.data.schemas.movie_schemas import (
-    AdvisorMovieFormalRead,
-    AdvisorMovieInformalRead,
-    ERSMovieSchema,
-    MovieDetailSchema,
-    MovieSchema,
-)
 from rssa_api.data.schemas.recommendations import RecommendationRequestPayload
 from rssa_api.docs.metadata import RSTagsEnum as Tags
+from rssa_api.recommenders.registry import REGISTRY, SCHEMA_REGISTRY
 from rssa_api.services.dependencies import RecommenderServiceDep
-from rssa_api.services.recommendation.registry import REGISTRY
 
 log = structlog.getLogger(__name__)
 
@@ -25,18 +18,6 @@ router = APIRouter(
     tags=[Tags.rssa],
 )
 
-SCHEMA_REGISTRY = {
-    'standard': ((MovieSchema,), 'movielens_id'),
-    'standard_emotion': ((ERSMovieSchema,), 'movielens_id'),
-    'detailed': ((MovieDetailSchema,), 'movielens_id'),
-    'community_advisors': (
-        {'formal': (AdvisorMovieFormalRead, MovieSchema), 'informal': (AdvisorMovieInformalRead, MovieSchema)},
-        'movielens_id',
-    ),  # Advisors don't need full details
-    'community_comparison': ((MovieSchema,), 'movielens_id'),  # PrefViz doesn't need full details
-    # 'book_standard': (BookSchema, 'isbn'), # A placeholder to remind me why I am maintain a registry
-}
-
 
 @router.post('/')
 async def get_recommendations(
@@ -44,13 +25,7 @@ async def get_recommendations(
     id_token: Annotated[dict, Depends(validate_study_participant)],
     context_data: RecommendationRequestPayload = Body(...),
 ):
-    """Get recommendations for the current participant.
-
-    Args:
-        recommender_service: Service to fetch recommendations.
-        id_token: Validated participant token.
-        context_data: Optional dictionary for dynamic algorithm parameters (e.g. emotion inputs).
-    """
+    """Get recommendations for the current participant."""
     schema_key = context_data.schema_type  # FIXME: Consider changing the name schema_type to something appropriate
     algorithm_key = await recommender_service.get_participant_algorithm_key(id_token['sub'])
 

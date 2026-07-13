@@ -218,7 +218,7 @@ async def create_study(
     '/{study_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
     summary='Update a study.',
-    description="""Updates an existing study with the provided fields.""",
+    description='Updates an existing study with the provided fields.',
 )
 async def update_study(
     study_id: uuid.UUID,
@@ -287,7 +287,7 @@ async def get_study_steps(
     status_code=status.HTTP_201_CREATED,
     response_model=OrderedListItem,
     summary='Create a new study step.',
-    description="""Create a new step within a study.""",
+    description='Create a new step within a study.',
     response_description='The created study step instance.',
 )
 async def create_study_step(
@@ -316,7 +316,7 @@ async def create_study_step(
     '/{study_id}/conditions/',
     response_model=list[StudyConditionRead],
     summary='Get a list of conditions assigned to a study.',
-    description="""Get a paginated list of conditions associated with a study.""",
+    description='Get a paginated list of conditions associated with a study.',
     response_description="""A list of study conditions.""",
 )
 async def get_study_conditions(
@@ -607,9 +607,21 @@ async def export_study_data(
         raise HTTPException(status_code=404, detail='No data found for this study.')
 
     header_mapping: dict[str, str] = {}
-    flat_data = [flatten_participant_for_csv(p, header_mapping) for p in participants]
+
+    construct_registry: dict[str, str] = {}
+    used_acronyms: set[str] = set()
+    item_counters: dict[str, int] = {}
+    flat_data = [
+        flatten_participant_for_csv(p, header_mapping, construct_registry, used_acronyms, item_counters)
+        for p in participants
+    ]
+    # flat_data = [flatten_participant_for_csv(p, header_mapping) for p in participants]
     base_headers = ['Participant_ID', 'Status', 'Condition']
     final_fieldnames = base_headers + list(header_mapping.values())
+
+    for short_code in header_mapping.values():
+        final_fieldnames.append(f'{short_code}_wlabel')
+        final_fieldnames.append(short_code)
 
     label_row = {
         'Participant_ID': 'De-identified Hash',
@@ -617,7 +629,9 @@ async def export_study_data(
         'Condition': 'Assigned Study Condition',
     }
     for full_text, short_code in header_mapping.items():
-        label_row[short_code] = full_text
+        # label_row[short_code] = full_text
+        label_row[f'{short_code}_wlabel'] = f'{full_text} (Text)'
+        label_row[short_code] = f'{full_text} (Value)'
 
     def iter_csv():
         output = io.StringIO()

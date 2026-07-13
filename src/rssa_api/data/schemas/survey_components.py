@@ -51,6 +51,7 @@ class SurveyItemBase(BaseModel):
 
     text: str
     survey_construct_id: uuid.UUID
+    is_negative: bool
 
 
 class SurveyItemCreate(SurveyItemBase):

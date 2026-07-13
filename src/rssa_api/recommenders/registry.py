@@ -1,6 +1,14 @@
 import os
 from dataclasses import dataclass
 
+from rssa_api.data.schemas.movie_schemas import (
+    AdvisorMovieFormalRead,
+    AdvisorMovieInformalRead,
+    ERSMovieSchema,
+    MovieDetailSchema,
+    MovieSchema,
+)
+
 from .strategies import LambdaStrategy, LocalDevStrategy
 
 LAMBDA_IMPLICIT = os.environ.get('LAMBDA_NAME_IMPLICIT', 'ImplicitMFRecsFunction')
@@ -20,12 +28,21 @@ class StrategyManifest:
     variant: str | None = None
 
 
+SCHEMA_REGISTRY = {
+    'standard': ((MovieSchema,), 'movielens_id'),
+    'standard_emotion': ((ERSMovieSchema,), 'movielens_id'),
+    'detailed': ((MovieDetailSchema,), 'movielens_id'),
+    'community_advisors': (
+        {'formal': (AdvisorMovieFormalRead, MovieSchema), 'informal': (AdvisorMovieInformalRead, MovieSchema)},
+        'movielens_id',
+    ),  # Advisors don't need full details
+    'community_comparison': ((MovieSchema,), 'movielens_id'),  # PrefViz doesn't need full details
+    # 'book_standard': (BookSchema, 'isbn'), # A placeholder to remind me why I am maintain a registry
+}
+
 REGISTRY: dict[str, StrategyManifest] = {
-    """
-    ----------------------------------------------------------------------------
-    Implicit Models
-    ----------------------------------------------------------------------------
-    """
+    # ----------------------------------------------------------------------------
+    # Implicit Models
     'implicit_recs_top_n': StrategyManifest(
         strategy=LambdaStrategy(function_name=LAMBDA_IMPLICIT, payload_template={'path': 'top_n'}),
         domain='movies',
@@ -84,11 +101,8 @@ REGISTRY: dict[str, StrategyManifest] = {
         supported_schemas={'community_advisors'},
         variant='informal',
     ),
-    """
-    ----------------------------------------------------------------------------
-    Biased Models
-    ----------------------------------------------------------------------------
-    """
+    # ----------------------------------------------------------------------------
+    # Biased Models
     'biased_recs_top_n': StrategyManifest(
         strategy=LambdaStrategy(function_name=LAMBDA_BIASED, payload_template={'path': 'top_n'}),
         domain='movies',
@@ -133,14 +147,12 @@ REGISTRY: dict[str, StrategyManifest] = {
         default_schema='prefviz',
         supported_schemas={'community_comparison'},
     ),
-    """
-    ----------------------------------------------------------------------------
-    Emotion Models
-    ----------------------------------------------------------------------------
-    """
+    # ----------------------------------------------------------------------------
+    # Emotion Models
     'implicit_ers_top_n': StrategyManifest(
         strategy=LambdaStrategy(
-            function_name=LAMBDA_EMOTION, payload_template={'path': 'predict_with_emotions', 'strategy': 'top_n'}
+            function_name=LAMBDA_EMOTION,
+            payload_template={'path': 'emotions_diversified_recommendations', 'strategy': 'top_n'},
         ),
         domain='movies',
         id_field='movielens_id',
@@ -149,7 +161,8 @@ REGISTRY: dict[str, StrategyManifest] = {
     ),
     'implicit_ers_diverse_n': StrategyManifest(
         strategy=LambdaStrategy(
-            function_name=LAMBDA_EMOTION, payload_template={'path': 'predict_with_emotions', 'strategy': 'diverse_n'}
+            function_name=LAMBDA_EMOTION,
+            payload_template={'path': 'emotions_diversified_recommendations', 'strategy': 'diverse_n'},
         ),
         domain='movies',
         id_field='movielens_id',
