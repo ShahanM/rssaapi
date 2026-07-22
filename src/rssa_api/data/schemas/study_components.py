@@ -88,9 +88,8 @@ class StudyConditionCreate(StudyConditionBase):
     study_id: uuid.UUID
 
 
-class StudyConditionPresent(StudyComponentBase, DBMixin):
+class StudyConditionPresent(StudyConditionBase, DBMixin):
     short_code: str
-    view_link_key: str
 
 
 class StudyConditionPreview(StudyComponentBase, DBMixin):

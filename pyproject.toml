@@ -30,6 +30,9 @@ docstring-code-format = true
 [tool.pylint.main]
 load-plugins = ["pylint_sqlalchemy"]
 
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+
 [project]
 name = "rssa-api"
 version = "0.6.1"
@@ -54,6 +57,7 @@ dependencies = [
     "pre-commit>=4.5.1",
     "pandas>=3.0.2",
     "horadric-lib[logging-extras]",
+    "gunicorn>=26.0.0",
 ]
 
 [dependency-groups]

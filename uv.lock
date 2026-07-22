@@ -797,6 +797,18 @@ wheels = [
 ]
 
 [[package]]
+name = "gunicorn"
+version = "26.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/b7/a4a3f632f823e432ce6bc65f62961b7980c898c77f075a2f7118cb3846fe/gunicorn-26.0.0.tar.gz", hash = "sha256:ca9346f85e3a4aeeb64d491045c16b9a35647abd37ea15efe53080eb8b090baf", size = 727286, upload-time = "2026-05-05T06:38:25.529Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/40/9c2384fc2be4ad25dd4a49decd5ad9ea5a3639814c11bd40ab77cb9f0a14/gunicorn-26.0.0-py3-none-any.whl", hash = "sha256:40233d26a5f0d1872916188c276e21641155111c2853f0c2cd55260aec0d24fc", size = 212009, upload-time = "2026-05-05T06:38:23.007Z" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1780,6 +1792,7 @@ dependencies = [
     { name = "async-lru" },
     { name = "cryptography" },
     { name = "fastapi" },
+    { name = "gunicorn" },
     { name = "horadric-lib", extra = ["logging-extras"] },
     { name = "httpx" },
     { name = "pandas" },
@@ -1805,6 +1818,7 @@ requires-dist = [
     { name = "async-lru", specifier = ">=2.1.0" },
     { name = "cryptography", specifier = ">=46.0.3" },
     { name = "fastapi", specifier = ">=0.128.0" },
+    { name = "gunicorn", specifier = ">=26.0.0" },
     { name = "horadric-lib", extras = ["logging-extras"], git = "https://github.com/ShahanM/horadric-lib" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pandas", specifier = ">=3.0.2" },
@@ -1827,7 +1841,7 @@ dev = [
 [[package]]
 name = "rssa-storage"
 version = "0.1.1"
-source = { git = "https://github.com/ShahanM/rssa-storage#0bc0c9fdc9cf53c2b1351da05a9908122efe9942" }
+source = { git = "https://github.com/ShahanM/rssa-storage#0aa730b9af3c60ca6534ae28b589c44b57c9c8f6" }
 dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },

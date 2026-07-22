@@ -82,7 +82,7 @@ app.mount('/demo', demo_api)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r'^(https?://localhost:3\d{3}|https://rssa-.*(\.recsys\.dev|-recsys-dev\.pages\.dev))$',
+    allow_origin_regex=r'^(https?://localhost:3\d{3}|https://rssa-.*(\.recsys\.dev|-recsys-dev\.pages\.dev)|https://cybered.pages.dev)$',
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],

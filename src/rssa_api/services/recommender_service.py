@@ -27,7 +27,7 @@ from rssa_api.data.schemas.participant_response_schemas import (
     DynamicPayload,
     MovieLensRating,
 )
-from rssa_api.data.schemas.participant_schemas import StudyParticipantRead
+from rssa_api.data.schemas.participant_schemas import StudyParticipantReadWithCondition
 from rssa_api.data.schemas.recommendations import (
     AdvisorEnrichedResponse,
     AdvisorResponse,
@@ -242,7 +242,7 @@ class RecommenderService:
 
     async def _get_participant_algorithm_config(self, study_participant_id: uuid.UUID) -> tuple[str, int]:
         """Retrieves the assigned recommendation algorithm and limit for a participant."""
-        top_cols, rel_map = extract_load_strategies(StudyParticipantRead)
+        top_cols, rel_map = extract_load_strategies(StudyParticipantReadWithCondition)
         options = RepoQueryOptions(ids=[study_participant_id])
         options.load_columns = top_cols
         options.load_relationships = rel_map
