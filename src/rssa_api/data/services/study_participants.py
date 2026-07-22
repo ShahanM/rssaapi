@@ -89,7 +89,7 @@ class EnrollmentService(BaseService[StudyParticipant, StudyParticipantRepository
         # where n_i, and m_j are the number of participants in the i'th and j'th conditions respectively and i != j
         # Shortcut: We remove the last assigned condition from the pool.
         condition_counts_rows = await self.study_condition_repo.get_participant_count_by_condition(
-            study_id, enabled_only=True, verified_participants_only=True
+            study_id, enabled_only=True, verified_participants_only=False
         )
 
         if not condition_counts_rows:
