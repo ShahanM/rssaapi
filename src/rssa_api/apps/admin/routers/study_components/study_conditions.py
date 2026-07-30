@@ -21,6 +21,7 @@ router = APIRouter(
 )
 
 
+@router.get('/recommender-keys')
 @router.get('/recommender-keys/', response_model=list[dict[str, str]])
 async def get_recommender_keys(
     user: Annotated[Auth0UserSchema, Depends(require_permissions('admin:all', 'read:conditions'))],
@@ -29,6 +30,7 @@ async def get_recommender_keys(
     return get_registry_keys()
 
 
+@router.get('/{condition_id}')
 @router.get('/{condition_id}/', response_model=StudyConditionRead)
 async def get_item(
     condition_id: uuid.UUID,
@@ -51,6 +53,7 @@ async def get_item(
     return StudyConditionRead.model_validate(condition)
 
 
+@router.patch('/{condition_id}')
 @router.patch('/{condition_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_item(
     condition_id: uuid.UUID,
