@@ -35,11 +35,7 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
     """
 
     def _generate_key_and_hash(self) -> tuple[str, str]:
-        """Generate a secure random API key and its encrypted version.
-
-        Returns:
-            A tuple containing the plain-text API key and the Fernet-encrypted key as a string.
-        """
+        """Generate a secure random API key and its encrypted version."""
         plain_text_key = secrets.token_urlsafe(32)
         fernet = Fernet(ENCRYPTION_KEY.encode())
         encrypted_bytes = fernet.encrypt(plain_text_key.encode())
@@ -48,16 +44,7 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
         return plain_text_key, encrypted_str
 
     async def generate_new_api_key(self, apikey_create: ApiKeyCreate) -> ApiKeyRead:
-        """Creates and saves a new API key for a study.
-
-        This will invalidate any existing active keys for the same study and user.
-
-        Args:
-            apikey_create: model schema consisting of a description, user_id, and study_id.
-
-        Returns:
-            An ApiKeyRead object including the new plain-text key.
-        """
+        """Creates and saves a new API key for a study."""
         _plain_key, key_hash = self._generate_key_and_hash()
 
         repo_options = RepoQueryOptions(
@@ -75,11 +62,7 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
         return ApiKeyRead.model_validate(api_key_dict)
 
     async def _invalidate_keys(self, api_keys: Sequence[ApiKey]) -> None:
-        """Sets a sequence of API keys to be inactive.
-
-        Args:
-            api_keys: A sequence of ApiKey model objects to invalidate.
-        """
+        """Sets a sequence of API keys to be inactive."""
         for api_key in api_keys:
             if api_key.is_active:
                 await self.repo.update(api_key.id, {'is_active': False})
@@ -92,13 +75,6 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
         """Retrieves all API keys for a given study and user.
 
         The plain-text version of the key is decrypted and included in the result.
-
-        Args:
-            study_id: The ID of the study.
-            user_id: The ID of the user.
-
-        Returns:
-            A list of ApiKeyRead objects, each including the plain-text key.
         """
         repo_options = RepoQueryOptions(filters={'study_id': study_id, 'user_id': user_id})
         api_keys = await self.repo.find_many(repo_options)
@@ -132,14 +108,6 @@ class ApiKeyService(BaseService[ApiKey, ApiKeyRepository]):
         This method looks up an api_key from the database using the provided key id.
         If a key is found, it is decrypts a Fernet encrypted key and then compares it
         with the key secret.
-
-        Args:
-            api_key_id: The API key id to lookup.
-            api_key_secret: The api key secret to use for validation.
-
-        Returns:
-            The valid API Key if it is found, otherwise None.
-
         """
         key_record = await self.repo.find_one(
             RepoQueryOptions(filters={'id': api_key_id}, load_columns=['id', 'key_hash', 'study_id', 'user_id'])

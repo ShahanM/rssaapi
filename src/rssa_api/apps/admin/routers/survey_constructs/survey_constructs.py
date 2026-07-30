@@ -32,6 +32,7 @@ router = APIRouter(
 )
 
 
+@router.get('')
 @router.get(
     '/',
     response_model=PaginatedResponse[SurveyConstructPreview],
@@ -71,6 +72,7 @@ async def get_survey_constructs(
     return PaginatedResponse[SurveyConstructPreview](data=constructs_from_db, page_count=page_count, total=total_items)
 
 
+@router.get('/{construct_id}')
 @router.get(
     '/{construct_id}/',
     response_model=SurveyConstructRead,
@@ -97,6 +99,7 @@ async def get_construct_detail(
     return construct
 
 
+@router.get('/{construct_id}/summary')
 @router.get(
     '/{construct_id}/summary/',
     response_model=SurveyConstructRead,
@@ -118,6 +121,7 @@ async def get_construct_summary(
     return construct_summary
 
 
+@router.post('')
 @router.post(
     '/',
     status_code=status.HTTP_201_CREATED,
@@ -136,6 +140,7 @@ async def create_survey_construct(
     return {'message': 'Survey construct created.'}
 
 
+@router.patch('/{construct_id}')
 @router.patch(
     '/{construct_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
@@ -153,6 +158,7 @@ async def update_survey_construct(
     await service.update(construct_id, payload)
 
 
+@router.delete('/{construct_id}')
 @router.delete(
     '/{construct_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
@@ -169,6 +175,7 @@ async def delete_construct(
     await service.delete(construct_id)
 
 
+@router.get('/{construct_id}/items')
 @router.get('/{construct_id}/items/', response_model=list[SurveyItemRead])
 async def get_construct_items(
     construct_id: uuid.UUID,
@@ -181,6 +188,7 @@ async def get_construct_items(
     return items
 
 
+@router.post('/{construct_id}/items')
 @router.post('/{construct_id}/items/', status_code=status.HTTP_201_CREATED)
 async def create_construct_item(
     construct_id: uuid.UUID,
@@ -194,7 +202,8 @@ async def create_construct_item(
     return {'message': 'Construct item created.'}
 
 
-@router.patch('/{construct_id}/items/reorder', status_code=204)
+@router.patch('/{construct_id}/items/reorder')
+@router.patch('/{construct_id}/items/reorder/', status_code=204)
 async def update_scale_levels_order(
     construct_id: uuid.UUID,
     service: SurveyItemServiceDep,

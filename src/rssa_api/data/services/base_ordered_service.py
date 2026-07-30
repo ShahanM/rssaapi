@@ -18,11 +18,7 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
     """Service for models that have an inherent order."""
 
     def __init__(self, repo: OrderedRepoType):
-        """Initialize the BaseOrderedService with the given repository.
-
-        Args:
-            repo: The repository instance to be used by the service.
-        """
+        """Initialize the BaseOrderedService with the given repository."""
         super().__init__(repo)
 
         self.scope_field = self.repo.parent_id_column_name
@@ -69,10 +65,5 @@ class BaseOrderedService(BaseScopedService[OrderedModelType, OrderedRepoType]):
         return await super().create(schema, owner_id=owner_id, **kwargs)
 
     async def reorder_items(self, parent_id: uuid.UUID, items_map: dict[uuid.UUID, int]) -> None:
-        """Reorder items under a specific parent.
-
-        Args:
-                parent_id: The ID of the parent entity.
-                items_map: A mapping of item IDs to their new order positions.
-        """
+        """Reorder items under a specific parent."""
         await self.repo.reorder_ordered_instances(parent_id, items_map)
