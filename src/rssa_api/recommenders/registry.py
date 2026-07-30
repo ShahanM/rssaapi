@@ -85,16 +85,84 @@ REGISTRY: dict[str, StrategyManifest] = {
         default_schema='standard',
         supported_schemas={'standard', 'detailed'},
     ),
-    'community_advisors_formal': StrategyManifest(
-        strategy=LambdaStrategy(function_name=LAMBDA_IMPLICIT, payload_template={'path': 'community_advisors'}),
+    'low_div_comm_advisors_formal': StrategyManifest(
+        strategy=LambdaStrategy(
+            function_name=LAMBDA_IMPLICIT,
+            payload_template={
+                'path': 'community_advisors',
+                'strategy': 'top_n',
+            },
+        ),
         domain='movies',
         id_field='movielens_id',
         default_schema='advisor',
         supported_schemas={'community_advisors'},
         variant='formal',
     ),
-    'community_advisors_informal': StrategyManifest(
-        strategy=LambdaStrategy(function_name=LAMBDA_IMPLICIT, payload_template={'path': 'community_advisors'}),
+    'low_div_comm_advisors_informal': StrategyManifest(
+        strategy=LambdaStrategy(
+            function_name=LAMBDA_IMPLICIT,
+            payload_template={
+                'path': 'community_advisors',
+                'strategy': 'top_n',
+            },
+        ),
+        domain='movies',
+        id_field='movielens_id',
+        default_schema='advisor',
+        supported_schemas={'community_advisors'},
+        variant='informal',
+    ),
+    'high_div_no_comp_comm_advisors_formal': StrategyManifest(
+        strategy=LambdaStrategy(
+            function_name=LAMBDA_IMPLICIT,
+            payload_template={
+                'path': 'community_advisors',
+                'strategy': 'diverse_n',
+            },
+        ),
+        domain='movies',
+        id_field='movielens_id',
+        default_schema='advisor',
+        supported_schemas={'community_advisors'},
+        variant='formal',
+    ),
+    'high_div_no_comp_comm_advisors_informal': StrategyManifest(
+        strategy=LambdaStrategy(
+            function_name=LAMBDA_IMPLICIT,
+            payload_template={
+                'path': 'community_advisors',
+                'strategy': 'diverse_n',
+            },
+        ),
+        domain='movies',
+        id_field='movielens_id',
+        default_schema='advisor',
+        supported_schemas={'community_advisors'},
+        variant='informal',
+    ),
+    'high_div_comp_comm_advisors_formal': StrategyManifest(
+        strategy=LambdaStrategy(
+            function_name=LAMBDA_IMPLICIT,
+            payload_template={
+                'path': 'community_advisors',
+                'strategy': 'compromised_diverse_n',
+            },
+        ),
+        domain='movies',
+        id_field='movielens_id',
+        default_schema='advisor',
+        supported_schemas={'community_advisors'},
+        variant='formal',
+    ),
+    'high_div_comp_comm_advisors_informal': StrategyManifest(
+        strategy=LambdaStrategy(
+            function_name=LAMBDA_IMPLICIT,
+            payload_template={
+                'path': 'community_advisors',
+                'strategy': 'compromised_diverse_n',
+            },
+        ),
         domain='movies',
         id_field='movielens_id',
         default_schema='advisor',
