@@ -1840,8 +1840,8 @@ dev = [
 
 [[package]]
 name = "rssa-storage"
-version = "0.1.1"
-source = { git = "https://github.com/ShahanM/rssa-storage#0aa730b9af3c60ca6534ae28b589c44b57c9c8f6" }
+version = "0.1.2"
+source = { git = "https://github.com/ShahanM/rssa-storage#f40c481b94728f34cad492a76f843c3686072b91" }
 dependencies = [
     { name = "alembic" },
     { name = "asyncpg" },
