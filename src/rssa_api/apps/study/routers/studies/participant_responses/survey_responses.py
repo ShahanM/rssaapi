@@ -105,7 +105,7 @@ async def update_survey_item_response(
     Returns:
         Status message.
     """
-    standard_item = await item_service.get(unified_payload.item_id)
+    standard_item = await item_service.get(unified_payload.item_id, DBMixin)
 
     if standard_item:
         response_type = ResponseType.SURVEY_ITEM

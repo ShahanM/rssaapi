@@ -45,7 +45,6 @@ class BaseService(Generic[ModelType, RepoType]):
 
         if schema:
             return schema.model_validate(data_obj)
-        return data_obj
 
     async def get_all(
         self,
