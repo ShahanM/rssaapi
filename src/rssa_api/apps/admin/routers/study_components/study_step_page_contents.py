@@ -25,6 +25,7 @@ router = APIRouter(
 )
 
 
+@router.delete('/{content_id}')
 @router.delete('/{content_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def remove_survey_construct_from_page(
     content_id: uuid.UUID,
@@ -51,6 +52,7 @@ async def remove_survey_construct_from_page(
     await service.delete(content_id)
 
 
+@router.patch('/{content_id}')
 @router.patch('/{content_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_page_content(
     content_id: uuid.UUID,

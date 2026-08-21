@@ -3,10 +3,13 @@
 import uuid
 from typing import Any, Generic, TypeVar
 
+import structlog
 from pydantic import BaseModel
 from rssa_storage.shared import BaseRepository, RepoQueryOptions, merge_repo_query_options
 
 from rssa_api.data.utility import extract_load_strategies
+
+logging = structlog.getLogger('RSSA-BaseService')
 
 ModelType = TypeVar('ModelType')
 RepoType = TypeVar('RepoType', bound='BaseRepository')

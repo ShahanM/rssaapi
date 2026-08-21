@@ -31,6 +31,7 @@ router = APIRouter(
 )
 
 
+@router.get('/{page_id}')
 @router.get('/{page_id}/', response_model=StudyStepPageReadAdmin)
 async def get_step_page_details(
     page_id: uuid.UUID,
@@ -54,6 +55,7 @@ async def get_step_page_details(
     return page_from_db
 
 
+@router.patch('/{page_id}')
 @router.patch(
     '/{page_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
@@ -85,6 +87,7 @@ async def update_step_page(
     await page_service.update(page_id, updated_page)
 
 
+@router.delete('/{page_id}')
 @router.delete(
     '/{page_id}/',
     status_code=status.HTTP_204_NO_CONTENT,
@@ -115,6 +118,7 @@ async def delete_step_page(
     await page_service.delete(page_id)
 
 
+@router.get('/{page_id}/contents')
 @router.get('/{page_id}/contents/', response_model=list[OrderedListItem])
 async def get_page_content(
     page_id: uuid.UUID,
@@ -143,6 +147,7 @@ async def get_page_content(
     return [OrderedListItem.model_validate(c) for c in content]
 
 
+@router.post('/{page_id}/contents')
 @router.post(
     '/{page_id}/contents/',
     status_code=status.HTTP_201_CREATED,
@@ -179,6 +184,7 @@ async def add_content_to_page(
     return content_preview
 
 
+@router.patch('/{page_id}/contents/reorder')
 @router.patch('/{page_id}/contents/reorder/', status_code=status.HTTP_204_NO_CONTENT)
 async def reorder_page_contents(
     page_id: uuid.UUID,

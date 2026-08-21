@@ -1,6 +1,8 @@
 import uuid
+from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from rssa_api.data.utility import generate_code_from_uuid
 
@@ -43,6 +45,25 @@ class ExportSurveyScaleLevel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class StudyAttentionCheckMinimalRead(BaseModel):
+    expected_survey_scale_level_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExportParticipantAttentionCheckResponse(BaseModel):
+    responded_survey_scale_level_id: uuid.UUID | None = Field(exclude=True, repr=False)
+    study_attention_check: StudyAttentionCheckMinimalRead = Field(exclude=True, repr=False)
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    def passed_attention(self) -> bool:
+        if not self.responded_survey_scale_level_id:
+            return False
+        return self.responded_survey_scale_level_id == self.study_attention_check.expected_survey_scale_level_id
+
+
 class ExportParticipantSurveyResponse(BaseModel):
     """Triggers joinedload() for the 1-to-1 context lookups."""
 
@@ -55,14 +76,56 @@ class ExportParticipantSurveyResponse(BaseModel):
 
 
 class ParticipantExportSchema(BaseModel):
-    """The root schema passed to your dynamic repository loader."""
+    """The root schema passed to the dynamic repository loader."""
 
     id: uuid.UUID
     current_status: str
     study_condition: ExportStudyCondition
 
     survey_responses: list[ExportParticipantSurveyResponse] = Field(default_factory=list)
+    attention_check_responses: list[ExportParticipantAttentionCheckResponse] = Field(default_factory=list)
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DynamicPayload(BaseModel):
+    """Schema for dynamic payload with extra fields."""
+
+    experiment_condition: str | None = None
+    extra: dict[str, Any] = {}
+
+    model_config = {'extra': 'allow'}
+
+
+class ExportParticipantStudyInteraction(BaseModel):
+    context_tag: str = Field(exclude=True, repr=False)
+    created_at: datetime = Field(exclude=True, repr=False)
+    payload_json: dict[str, Any]
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ParticipantExplicitInteractionsSchema(BaseModel):
+    """The root schema passed to the dynamic repository loader for the interaction data."""
+
+    id: uuid.UUID
+    current_status: str
+    study_condition: ExportStudyCondition
+
+    activity_responses: list[ExportParticipantStudyInteraction] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExportParticipantFeedback(BaseModel):
+    response_text: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ParticipantFeedbackSchema(BaseModel):
+    id: uuid.UUID
+    current_status: str
+    study_condition: ExportStudyCondition
+    freeform_responses: list[ExportParticipantFeedback]
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -113,74 +176,6 @@ def _get_or_create_shortcode(
     return shortcode
 
 
-# def flatten_participant_for_csv(p: ParticipantExportSchema, header_mapping: dict[str, str]) -> dict[str, str]:
-# def flatten_participant_for_csv(
-#     p: ParticipantExportSchema,
-#     header_mapping: dict[str, str],
-#     construct_registry: dict[str, str],
-#     used_acronyms: set[str],
-#     item_counters: dict[str, int],
-# ) -> dict[str, str]:
-#     """Pivots data and builds a dynamic Question Codebook on the fly."""
-#     flat_row = {
-#         'Participant_ID': generate_code_from_uuid(p.id),
-#         'Status': p.current_status,
-#         'Condition': p.study_condition.name if p.study_condition else 'None',
-#     }
-
-#     for resp in p.survey_responses:
-#         step_name = resp.study_step.name
-#         construct_name = resp.survey_construct.name
-#         item_text = ''
-#         is_neg = False
-#         if resp.survey_item:
-#             item_text = resp.survey_item.text
-#             is_neg = resp.survey_item.is_negative
-#         else:
-#             item_text = 'General'
-
-#         full_header = f'{step_name} | {construct_name} - {item_text}'
-
-#         if full_header not in header_mapping:
-#             if construct_name not in construct_registry:
-#                 words = construct_name.split()
-#                 acronym_chars = []
-#                 for word in words:
-#                     if not word:
-#                         continue
-#                     if not word[0].isalpha():
-#                         break
-#                     acronym_chars.append(word[0].upper())
-#                 base_acronym = ''.join(word[0].upper() for word in words if word)
-#                 if not base_acronym:
-#                     base_acronym = 'Q'
-#                 candidate = base_acronym
-#                 counter = 1
-#                 while candidate in used_acronyms:
-#                     counter += 1
-#                     candidate = f'{base_acronym}{counter}'
-
-#                 construct_registry[construct_name] = candidate
-#                 used_acronyms.add(candidate)
-#                 item_counters[construct_name] = 0
-#             item_counters[construct_name] += 1
-#             item_num = item_counters[construct_name]
-#             acronym = construct_registry[construct_name]
-#             header_mapping[full_header] = f'{acronym}_{item_num}'
-
-#         short_col_header = header_mapping[full_header]
-#         short_col_header_label = f'{header_mapping[full_header]}_wlabel'
-#         answer = ''
-#         value = 0
-#         if resp.survey_scale_level:
-#             value = resp.survey_scale_level.value * -1 if is_neg else resp.survey_scale_level.value
-#             answer = f'{resp.survey_scale_level.value} - {resp.survey_scale_level.label}'
-
-#         flat_row[short_col_header_label] = answer
-#         flat_row[short_col_header] = str(value)
-
-
-#     return flat_row
 def flatten_participant_for_csv(
     p: ParticipantExportSchema,
     header_mapping: dict[str, str],
@@ -196,7 +191,7 @@ def flatten_participant_for_csv(
     }
 
     for resp in p.survey_responses:
-        # Extract base properties
+        step_name = resp.study_step.name
         step_name = resp.study_step.name
         construct_name = resp.survey_construct.name
 
@@ -205,12 +200,10 @@ def flatten_participant_for_csv(
 
         full_header = f'{step_name} | {construct_name} - {item_text}'
 
-        # Get our dynamic shortcode using the helper
         short_col_header = _get_or_create_shortcode(
             full_header, construct_name, header_mapping, construct_registry, used_acronyms, item_counters
         )
 
-        # Format the CSV output values
         short_col_header_label = f'{short_col_header}_wlabel'
         answer = ''
         value = 0
@@ -221,5 +214,48 @@ def flatten_participant_for_csv(
 
         flat_row[short_col_header_label] = answer
         flat_row[short_col_header] = str(value)
+
+    for i, resp in enumerate(p.attention_check_responses, 1):
+        col_header_label = f'attention_check_{i}'
+        short_header_label = f'achk_{i}'
+        header_mapping[col_header_label] = short_header_label
+        flat_row[short_header_label] = str(resp.passed_attention)
+
+    return flat_row
+
+
+def flatten_participant_interactions(p: ParticipantExplicitInteractionsSchema) -> dict[str, str]:
+    """Pivots participant interaction data into a flat row format."""
+    flat_row = {
+        'Participant_ID': generate_code_from_uuid(p.id),
+        'Status': p.current_status,
+        'Condition': p.study_condition.name if p.study_condition else 'None',
+    }
+    sorted_interactions = sorted(p.activity_responses, key=lambda x: x.created_at)
+    for i, interaction in enumerate(sorted_interactions):
+        payload_data = interaction.payload_json.copy()
+
+        extra_fields = payload_data.pop('extra', {})
+        if isinstance(extra_fields, dict):
+            payload_data.update(extra_fields)
+
+        for key, value in payload_data.items():
+            col_name = f'{key}_{i}'
+            flat_row[col_name] = str(value) if value is not None else ''
+
+    return flat_row
+
+
+def flatten_participant_feedback(p: ParticipantFeedbackSchema) -> dict[str, str]:
+    """Pivots participant feedback data into a flat row format."""
+    flat_row = {
+        'Participant_ID': generate_code_from_uuid(p.id),
+        'Status': p.current_status,
+        'Condition': p.study_condition.name if p.study_condition else 'None',
+    }
+
+    for i, response in enumerate(p.freeform_responses):
+        col_name = f'feedback_{i}'
+        flat_row[col_name] = response.response_text or ''
 
     return flat_row

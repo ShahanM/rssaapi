@@ -26,7 +26,15 @@ from rssa_api.data.schemas.base_schemas import (
     ReorderPayloadSchema,
     SortDir,
 )
-from rssa_api.data.schemas.export_schemas import ExportStudy, ParticipantExportSchema, flatten_participant_for_csv
+from rssa_api.data.schemas.export_schemas import (
+    ExportStudy,
+    ParticipantExplicitInteractionsSchema,
+    ParticipantExportSchema,
+    ParticipantFeedbackSchema,
+    flatten_participant_feedback,
+    flatten_participant_for_csv,
+    flatten_participant_interactions,
+)
 from rssa_api.data.schemas.participant_schemas import ParticipantAuditRead
 from rssa_api.data.schemas.study_components import (
     ApiKeyBase,
@@ -589,7 +597,7 @@ async def get_demographic_summary(
     return summary
 
 
-@router.get('/{study_id}/export/')
+@router.get('/{study_id}/export/survey/')
 async def export_study_data(
     study_id: uuid.UUID,
     participant_service: StudyParticipantServiceDep,
@@ -615,12 +623,12 @@ async def export_study_data(
         flatten_participant_for_csv(p, header_mapping, construct_registry, used_acronyms, item_counters)
         for p in participants
     ]
-    # flat_data = [flatten_participant_for_csv(p, header_mapping) for p in participants]
     base_headers = ['Participant_ID', 'Status', 'Condition']
     final_fieldnames = base_headers + list(header_mapping.values())
 
     for short_code in header_mapping.values():
-        final_fieldnames.append(f'{short_code}_wlabel')
+        if not short_code.startswith('achk_'):
+            final_fieldnames.append(f'{short_code}_wlabel')
         final_fieldnames.append(short_code)
 
     label_row = {
@@ -629,9 +637,11 @@ async def export_study_data(
         'Condition': 'Assigned Study Condition',
     }
     for full_text, short_code in header_mapping.items():
-        # label_row[short_code] = full_text
-        label_row[f'{short_code}_wlabel'] = f'{full_text} (Text)'
-        label_row[short_code] = f'{full_text} (Value)'
+        if short_code.startswith('achk_'):
+            label_row[short_code] = full_text
+        else:
+            label_row[f'{short_code}_wlabel'] = f'{full_text} (Text)'
+            label_row[short_code] = f'{full_text} (Value)'
 
     def iter_csv():
         output = io.StringIO()
@@ -660,4 +670,109 @@ async def export_study_data(
         iter_csv(),
         media_type='text/csv',
         headers={'Content-Disposition': f'attachment; filename=study_{study_name}_export.csv'},
+    )
+
+
+@router.get('/{study_id}/export/exp-interacts/')
+async def export_explicit_interactions(
+    study_id: uuid.UUID,
+    participant_service: StudyParticipantServiceDep,
+    study_service: StudyServiceDep,
+):
+    study = await study_service.get(study_id, ExportStudy)
+    options = RepoQueryOptions(filters={'current_status': 'completed', 'discarded': False, 'is_verified': True})
+    participants: list[ParticipantExplicitInteractionsSchema] = await participant_service.get_all(
+        schema=ParticipantExplicitInteractionsSchema,
+        owner_id=study_id,
+        options=options,
+    )
+
+    if not participants:
+        raise HTTPException(status_code=404, detail='No data found for this study.')
+
+    flat_data = [flatten_participant_interactions(p) for p in participants]
+
+    base_headers = ['Participant_ID', 'Status', 'Condition']
+    dynamic_headers = set()
+
+    for row in flat_data:
+        for key in row.keys():
+            if key not in base_headers:
+                dynamic_headers.add(key)
+
+    final_fieldnames = base_headers + sorted(dynamic_headers)
+
+    def iter_tsv():
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=final_fieldnames, delimiter='\t')
+
+        writer.writeheader()
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate(0)
+
+        for row in flat_data:
+            writer.writerow({col: row.get(col, '') for col in final_fieldnames})
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+
+    study_name = study.name.replace(' ', '_') if study else generate_code_from_uuid(study_id, 4)
+    return StreamingResponse(
+        iter_tsv(),
+        media_type='text/tab-separated-values',
+        headers={'Content-Disposition': f'attachment; filename=study_{study_name}_interactions.tsv'},
+    )
+
+
+@router.get('/{study_id}/export/feedback/')
+async def export_feedback(
+    study_id: uuid.UUID,
+    participant_service: StudyParticipantServiceDep,
+    study_service: StudyServiceDep,
+):
+    study = await study_service.get(study_id, ExportStudy)
+    options = RepoQueryOptions(filters={'current_status': 'completed', 'discarded': False, 'is_verified': True})
+    participants: list[ParticipantFeedbackSchema] = await participant_service.get_all(
+        schema=ParticipantFeedbackSchema,
+        owner_id=study_id,
+        options=options,
+    )
+
+    if not participants:
+        raise HTTPException(status_code=404, detail='No data found for this study.')
+
+    flat_data = [flatten_participant_feedback(p) for p in participants]
+
+    base_headers = ['Participant_ID', 'Status', 'Condition']
+    dynamic_headers = set()
+
+    for row in flat_data:
+        for key in row.keys():
+            if key not in base_headers:
+                dynamic_headers.add(key)
+
+    sorted_feedback_headers = sorted(dynamic_headers, key=lambda x: int(x.split('_')[1]))
+    final_fieldnames = base_headers + sorted_feedback_headers
+
+    def iter_tsv():
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=final_fieldnames, delimiter='\t')
+
+        writer.writeheader()
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate(0)
+
+        for row in flat_data:
+            writer.writerow({col: row.get(col, '') for col in final_fieldnames})
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+
+    study_name = study.name.replace(' ', '_') if study else generate_code_from_uuid(study_id, 4)
+    return StreamingResponse(
+        iter_tsv(),
+        media_type='text/tab-separated-values',
+        headers={'Content-Disposition': f'attachment; filename=study_{study_name}_feedback.tsv'},
     )

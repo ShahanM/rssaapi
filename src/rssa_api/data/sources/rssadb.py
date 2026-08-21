@@ -9,7 +9,7 @@ async_engine, AsyncSessionLocal = create_db_components(
     'RSSA_DB_NAME',
     env_prefix='DB' if is_development else 'NEON',
     use_neon_params=not is_development,
-    echo=True,
+    echo=False,
 )
 
 

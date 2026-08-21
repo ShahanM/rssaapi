@@ -27,6 +27,7 @@ router = APIRouter(
 )
 
 
+@router.get('/{step_id}')
 @router.get('/{step_id}/', response_model=StudyStepRead)
 async def get_study_step(
     step_id: uuid.UUID,
@@ -49,6 +50,7 @@ async def get_study_step(
     return study_step
 
 
+@router.get('/{step_id}/pages')
 @router.get('/{step_id}/pages/', response_model=list[OrderedListItem])
 async def get_pages_for_study_step(
     step_id: uuid.UUID,
@@ -74,6 +76,7 @@ async def get_pages_for_study_step(
     return [OrderedListItem.model_validate(p) for p in pages_from_db]
 
 
+@router.post('/{step_id}/pages')
 @router.post('/{step_id}/pages/', status_code=status.HTTP_201_CREATED, response_model=OrderedListItem)
 async def create_page_for_step(
     step_id: uuid.UUID,
@@ -103,6 +106,7 @@ async def create_page_for_step(
     return OrderedListItem.model_validate(created_page)
 
 
+@router.patch('/{step_id}')
 @router.patch('/{step_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def update_study_step(
     step_id: uuid.UUID,
@@ -126,6 +130,7 @@ async def update_study_step(
     await step_service.update(step_id, payload)
 
 
+@router.delete('/{step_id}')
 @router.delete('/{step_id}/', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_study_step(
     step_id: uuid.UUID,
@@ -148,6 +153,7 @@ async def delete_study_step(
     await step_service.delete(step_id)
 
 
+@router.patch('/{step_id}/pages/reorder')
 @router.patch('/{step_id}/pages/reorder/', status_code=status.HTTP_204_NO_CONTENT)
 async def reorder_step_pages(
     step_id: uuid.UUID,
